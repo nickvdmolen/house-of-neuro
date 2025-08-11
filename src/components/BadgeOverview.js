@@ -7,13 +7,15 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
         const earned = earnedBadges.includes(b.id);
         return (
           <div key={b.id} className="flex flex-col items-center text-sm">
-            <div className="w-20 h-20 rounded-full border overflow-hidden">
+            {earned ? (
               <img
                 src={b.image}
                 alt={b.title}
-                className={`w-full h-full object-cover ${earned ? '' : 'opacity-20 grayscale'}`}
+                className="badge-box rounded-full border object-cover"
               />
-            </div>
+            ) : (
+              <div className="badge-box rounded-full border bg-white"></div>
+            )}
             <div className="mt-2 text-center">{b.title}</div>
           </div>
         );

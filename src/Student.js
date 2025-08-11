@@ -50,6 +50,8 @@ export default function Student() {
     );
   }, [awards, selectedStudentId, myGroup]);
 
+  const [showBadges, setShowBadges] = useState(false);
+
   const [signupEmail, setSignupEmail] = useState('');
   const [signupName, setSignupName] = useState('');
   const handleSelfSignup = () => {
@@ -64,6 +66,25 @@ export default function Student() {
     setSignupEmail('');
     setSignupName('');
   };
+
+  if (showBadges) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <Card title="Badges">
+          {me ? (
+            <BadgeOverview badgeDefs={BADGE_DEFS} earnedBadges={myBadges} />
+          ) : (
+            <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
+          )}
+          <div className="mt-4">
+            <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(false)}>
+              Terug naar puntenoverzicht
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -96,7 +117,9 @@ export default function Student() {
 
       <Card title="Badges" className="lg:col-span-3">
         {me ? (
-          <BadgeOverview badgeDefs={BADGE_DEFS} earnedBadges={myBadges} />
+          <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
+            Bekijk badges
+          </Button>
         ) : (
           <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
         )}
