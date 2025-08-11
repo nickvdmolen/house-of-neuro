@@ -26,7 +26,7 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800">
       <div className="max-w-6xl mx-auto">
         <header style={{ position: 'relative', marginBottom: '1.5rem' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center' }}>Neuromarketing Points · Prototype</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center' }}>Neuromarketing Housepoints</h1>
           {route !== '/' && (
             <div style={{ position: 'absolute', top: 0, right: 0 }}>
               <button
@@ -38,7 +38,6 @@ export default function App() {
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
                   <a href="#/student" style={{ display: 'block', padding: '8px 12px', textDecoration: 'none', color: '#000' }} onClick={() => setMenuOpen(false)}>Student</a>
                   <a href="#/admin" style={{ display: 'block', padding: '8px 12px', textDecoration: 'none', color: '#000' }} onClick={() => setMenuOpen(false)}>Beheer</a>
-                  {isAdmin && <a href="#/roster" style={{ display: 'block', padding: '8px 12px', textDecoration: 'none', color: '#000' }} onClick={() => setMenuOpen(false)}>Overzicht</a>}
                   {isAdmin && (
                     <button onClick={() => { denyAdmin(); setMenuOpen(false); }} style={{ display: 'block', width: '100%', padding: '8px 12px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}>Uitloggen</button>
                   )}

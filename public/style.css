@@ -1,5 +1,5 @@
 /* ===========================
-   Neuromarketing Points UI
+   Neuromarketing Housepoints UI
    Style: "Brain Buddy" (matches badge art)
    =========================== */
 
@@ -127,7 +127,7 @@ body{
   box-shadow: inset 0 -2px 0 rgba(0,0,0,.2);
 }
 
-/* ---------- Points counter ---------- */
+/* ---------- Housepoints counter ---------- */
 .points{
   display:flex; align-items:center; gap:10px;
   padding:10px 14px;
