@@ -86,11 +86,19 @@ function TextInput({ value, onChange, placeholder, className = "" }) {
   );
 }
 
-function Select({ value, onChange, children, className = "" }) {
+function Select({ value, onChange, children, className = "", multiple = false }) {
   return (
     <select
+      multiple={multiple}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        if (multiple) {
+          const vals = Array.from(e.target.selectedOptions).map((o) => o.value);
+          onChange(vals);
+        } else {
+          onChange(e.target.value);
+        }
+      }}
       className={`w-full rounded-xl border border-neutral-300 px-3 py-2 bg-white ${className}`}
     >
       {children}
@@ -313,21 +321,27 @@ function AdminView({
   const [assignGroupId, setAssignGroupId] = useState("");
 
   const [awardType, setAwardType] = useState("student");
-  const [awardTargetId, setAwardTargetId] = useState("");
+  const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
+  const [awardGroupId, setAwardGroupId] = useState(groups[0]?.id || "");
   const [awardAmount, setAwardAmount] = useState(5);
   const [awardReason, setAwardReason] = useState("");
 
   useEffect(() => {
-    if (awardType === "student") {
-      if (students.length && !students.find((s) => s.id === awardTargetId)) {
-        setAwardTargetId(students[0]?.id || "");
-      }
+    if (students.length === 0) {
+      setAwardStudentIds([]);
     } else {
-      if (groups.length && !groups.find((g) => g.id === awardTargetId)) {
-        setAwardTargetId(groups[0]?.id || "");
-      }
+      setAwardStudentIds((prev) => {
+        const valid = prev.filter((id) => students.some((s) => s.id === id));
+        return valid.length ? valid : [students[0].id];
+      });
     }
-  }, [awardType, students, groups, awardTargetId]);
+  }, [students]);
+
+  useEffect(() => {
+    if (groups.length && !groups.find((g) => g.id === awardGroupId)) {
+      setAwardGroupId(groups[0]?.id || "");
+    }
+  }, [groups, awardGroupId]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -427,7 +441,12 @@ function AdminView({
           <div className="md:col-span-2">
             <label className="text-sm">Doel</label>
             {awardType === "student" ? (
-              <Select value={awardTargetId} onChange={setAwardTargetId}>
+              <Select
+                multiple
+                value={awardStudentIds}
+                onChange={setAwardStudentIds}
+                className="h-32"
+              >
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -435,7 +454,7 @@ function AdminView({
                 ))}
               </Select>
             ) : (
-              <Select value={awardTargetId} onChange={setAwardTargetId}>
+              <Select value={awardGroupId} onChange={setAwardGroupId}>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -461,11 +480,14 @@ function AdminView({
           <div className="md:col-span-1">
             <Button
               className="bg-emerald-600 text-white w-full"
+              disabled={awardType === "student" ? awardStudentIds.length === 0 : !awardGroupId}
               onClick={() => {
                 if (awardType === "student") {
-                  onAwardStudent(awardTargetId, awardAmount, awardReason.trim());
+                  awardStudentIds.forEach((id) =>
+                    onAwardStudent(id, awardAmount, awardReason.trim())
+                  );
                 } else {
-                  onAwardGroup(awardTargetId, awardAmount, awardReason.trim());
+                  onAwardGroup(awardGroupId, awardAmount, awardReason.trim());
                 }
                 setAwardReason("");
               }}
