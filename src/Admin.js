@@ -120,6 +120,11 @@ export default function Admin() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <Card title="Scores" className="lg:col-span-3">
+        <a href="#/roster">
+          <Button className="bg-indigo-600 text-white">Bekijk alle scores</Button>
+        </a>
+      </Card>
       <Card title="Student toevoegen">
         <div className="grid grid-cols-1 gap-2">
           <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />

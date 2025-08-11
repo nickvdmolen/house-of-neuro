@@ -3,7 +3,7 @@ import React from 'react';
 export default function BadgeOverview({ badgeDefs, earnedBadges }) {
   const visible = badgeDefs.filter((b) => earnedBadges.includes(b.id));
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
 
       {badgeDefs.map((b) => {
         const earned = earnedBadges.includes(b.id);
