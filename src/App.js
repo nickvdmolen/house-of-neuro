@@ -21,7 +21,11 @@ function loadLS(key, fallback) {
 }
 
 function saveLS(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore write errors (e.g., quota exceeded)
+  }
 }
 
 const seedStudents = [
@@ -186,7 +190,11 @@ export default function App() {
   }, [setGroups, setAwards]);
 
   const resetAll = useCallback(() => {
-    if (!confirm("Reset alle data? Dit kan niet ongedaan worden.")) return;
+    const ok =
+      typeof window !== "undefined" && typeof window.confirm === "function"
+        ? window.confirm("Reset alle data? Dit kan niet ongedaan worden.")
+        : true;
+    if (!ok) return;
     setStudents(seedStudents);
     setGroups(seedGroups);
     setAwards(seedAwards);
@@ -442,7 +450,10 @@ function AdminView({
             <input
               type="number"
               value={awardAmount}
-              onChange={(e) => setAwardAmount(parseInt(e.target.value || "0", 10))}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setAwardAmount(Number.isFinite(val) ? val : 0);
+              }}
               className="w-full rounded-xl border border-neutral-300 px-3 py-2"
             />
           </div>
@@ -596,6 +607,17 @@ function StudentView({ students, groups, awards, individualLeaderboard, groupLea
 
   const myGroupRow = myGroup ? groupLeaderboard.find((g) => g.id === myGroup.id) : null;
 
+  const myGroupTotal = useMemo(() => {
+    if (!myGroup) return 0;
+    if (myGroupRow) return myGroupRow.total;
+    const members = students.filter((s) => s.groupId === myGroup.id);
+    const size = members.length;
+    const sum = members.reduce((acc, s) => acc + (Number(s.points) || 0), 0);
+    const avgIndiv = size ? sum / size : 0;
+    const bonus = Number(myGroup.points) || 0;
+    return avgIndiv + bonus;
+  }, [myGroup, myGroupRow, students]);
+
   const handleSelfSignup = () => {
     const email = (signupEmail || '').trim();
     const name = (signupName || '').trim();
@@ -640,7 +662,7 @@ function StudentView({ students, groups, awards, individualLeaderboard, groupLea
             </div>
             {myGroup && (
               <div>
-                <span className="font-semibold">Groepspunten (totaal):</span> {myGroupRow ? myGroupRow.total.toFixed(1) : myGroup.points}
+                <span className="font-semibold">Groepspunten (totaal):</span> {myGroupTotal.toFixed(1)}
               </div>
             )}
           </div>
