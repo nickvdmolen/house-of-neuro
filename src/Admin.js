@@ -73,6 +73,9 @@ export default function Admin() {
   const [awardAmount, setAwardAmount] = useState(5);
   const [awardReason, setAwardReason] = useState('');
 
+  const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
+  const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
+
   const [page, setPage] = useState('add-student');
 
   useEffect(() => {
@@ -92,11 +95,24 @@ export default function Admin() {
     }
   }, [groups, awardGroupId]);
 
+  useEffect(() => {
+    if (students.length && !students.find((s) => s.id === assignStudentId)) {
+      setAssignStudentId(students[0]?.id || '');
+    }
+  }, [students, assignStudentId]);
+
+  useEffect(() => {
+    if (groups.length && !groups.find((g) => g.id === assignGroupId)) {
+      setAssignGroupId(groups[0]?.id || '');
+    }
+  }, [groups, assignGroupId]);
+
   return (
     <div className="space-y-4">
       <Select value={page} onChange={setPage} className="max-w-xs">
         <option value="add-student">Student toevoegen</option>
         <option value="add-group">Groep toevoegen</option>
+        <option value="assign-group">Student aan groep koppelen</option>
         <option value="badges">Badges toekennen</option>
         <option value="points">Punten invoeren</option>
         <option value="leaderboard-students">Scorebord – Individueel</option>
@@ -149,6 +165,38 @@ export default function Admin() {
               }}
             >
               Voeg toe
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {page === 'assign-group' && (
+        <Card title="Student aan groep koppelen">
+          <div className="grid grid-cols-1 gap-2">
+            <Select value={assignStudentId} onChange={setAssignStudentId}>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+            <Select value={assignGroupId} onChange={setAssignGroupId}>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </Select>
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={!assignStudentId || !assignGroupId}
+              onClick={() => {
+                setStudents((prev) =>
+                  prev.map((s) => (s.id === assignStudentId ? { ...s, groupId: assignGroupId } : s))
+                );
+              }}
+            >
+              Koppel
             </Button>
           </div>
         </Card>
