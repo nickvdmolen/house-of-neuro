@@ -10,18 +10,13 @@ import { BADGE_DEFS } from './badgeDefs';
 export default function Admin() {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
-  const [awards, setAwards] = useAwards();
+  const [, setAwards] = useAwards();
 
   const studentById = useMemo(() => {
     const m = new Map();
     for (const s of students) m.set(s.id, s);
     return m;
   }, [students]);
-  const groupById = useMemo(() => {
-    const m = new Map();
-    for (const g of groups) m.set(g.id, g);
-    return m;
-  }, [groups]);
 
   const individualLeaderboard = useMemo(() => getIndividualLeaderboard(students), [students]);
 
@@ -41,19 +36,6 @@ export default function Admin() {
     setGroups((prev) => [...prev, { id, name, points: 0 }]);
     return id;
   }, [setGroups]);
-
-  const deleteStudent = useCallback((studentId) => {
-    if (!studentId) return;
-    const ok = typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm('Deze student verwijderen? Dit verwijdert ook individuele awards.') : true;
-    if (!ok) return;
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
-    setAwards((prev) => prev.filter((a) => !(a.type === 'student' && a.targetId === studentId)));
-  }, [setStudents, setAwards]);
-
-  const assignStudentGroup = useCallback((studentId, groupId) => {
-    if (!studentId) return;
-    setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, groupId: groupId || null } : s)));
-  }, [setStudents]);
 
   const toggleStudentBadge = useCallback((studentId, badgeId, hasBadge) => {
     if (!studentId || !badgeId) return;
@@ -81,25 +63,17 @@ export default function Admin() {
     setAwards((prev) => [award, ...prev].slice(0, 500));
   }, [setGroups, setAwards]);
 
-  const resetAll = useCallback(() => {
-    const ok = typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm('Reset alle data? Dit kan niet ongedaan worden.') : true;
-    if (!ok) return;
-    setStudents([]);
-    setGroups([]);
-    setAwards([]);
-  }, [setStudents, setGroups, setAwards]);
-
   const [newStudent, setNewStudent] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newGroup, setNewGroup] = useState('');
-  const [assignStudentId, setAssignStudentId] = useState('');
-  const [assignGroupId, setAssignGroupId] = useState('');
   const [badgeStudentId, setBadgeStudentId] = useState('');
   const [awardType, setAwardType] = useState('student');
   const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
   const [awardGroupId, setAwardGroupId] = useState(groups[0]?.id || '');
   const [awardAmount, setAwardAmount] = useState(5);
   const [awardReason, setAwardReason] = useState('');
+
+  const [page, setPage] = useState('add-student');
 
   useEffect(() => {
     if (students.length === 0) {
@@ -119,201 +93,204 @@ export default function Admin() {
   }, [groups, awardGroupId]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <Card title="Scores" className="lg:col-span-3">
-        <a href="#/roster">
-          <Button className="bg-indigo-600 text-white">Bekijk alle scores</Button>
-        </a>
-      </Card>
-      <Card title="Student toevoegen">
-        <div className="grid grid-cols-1 gap-2">
-          <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />
-          <TextInput value={newStudentEmail} onChange={setNewStudentEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-          {newStudentEmail && !emailValid(newStudentEmail) && (
-            <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-          )}
-          <div className="flex gap-2 items-center">
+    <div className="space-y-4">
+      <Select value={page} onChange={setPage} className="max-w-xs">
+        <option value="add-student">Student toevoegen</option>
+        <option value="add-group">Groep toevoegen</option>
+        <option value="badges">Badges toekennen</option>
+        <option value="points">Punten invoeren</option>
+        <option value="leaderboard-students">Scorebord – Individueel</option>
+        <option value="leaderboard-groups">Scorebord – Groepen</option>
+      </Select>
+
+      {page === 'add-student' && (
+        <Card title="Student toevoegen">
+          <div className="grid grid-cols-1 gap-2">
+            <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />
+            <TextInput
+              value={newStudentEmail}
+              onChange={setNewStudentEmail}
+              placeholder="E-mail (@student.nhlstenden.com)"
+            />
+            {newStudentEmail && !emailValid(newStudentEmail) && (
+              <div className="text-sm text-rose-600">
+                Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.
+              </div>
+            )}
+            <div className="flex gap-2 items-center">
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!newStudent.trim() || (newStudentEmail.trim() !== '' && !emailValid(newStudentEmail))}
+                onClick={() => {
+                  const name = newStudent.trim();
+                  const email = newStudentEmail.trim();
+                  addStudent(name, email || undefined);
+                  setNewStudent('');
+                  setNewStudentEmail('');
+                }}
+              >
+                Voeg toe
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {page === 'add-group' && (
+        <Card title="Groep toevoegen">
+          <div className="grid grid-cols-1 gap-2">
+            <TextInput value={newGroup} onChange={setNewGroup} placeholder="Groepsnaam" />
             <Button
               className="bg-indigo-600 text-white"
-              disabled={!newStudent.trim() || (newStudentEmail.trim() !== '' && !emailValid(newStudentEmail))}
+              disabled={!newGroup.trim()}
               onClick={() => {
-                const name = newStudent.trim();
-                const email = newStudentEmail.trim();
-                const newId = addStudent(name, email || undefined);
-                setAssignStudentId(newId);
-                setNewStudent('');
-                setNewStudentEmail('');
+                addGroup(newGroup.trim());
+                setNewGroup('');
               }}
             >
               Voeg toe
             </Button>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      <Card title="Groep toevoegen">
-        <div className="grid grid-cols-1 gap-2">
-          <TextInput value={newGroup} onChange={setNewGroup} placeholder="Groepsnaam" />
-          <Button className="bg-indigo-600 text-white" disabled={!newGroup.trim()} onClick={() => { addGroup(newGroup.trim()); setNewGroup(''); }}>
-            Voeg toe
-          </Button>
-        </div>
-      </Card>
-
-      <Card title="Student ↔ Groep toewijzen / beheren" className="lg:col-span-2">
-        <div className="grid md:grid-cols-2 gap-2">
-          <Select value={assignStudentId} onChange={setAssignStudentId}>
-            <option value="">Kies student…</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} {s.email ? `· ${s.email}` : ''} {s.groupId ? `(${groupById.get(s.groupId)?.name || '-'})` : '(geen groep)'}
-              </option>
-            ))}
-          </Select>
-          <Select value={assignGroupId} onChange={setAssignGroupId}>
-            <option value="">(geen groep)</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </Select>
-          <div className="flex gap-2">
-            <Button className="bg-indigo-600 text-white" onClick={() => onAssign(assignStudentId, assignGroupId || null)}>
-              Opslaan
-            </Button>
-            <Button className="bg-rose-600 text-white" onClick={() => assignStudentId && deleteStudent(assignStudentId)}>
-              Verwijder student
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      <Card title="Badges toekennen">
-        <div className="grid grid-cols-1 gap-2">
-          <Select value={badgeStudentId} onChange={setBadgeStudentId}>
-            <option value="">Kies student…</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
-          {badgeStudentId && (
-            <BadgeChecklist
-              badgeDefs={BADGE_DEFS}
-              studentBadges={studentById.get(badgeStudentId)?.badges || []}
-              onToggle={(badgeId, checked) => toggleStudentBadge(badgeStudentId, badgeId, checked)}
-            />
-          )}
-        </div>
-      </Card>
-
-      <Card title="Punten toekennen" className="lg:col-span-2">
-        <div className="grid md:grid-cols-5 gap-2 items-end">
-          <div className="md:col-span-1">
-            <label className="text-sm">Type</label>
-            <Select value={awardType} onChange={setAwardType}>
-              <option value="student">Individu</option>
-              <option value="group">Groep</option>
+      {page === 'badges' && (
+        <Card title="Badges toekennen">
+          <div className="grid grid-cols-1 gap-2">
+            <Select value={badgeStudentId} onChange={setBadgeStudentId}>
+              <option value="">Kies student…</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
             </Select>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-sm">Doel</label>
-            {awardType === 'student' ? (
-              <Select multiple value={awardStudentIds} onChange={setAwardStudentIds} className="h-32">
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <Select value={awardGroupId} onChange={setAwardGroupId}>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </Select>
+            {badgeStudentId && (
+              <BadgeChecklist
+                badgeDefs={BADGE_DEFS}
+                studentBadges={studentById.get(badgeStudentId)?.badges || []}
+                onToggle={(badgeId, checked) => toggleStudentBadge(badgeStudentId, badgeId, checked)}
+              />
             )}
           </div>
+        </Card>
+      )}
 
-          <div>
-            <label className="text-sm">Punten</label>
-            <TextInput value={String(awardAmount)} onChange={(v) => setAwardAmount(Number(v))} />
+      {page === 'points' && (
+        <Card title="Punten invoeren">
+          <div className="grid md:grid-cols-5 gap-2 items-end">
+            <div className="md:col-span-1">
+              <label className="text-sm">Type</label>
+              <Select value={awardType} onChange={setAwardType}>
+                <option value="student">Individu</option>
+                <option value="group">Groep</option>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm">Doel</label>
+              {awardType === 'student' ? (
+                <Select multiple value={awardStudentIds} onChange={setAwardStudentIds} className="h-32">
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Select value={awardGroupId} onChange={setAwardGroupId}>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm">Punten</label>
+              <TextInput value={String(awardAmount)} onChange={(v) => setAwardAmount(Number(v))} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm">Reden</label>
+              <TextInput value={awardReason} onChange={setAwardReason} />
+            </div>
+            <Button
+              className="bg-indigo-600 text-white md:col-span-5"
+              disabled={awardType === 'student' ? awardStudentIds.length === 0 : !awardGroupId}
+              onClick={() => {
+                if (awardType === 'student') {
+                  awardStudentIds.forEach((id) => awardToStudent(id, awardAmount, awardReason.trim()));
+                } else {
+                  awardToGroup(awardGroupId, awardAmount, awardReason.trim());
+                }
+                setAwardReason('');
+              }}
+            >
+              Toekennen
+            </Button>
           </div>
-          <div className="md:col-span-2">
-            <label className="text-sm">Reden</label>
-            <TextInput value={awardReason} onChange={setAwardReason} />
-          </div>
-          <Button
-            className="bg-indigo-600 text-white md:col-span-5"
-            disabled={awardType === 'student' ? awardStudentIds.length === 0 : !awardGroupId}
-            onClick={() => {
-              if (awardType === 'student') {
-                awardStudentIds.forEach((id) => awardToStudent(id, awardAmount, awardReason.trim()));
-              } else {
-                awardToGroup(awardGroupId, awardAmount, awardReason.trim());
-              }
-              setAwardReason('');
-            }}
-          >
-            Toekennen
-          </Button>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      <Card title="Leaderboard – Individueel" className="lg:col-span-2">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-1 pr-2">#</th>
-              <th className="py-1 pr-2">Student</th>
-              <th className="py-1 pr-2 text-right">Punten</th>
-            </tr>
-          </thead>
-          <tbody>
-            {individualLeaderboard.slice(0, 3).map((row) => (
-              <tr key={row.id} className="border-b last:border-0">
-                <td className="py-1 pr-2">{row.rank}</td>
-                <td className="py-1 pr-2">{row.name}</td>
-                <td className={`py-1 pr-2 text-right font-semibold ${row.points > 0 ? 'text-emerald-700' : row.points < 0 ? 'text-rose-700' : 'text-neutral-700'}`}>{row.points}</td>
+      {page === 'leaderboard-students' && (
+        <Card title="Leaderboard – Individueel">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="py-1 pr-2">#</th>
+                <th className="py-1 pr-2">Student</th>
+                <th className="py-1 pr-2 text-right">Punten</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+            </thead>
+            <tbody>
+              {individualLeaderboard.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="py-1 pr-2">{row.rank}</td>
+                  <td className="py-1 pr-2">{row.name}</td>
+                  <td
+                    className={`py-1 pr-2 text-right font-semibold ${
+                      row.points > 0 ? 'text-emerald-700' : row.points < 0 ? 'text-rose-700' : 'text-neutral-700'
+                    }`}
+                  >
+                    {row.points}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
 
-      <Card title="Leaderboard – Groepen" className="lg:col-span-1">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-1 pr-2">#</th>
-              <th className="py-1 pr-2">Groep</th>
-              <th className="py-1 pr-2 text-right">Totaal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groupLeaderboard.slice(0, 3).map((row) => (
-              <tr key={row.id} className="border-b last:border-0">
-                <td className="py-1 pr-2">{row.rank}</td>
-                <td className="py-1 pr-2">{row.name}</td>
-                <td className={`py-1 pr-2 text-right font-semibold ${row.total > 0 ? 'text-emerald-700' : row.total < 0 ? 'text-rose-700' : 'text-neutral-700'}`}>{row.total}</td>
+      {page === 'leaderboard-groups' && (
+        <Card title="Leaderboard – Groepen">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="py-1 pr-2">#</th>
+                <th className="py-1 pr-2">Groep</th>
+                <th className="py-1 pr-2 text-right">Totaal</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Card title="Reset" className="lg:col-span-3">
-        <Button className="bg-rose-600 text-white" onClick={resetAll}>Reset alle data</Button>
-      </Card>
+            </thead>
+            <tbody>
+              {groupLeaderboard.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="py-1 pr-2">{row.rank}</td>
+                  <td className="py-1 pr-2">{row.name}</td>
+                  <td
+                    className={`py-1 pr-2 text-right font-semibold ${
+                      row.total > 0 ? 'text-emerald-700' : row.total < 0 ? 'text-rose-700' : 'text-neutral-700'
+                    }`}
+                  >
+                    {row.total}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
     </div>
   );
-
-  function onAssign(sid, gid) {
-    assignStudentGroup(sid, gid);
-  }
 }
