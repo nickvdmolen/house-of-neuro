@@ -70,9 +70,6 @@ export default function Student() {
   if (showBadges) {
     return (
       <div className="max-w-3xl mx-auto">
-
-        <Card title="Badges">
-
         <Card title="Verdiende badges">
 
           {me ? (
