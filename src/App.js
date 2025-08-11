@@ -29,9 +29,9 @@ function saveLS(key, value) {
 }
 
 const seedStudents = [
-  { id: "s1", name: "Alex",  email: "alex@student.nhlstenden.com",  groupId: "g1", points: 10 },
-  { id: "s2", name: "Bo",    email: "bo@student.nhlstenden.com",    groupId: "g1", points: 5  },
-  { id: "s3", name: "Casey", email: "casey@student.nhlstenden.com", groupId: "g2", points: 12 },
+  { id: "s1", name: "Alex",  email: "alex@student.nhlstenden.com",  groupId: "g1", points: 10, badges: [] },
+  { id: "s2", name: "Bo",    email: "bo@student.nhlstenden.com",    groupId: "g1", points: 5,  badges: [] },
+  { id: "s3", name: "Casey", email: "casey@student.nhlstenden.com", groupId: "g2", points: 12, badges: [] },
 ];
 
 const seedGroups = [
@@ -42,6 +42,26 @@ const seedGroups = [
 const seedAwards = [
   { id: "a1", ts: Date.now() - 1000 * 60 * 60, type: "group",   targetId: "g1", amount: 10, reason: "Kick-off pitch" },
   { id: "a2", ts: Date.now() - 1000 * 60 * 50, type: "student", targetId: "s3", amount: 4,  reason: "Reading quiz"   },
+];
+
+const BADGE_DEFS = [
+  { id: "eeg", title: "EEG" },
+  { id: "eeg2", title: "EEG2" },
+  { id: "experiment", title: "Experiment" },
+  { id: "facereader", title: "Facereader" },
+  { id: "excursie", title: "Excursie" },
+  { id: "groupname", title: "Groepsnaam & mascotte" },
+  { id: "homework", title: "Homework" },
+  { id: "kennistoets", title: "Kennistoets" },
+  { id: "leeswerk", title: "Leeswerk" },
+  { id: "lunch", title: "Lunch" },
+  { id: "meeting", title: "Meeting with commissioner" },
+  { id: "minorbehaald", title: "Minor behaald" },
+  { id: "namen", title: "Namen badge" },
+  { id: "partycommittee", title: "Party committee" },
+  { id: "project", title: "Project" },
+  { id: "pubquiz", title: "Pubquiz" },
+  { id: "pupil-labs", title: "Pupil labs" },
 ];
 
 const EMAIL_RE = /@student\.nhlstenden\.com$/i;
@@ -152,7 +172,7 @@ export default function App() {
 
   const addStudent = useCallback((name, email) => {
     const id = genId();
-    setStudents((prev) => [...prev, { id, name, email: email || undefined, groupId: null, points: 0 }]);
+    setStudents((prev) => [...prev, { id, name, email: email || undefined, groupId: null, points: 0, badges: [] }]);
     return id;
   }, [setStudents]);
 
@@ -173,6 +193,18 @@ export default function App() {
   const assignStudentGroup = useCallback((studentId, groupId) => {
     if (!studentId) return;
     setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, groupId: groupId || null } : s)));
+  }, [setStudents]);
+
+  const toggleStudentBadge = useCallback((studentId, badgeId, hasBadge) => {
+    if (!studentId || !badgeId) return;
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        const current = new Set(s.badges || []);
+        if (hasBadge) current.add(badgeId); else current.delete(badgeId);
+        return { ...s, badges: Array.from(current) };
+      })
+    );
   }, [setStudents]);
 
   const awardToStudent = useCallback((studentId, amount, reason) => {
@@ -234,6 +266,7 @@ export default function App() {
               onAddStudent={addStudent}
               onAddGroup={addGroup}
               onAssignStudentGroup={assignStudentGroup}
+              onToggleBadge={toggleStudentBadge}
               onAwardStudent={awardToStudent}
               onAwardGroup={awardToGroup}
               onDeleteStudent={deleteStudent}
@@ -241,6 +274,7 @@ export default function App() {
               groupLeaderboard={groupLeaderboard}
               groupById={groupById}
               onReset={resetAll}
+              badgeDefs={BADGE_DEFS}
             />
           ) : (
             <AdminGate onAllow={allowAdmin} />
@@ -254,6 +288,7 @@ export default function App() {
             groupLeaderboard={groupLeaderboard}
             groupById={groupById}
             onSelfSignup={addStudent}
+            badgeDefs={BADGE_DEFS}
           />
         )}
       </div>
@@ -297,6 +332,7 @@ function AdminView({
   onAddStudent,
   onAddGroup,
   onAssignStudentGroup,
+  onToggleBadge,
   onAwardStudent,
   onAwardGroup,
   onDeleteStudent,
@@ -304,6 +340,7 @@ function AdminView({
   groupLeaderboard,
   groupById,
   onReset,
+  badgeDefs,
 }) {
   const [newStudent, setNewStudent] = useState("");
   const [newStudentEmail, setNewStudentEmail] = useState("");
@@ -311,6 +348,8 @@ function AdminView({
 
   const [assignStudentId, setAssignStudentId] = useState("");
   const [assignGroupId, setAssignGroupId] = useState("");
+
+  const [badgeStudentId, setBadgeStudentId] = useState("");
 
   const [awardType, setAwardType] = useState("student");
   const [awardTargetId, setAwardTargetId] = useState("");
@@ -411,6 +450,33 @@ function AdminView({
               Verwijder student
             </Button>
           </div>
+        </div>
+      </Card>
+
+      <Card title="Badges toekennen">
+        <div className="grid grid-cols-1 gap-2">
+          <Select value={badgeStudentId} onChange={setBadgeStudentId}>
+            <option value="">Kies student…</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+          {badgeStudentId && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {badgeDefs.map((b) => (
+                <label key={b.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={students.find((s) => s.id === badgeStudentId)?.badges?.includes(b.id) || false}
+                    onChange={(e) => onToggleBadge(badgeStudentId, b.id, e.target.checked)}
+                  />
+                  {b.title}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -593,13 +659,14 @@ function AdminView({
   );
 }
 
-function StudentView({ students, groups, awards, individualLeaderboard, groupLeaderboard, groupById, onSelfSignup }) {
+function StudentView({ students, groups, awards, individualLeaderboard, groupLeaderboard, groupById, onSelfSignup, badgeDefs }) {
   const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id || "");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupName, setSignupName] = useState("");
 
   const me = students.find((s) => s.id === selectedStudentId) || null;
   const myGroup = me?.groupId ? groupById.get(me.groupId) : null;
+  const myBadges = me?.badges || [];
 
   const myAwards = useMemo(() => {
     return awards.filter((a) => (a.type === "student" && a.targetId === selectedStudentId) || (a.type === "group" && myGroup && a.targetId === myGroup.id));
@@ -678,6 +745,24 @@ function StudentView({ students, groups, awards, individualLeaderboard, groupLea
           <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
           <Button className="bg-indigo-600 text-white" disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)} onClick={handleSelfSignup}>Maak account</Button>
         </div>
+      </Card>
+
+      <Card title="Badges" className="lg:col-span-3">
+        {me ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {badgeDefs.map((b) => {
+              const earned = myBadges.includes(b.id);
+              return (
+                <div key={b.id} className="flex flex-col items-center text-sm">
+                  <div className={`w-20 h-20 rounded-full border flex items-center justify-center ${earned ? 'bg-emerald-100' : 'bg-neutral-100'}`}></div>
+                  <div className="mt-2 text-center">{b.title}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
+        )}
       </Card>
 
       <Card title="Jouw recente activiteiten" className="lg:col-span-2 max-h-[320px] overflow-auto">
