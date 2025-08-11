@@ -2,8 +2,8 @@ import React from 'react';
 
 export function Card({ title, children, className = '' }) {
   return (
-    <div className={`rounded-2xl shadow p-4 bg-white ${className}`}>
-      {title && <h3 className="text-lg font-semibold mb-3">{title}</h3>}
+    <div className={`card ${className}`}>
+      {title && <h3 className="mb-3">{title}</h3>}
       {children}
     </div>
   );
@@ -15,7 +15,7 @@ export function Button({ children, onClick, type = 'button', className = '', dis
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-2xl shadow px-4 py-2 hover:opacity-90 active:scale-[0.99] transition border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      className={`button ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
     >
       {children}
     </button>
@@ -28,7 +28,7 @@ export function TextInput({ value, onChange, placeholder, className = '' }) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 ${className}`}
+      className={`w-full ${className}`}
     />
   );
 }
@@ -46,7 +46,7 @@ export function Select({ value, onChange, children, className = '', multiple = f
           onChange(e.target.value);
         }
       }}
-      className={`w-full rounded-xl border border-neutral-300 px-3 py-2 bg-white ${className}`}
+      className={`w-full ${className}`}
     >
       {children}
     </select>
