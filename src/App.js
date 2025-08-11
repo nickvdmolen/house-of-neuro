@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Admin from './Admin';
 import Student from './Student';
+import AdminRoster from './AdminRoster';
 import { Card, Button, TextInput } from './components/ui';
 
 export default function App() {
@@ -24,20 +25,21 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800">
       <div className="max-w-6xl mx-auto">
-        <header className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold">Neuromarketing Points · Prototype</h1>
+        <header style={{ position: 'relative', marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center' }}>Neuromarketing Points · Prototype</h1>
           {route !== '/' && (
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 0, right: 0 }}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
                 aria-label="Menu"
               >☰</button>
               {menuOpen && (
-                <div style={{ position: 'absolute', right: 0, marginTop: '8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
                   <a href="#/student" style={{ display: 'block', padding: '8px 12px', textDecoration: 'none', color: '#000' }} onClick={() => setMenuOpen(false)}>Student</a>
                   <a href="#/admin" style={{ display: 'block', padding: '8px 12px', textDecoration: 'none', color: '#000' }} onClick={() => setMenuOpen(false)}>Beheer</a>
-                  {route === '/admin' && isAdmin && (
+                  {isAdmin && <a href="#/roster" style={{ display: 'block', padding: '8px 12px', textDecoration: 'none', color: '#000' }} onClick={() => setMenuOpen(false)}>Overzicht</a>}
+                  {isAdmin && (
                     <button onClick={() => { denyAdmin(); setMenuOpen(false); }} style={{ display: 'block', width: '100%', padding: '8px 12px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}>Uitloggen</button>
                   )}
                 </div>
@@ -50,6 +52,8 @@ export default function App() {
           isAdmin ? <Admin /> : <AdminGate onAllow={allowAdmin} />
         ) : route === '/student' ? (
           <Student />
+        ) : route === '/roster' ? (
+          isAdmin ? <AdminRoster /> : <AdminGate onAllow={allowAdmin} />
         ) : (
           <RoleSelect />
         )}
