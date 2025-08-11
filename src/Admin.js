@@ -4,7 +4,7 @@ import BadgeChecklist from './components/BadgeChecklist';
 import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
-import { genId, emailValid } from './utils';
+import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
 import { BADGE_DEFS } from './badgeDefs';
 
 export default function Admin() {
@@ -23,26 +23,12 @@ export default function Admin() {
     return m;
   }, [groups]);
 
-  const individualLeaderboard = useMemo(() => {
-    return [...students]
-      .sort((a, b) => b.points - a.points)
-      .map((s, i) => ({ rank: i + 1, ...s }));
-  }, [students]);
+  const individualLeaderboard = useMemo(() => getIndividualLeaderboard(students), [students]);
 
-  const groupLeaderboard = useMemo(() => {
-    const stats = groups.map((g) => {
-      const members = students.filter((s) => s.groupId === g.id);
-      const size = members.length;
-      const sum = members.reduce((acc, s) => acc + (Number(s.points) || 0), 0);
-      const avgIndiv = size ? sum / size : 0;
-      const bonus = Number(g.points) || 0;
-      const total = avgIndiv + bonus;
-      return { ...g, size, avgIndiv, bonus, total };
-    });
-    return stats
-      .sort((a, b) => b.total - a.total)
-      .map((g, i) => ({ rank: i + 1, ...g }));
-  }, [groups, students]);
+  const groupLeaderboard = useMemo(
+    () => getGroupLeaderboard(groups, students),
+    [groups, students]
+  );
 
   const addStudent = useCallback((name, email) => {
     const id = genId();
