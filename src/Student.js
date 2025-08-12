@@ -57,11 +57,12 @@ export default function Student() {
   const [signupName, setSignupName] = useState('');
   const handleSelfSignup = () => {
     if (!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)) return;
-    const existing = students.find((s) => s.email === signupEmail.trim());
+    const normEmail = signupEmail.trim().toLowerCase();
+    const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
       setSelectedStudentId(existing.id);
     } else {
-      const newId = addStudent(signupName.trim(), signupEmail.trim());
+      const newId = addStudent(signupName.trim(), normEmail);
       setSelectedStudentId(newId);
     }
     setSignupEmail('');
