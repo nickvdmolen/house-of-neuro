@@ -184,7 +184,13 @@ export default function Admin() {
             <Button
               className="bg-rose-600 text-white"
               disabled={!removeStudentId}
-              onClick={() => removeStudent(removeStudentId)}
+              onClick={() => {
+                const student = students.find((s) => s.id === removeStudentId);
+                const name = student?.name || 'deze student';
+                if (window.confirm(`Weet je zeker dat je ${name} wilt verwijderen?`)) {
+                  removeStudent(removeStudentId);
+                }
+              }}
             >
               Verwijder
             </Button>
