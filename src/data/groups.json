@@ -1,0 +1,4 @@
+[
+  { "id": "g1", "name": "Team EEG",       "points": 20 },
+  { "id": "g2", "name": "Team Eye-Track", "points": 8 }
+]
