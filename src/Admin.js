@@ -213,6 +213,7 @@ export default function Admin() {
               <thead>
                 <tr className="text-left border-b">
                   <th className="py-1 pr-2">Student</th>
+                  <th className="py-1 pr-2">E-mail</th>
                   <th className="py-1 pr-2">Groep</th>
                 </tr>
               </thead>
@@ -220,6 +221,7 @@ export default function Admin() {
                 {students.map((s) => (
                   <tr key={s.id} className="border-b last:border-0">
                     <td className="py-1 pr-2">{s.name}</td>
+                    <td className="py-1 pr-2">{s.email || '-'}</td>
                     <td className="py-1 pr-2">{s.groupId ? groupById.get(s.groupId)?.name || '-' : '-'}</td>
                   </tr>
                 ))}
