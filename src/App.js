@@ -76,7 +76,7 @@ export default function App() {
         {route === '/admin' ? (
           isAdmin ? <Admin /> : <AdminGate onAllow={allowAdmin} />
         ) : route === '/student' ? (
-          <Student />
+          <Student selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} />
         ) : route === '/roster' ? (
           isAdmin ? <AdminRoster /> : <AdminGate onAllow={allowAdmin} />
         ) : (
