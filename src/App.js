@@ -28,6 +28,19 @@ export default function App() {
 
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const logoutStudent = () => {
+    try { localStorage.removeItem('nm_points_current_student'); } catch {}
+    setSelectedStudentId('');
+    setMenuOpen(false);
+    window.location.hash = '/';
+  };
+
+  const logoutAdmin = () => {
+    denyAdmin();
+    setMenuOpen(false);
+    window.location.hash = '/';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800">
       <div className="max-w-6xl mx-auto">
@@ -45,10 +58,10 @@ export default function App() {
                   <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
                   <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
                   {me && (
-                    <button onClick={() => { setSelectedStudentId(''); setMenuOpen(false); }} className="dropdown-button">Uitloggen student</button>
+                    <button onClick={logoutStudent} className="dropdown-button">Uitloggen student</button>
                   )}
                   {isAdmin && (
-                    <button onClick={() => { denyAdmin(); setMenuOpen(false); }} className="dropdown-button">Uitloggen beheer</button>
+                    <button onClick={logoutAdmin} className="dropdown-button">Uitloggen beheer</button>
                   )}
                 </div>
               )}
