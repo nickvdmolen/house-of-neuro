@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Card, Button, TextInput, Select } from './components/ui';
+import { Card, Button, TextInput } from './components/ui';
 import BadgeOverview from './components/BadgeOverview';
 import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
 import { BADGE_DEFS } from './badgeDefs';
+import usePersistentState from './hooks/usePersistentState';
 
 export default function Student() {
   const [students, setStudents] = useStudents();
@@ -31,10 +32,10 @@ export default function Student() {
     return id;
   }, [setStudents]);
 
-  const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id || '');
+  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
   useEffect(() => {
-    if (students.length && !students.find((s) => s.id === selectedStudentId)) {
-      setSelectedStudentId(students[0].id);
+    if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
+      setSelectedStudentId('');
     }
   }, [students, selectedStudentId]);
 
@@ -66,6 +67,29 @@ export default function Student() {
     setSignupEmail('');
     setSignupName('');
   };
+  
+  if (!selectedStudentId) {
+    return (
+      <div className="max-w-md mx-auto">
+        <Card title="Log in of account aanmaken">
+          <div className="grid grid-cols-1 gap-2">
+            <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+            {signupEmail && !emailValid(signupEmail) && (
+              <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+            )}
+            <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
+              onClick={handleSelfSignup}
+            >
+              Log in / Maak account
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (showBadges) {
     return (
@@ -89,33 +113,6 @@ export default function Student() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-      <Card title="Selecteer student" className="lg:col-span-2">
-        <Select value={selectedStudentId} onChange={setSelectedStudentId}>
-          {students.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
-      </Card>
-
-      <Card title="Nog geen account? Zelf aanmaken" className="lg:col-span-3">
-        <div className="grid grid-cols-1 gap-2">
-          <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-          {signupEmail && !emailValid(signupEmail) && (
-            <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-          )}
-          <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
-          <Button
-            className="bg-indigo-600 text-white"
-            disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
-            onClick={handleSelfSignup}
-          >
-            Maak account
-          </Button>
-        </div>
-      </Card>
-
       <Card title="Badges" className="lg:col-span-3">
         {me ? (
           <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
