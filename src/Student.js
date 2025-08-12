@@ -4,7 +4,7 @@ import BadgeOverview from './components/BadgeOverview';
 import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
-import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
+import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
 import { BADGE_DEFS } from './badgeDefs';
 import usePersistentState from './hooks/usePersistentState';
 
@@ -54,19 +54,18 @@ export default function Student() {
   const [showBadges, setShowBadges] = useState(false);
 
   const [signupEmail, setSignupEmail] = useState('');
-  const [signupName, setSignupName] = useState('');
   const handleSelfSignup = () => {
-    if (!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)) return;
+    if (!signupEmail.trim() || !emailValid(signupEmail)) return;
     const normEmail = signupEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
       setSelectedStudentId(existing.id);
     } else {
-      const newId = addStudent(signupName.trim(), normEmail);
+      const derivedName = nameFromEmail(normEmail);
+      const newId = addStudent(derivedName, normEmail);
       setSelectedStudentId(newId);
     }
     setSignupEmail('');
-    setSignupName('');
   };
   
   if (!selectedStudentId) {
@@ -78,10 +77,9 @@ export default function Student() {
             {signupEmail && !emailValid(signupEmail) && (
               <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
             )}
-            <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
             <Button
               className="bg-indigo-600 text-white"
-              disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
+              disabled={!signupEmail.trim() || !emailValid(signupEmail)}
               onClick={handleSelfSignup}
             >
               Log in / Maak account
