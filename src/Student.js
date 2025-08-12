@@ -4,7 +4,7 @@ import BadgeOverview from './components/BadgeOverview';
 import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
-import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
+import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
 import { BADGE_DEFS } from './badgeDefs';
 
 export default function Student({ selectedStudentId, setSelectedStudentId }) {
@@ -67,27 +67,37 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   };
 
   const [signupEmail, setSignupEmail] = useState('');
+
   const [signupName, setSignupName] = useState('');
   const [signupError, setSignupError] = useState('');
   const handleSignup = () => {
     if (!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)) return;
+
+  const handleSelfSignup = () => {
+    if (!signupEmail.trim() || !emailValid(signupEmail)) return;
+
     const normEmail = signupEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
       setSignupError('E-mailadres bestaat al.');
     } else {
-      const newId = addStudent(signupName.trim(), normEmail);
+      const derivedName = nameFromEmail(normEmail);
+      const newId = addStudent(derivedName, normEmail);
       setSelectedStudentId(newId);
       setSignupEmail('');
       setSignupName('');
       setSignupError('');
     }
+
+    setSignupEmail('');
+
   };
   
   if (!selectedStudentId) {
     return (
       <div className="max-w-md mx-auto">
         <Card title="Log in of account aanmaken">
+
           <div className="grid grid-cols-1 gap-6">
             <div>
               <h2 className="font-semibold mb-2">Bestaand account</h2>
@@ -120,6 +130,20 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 Account aanmaken
               </Button>
             </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+            {signupEmail && !emailValid(signupEmail) && (
+              <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+            )}
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={!signupEmail.trim() || !emailValid(signupEmail)}
+              onClick={handleSelfSignup}
+            >
+              Log in / Maak account
+            </Button>
+
           </div>
         </Card>
       </div>

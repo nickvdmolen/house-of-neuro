@@ -6,6 +6,21 @@ export function genId() {
 const EMAIL_RE = /@student\.nhlstenden\.com$/i;
 export const emailValid = (email) => EMAIL_RE.test((email || '').trim());
 
+export function nameFromEmail(email) {
+  const prefix = (email || '').split('@')[0];
+  const parts = prefix.split('.').filter(Boolean);
+  if (parts.length === 0) return '';
+  return parts
+    .map((p, i) => {
+      const lower = p.toLowerCase();
+      if (i === 0 || i === parts.length - 1) {
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      }
+      return lower;
+    })
+    .join(' ');
+}
+
 export function getIndividualLeaderboard(students) {
   return [...students]
     .sort((a, b) => b.points - a.points)
