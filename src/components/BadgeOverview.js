@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function BadgeOverview({ badgeDefs, earnedBadges }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4">
 
       {badgeDefs.map((b) => {
         const earned = earnedBadges.includes(b.id);
