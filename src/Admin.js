@@ -18,6 +18,12 @@ export default function Admin() {
     return m;
   }, [students]);
 
+  const groupById = useMemo(() => {
+    const m = new Map();
+    for (const g of groups) m.set(g.id, g);
+    return m;
+  }, [groups]);
+
   const individualLeaderboard = useMemo(() => getIndividualLeaderboard(students), [students]);
 
   const groupLeaderboard = useMemo(
@@ -171,35 +177,56 @@ export default function Admin() {
       )}
 
       {page === 'assign-group' && (
-        <Card title="Student aan groep koppelen">
-          <div className="grid grid-cols-1 gap-2">
-            <Select value={assignStudentId} onChange={setAssignStudentId}>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-            <Select value={assignGroupId} onChange={setAssignGroupId}>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </Select>
-            <Button
-              className="bg-indigo-600 text-white"
-              disabled={!assignStudentId || !assignGroupId}
-              onClick={() => {
-                setStudents((prev) =>
-                  prev.map((s) => (s.id === assignStudentId ? { ...s, groupId: assignGroupId } : s))
-                );
-              }}
-            >
-              Koppel
-            </Button>
-          </div>
-        </Card>
+        <>
+          <Card title="Student aan groep koppelen">
+            <div className="grid grid-cols-1 gap-2">
+              <Select value={assignStudentId} onChange={setAssignStudentId}>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+              <Select value={assignGroupId} onChange={setAssignGroupId}>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!assignStudentId || !assignGroupId}
+                onClick={() => {
+                  setStudents((prev) =>
+                    prev.map((s) => (s.id === assignStudentId ? { ...s, groupId: assignGroupId } : s))
+                  );
+                }}
+              >
+                Koppel
+              </Button>
+            </div>
+          </Card>
+
+          <Card title="Overzicht groepsindeling">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="py-1 pr-2">Student</th>
+                  <th className="py-1 pr-2">Groep</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s) => (
+                  <tr key={s.id} className="border-b last:border-0">
+                    <td className="py-1 pr-2">{s.name}</td>
+                    <td className="py-1 pr-2">{s.groupId ? groupById.get(s.groupId)?.name || '-' : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
       )}
 
       {page === 'badges' && (
