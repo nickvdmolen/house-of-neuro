@@ -73,6 +73,19 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   const handleSignup = () => {
     if (!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)) return;
 
+    const normEmail = signupEmail.trim().toLowerCase();
+    const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
+    if (existing) {
+      setSignupError('E-mailadres bestaat al.');
+    } else {
+      const newId = addStudent(signupName.trim(), normEmail);
+      setSelectedStudentId(newId);
+      setSignupEmail('');
+      setSignupName('');
+      setSignupError('');
+    }
+  };
+
   const handleSelfSignup = () => {
     if (!signupEmail.trim() || !emailValid(signupEmail)) return;
 
@@ -84,13 +97,11 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
       const derivedName = nameFromEmail(normEmail);
       const newId = addStudent(derivedName, normEmail);
       setSelectedStudentId(newId);
-      setSignupEmail('');
       setSignupName('');
       setSignupError('');
     }
 
     setSignupEmail('');
-
   };
   
   if (!selectedStudentId) {
@@ -98,8 +109,8 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
       <div className="max-w-md mx-auto">
         <Card title="Log in of account aanmaken">
 
-          <div className="grid grid-cols-1 gap-6">
-            <div>
+            <div className="grid grid-cols-1 gap-6">
+              <div>
               <h2 className="font-semibold mb-2">Bestaand account</h2>
               <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
               {loginEmail && !emailValid(loginEmail) && (
@@ -122,21 +133,23 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
               )}
               <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
               {signupError && <div className="text-sm text-rose-600">{signupError}</div>}
-              <Button
-                className="mt-2 bg-indigo-600 text-white"
-                disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
-                onClick={handleSignup}
-              >
-                Account aanmaken
-              </Button>
+                <Button
+                  className="mt-2 bg-indigo-600 text-white"
+                  disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
+                  onClick={handleSignup}
+                >
+                  Account aanmaken
+                </Button>
+              </div>
+
             </div>
 
-          <div className="grid grid-cols-1 gap-2">
-            <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-            {signupEmail && !emailValid(signupEmail) && (
-              <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-            )}
-            <Button
+            <div className="grid grid-cols-1 gap-2">
+              <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+              {signupEmail && !emailValid(signupEmail) && (
+                <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+              )}
+              <Button
               className="bg-indigo-600 text-white"
               disabled={!signupEmail.trim() || !emailValid(signupEmail)}
               onClick={handleSelfSignup}
