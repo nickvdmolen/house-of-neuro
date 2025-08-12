@@ -3,6 +3,8 @@ import Admin from './Admin';
 import Student from './Student';
 import AdminRoster from './AdminRoster';
 import { Card, Button, TextInput } from './components/ui';
+import useStudents from './hooks/useStudents';
+import usePersistentState from './hooks/usePersistentState';
 
 export default function App() {
   const getRoute = () => (typeof location !== 'undefined' && location.hash ? location.hash.slice(1) : '/');
@@ -19,6 +21,10 @@ export default function App() {
   });
   const allowAdmin = () => { try { localStorage.setItem(ADMIN_LS, '1'); } catch {} setIsAdmin(true); };
   const denyAdmin  = () => { try { localStorage.removeItem(ADMIN_LS); } catch {} setIsAdmin(false); };
+
+  const [students] = useStudents();
+  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
+  const me = students.find((s) => s.id === selectedStudentId) || null;
 
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,14 +44,21 @@ export default function App() {
                 <div className="dropdown">
                   <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
                   <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
+                  {me && (
+                    <button onClick={() => { setSelectedStudentId(''); setMenuOpen(false); }} className="dropdown-button">Uitloggen student</button>
+                  )}
                   {isAdmin && (
-                    <button onClick={() => { denyAdmin(); setMenuOpen(false); }} className="dropdown-button">Uitloggen</button>
+                    <button onClick={() => { denyAdmin(); setMenuOpen(false); }} className="dropdown-button">Uitloggen beheer</button>
                   )}
                 </div>
               )}
             </div>
           )}
         </header>
+
+        {route === '/student' && me && (
+          <div className="text-center mb-4">Ingelogd als {me.name}</div>
+        )}
 
         {route === '/admin' ? (
           isAdmin ? <Admin /> : <AdminGate onAllow={allowAdmin} />
