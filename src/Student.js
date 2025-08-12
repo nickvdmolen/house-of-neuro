@@ -6,9 +6,8 @@ import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
 import { BADGE_DEFS } from './badgeDefs';
-import usePersistentState from './hooks/usePersistentState';
 
-export default function Student() {
+export default function Student({ selectedStudentId, setSelectedStudentId }) {
   const [students, setStudents] = useStudents();
   const [groups] = useGroups();
   const [awards] = useAwards();
@@ -32,12 +31,11 @@ export default function Student() {
     return id;
   }, [setStudents]);
 
-  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
   useEffect(() => {
     if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
       setSelectedStudentId('');
     }
-  }, [students, selectedStudentId]);
+  }, [students, selectedStudentId, setSelectedStudentId]);
 
   const me = students.find((s) => s.id === selectedStudentId) || null;
   const myGroup = me && me.groupId ? groupById.get(me.groupId) || null : null;
@@ -53,39 +51,75 @@ export default function Student() {
 
   const [showBadges, setShowBadges] = useState(false);
 
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const handleLogin = () => {
+    if (!emailValid(loginEmail)) return;
+    const normEmail = loginEmail.trim().toLowerCase();
+    const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
+    if (existing) {
+      setSelectedStudentId(existing.id);
+      setLoginEmail('');
+      setLoginError('');
+    } else {
+      setLoginError('Onbekend e-mailadres.');
+    }
+  };
+
   const [signupEmail, setSignupEmail] = useState('');
   const [signupName, setSignupName] = useState('');
-  const handleSelfSignup = () => {
+  const [signupError, setSignupError] = useState('');
+  const handleSignup = () => {
     if (!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)) return;
     const normEmail = signupEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
-      setSelectedStudentId(existing.id);
+      setSignupError('E-mailadres bestaat al.');
     } else {
       const newId = addStudent(signupName.trim(), normEmail);
       setSelectedStudentId(newId);
+      setSignupEmail('');
+      setSignupName('');
+      setSignupError('');
     }
-    setSignupEmail('');
-    setSignupName('');
   };
   
   if (!selectedStudentId) {
     return (
       <div className="max-w-md mx-auto">
         <Card title="Log in of account aanmaken">
-          <div className="grid grid-cols-1 gap-2">
-            <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-            {signupEmail && !emailValid(signupEmail) && (
-              <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-            )}
-            <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
-            <Button
-              className="bg-indigo-600 text-white"
-              disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
-              onClick={handleSelfSignup}
-            >
-              Log in / Maak account
-            </Button>
+          <div className="grid grid-cols-1 gap-6">
+            <div>
+              <h2 className="font-semibold mb-2">Bestaand account</h2>
+              <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+              {loginEmail && !emailValid(loginEmail) && (
+                <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+              )}
+              {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
+              <Button
+                className="mt-2 bg-indigo-600 text-white"
+                disabled={!loginEmail.trim() || !emailValid(loginEmail)}
+                onClick={handleLogin}
+              >
+                Log in
+              </Button>
+            </div>
+            <div className="border-t pt-4">
+              <h2 className="font-semibold mb-2">Nieuw account</h2>
+              <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+              {signupEmail && !emailValid(signupEmail) && (
+                <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+              )}
+              <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
+              {signupError && <div className="text-sm text-rose-600">{signupError}</div>}
+              <Button
+                className="mt-2 bg-indigo-600 text-white"
+                disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
+                onClick={handleSignup}
+              >
+                Account aanmaken
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
