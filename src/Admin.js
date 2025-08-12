@@ -37,6 +37,10 @@ export default function Admin() {
     return id;
   }, [setStudents]);
 
+  const removeStudent = useCallback((id) => {
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+  }, [setStudents]);
+
   const addGroup = useCallback((name) => {
     const id = genId();
     setGroups((prev) => [...prev, { id, name, points: 0 }]);
@@ -82,6 +86,8 @@ export default function Admin() {
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
 
+  const [removeStudentId, setRemoveStudentId] = useState(students[0]?.id || '');
+
   const [page, setPage] = useState('add-student');
 
   useEffect(() => {
@@ -113,10 +119,17 @@ export default function Admin() {
     }
   }, [groups, assignGroupId]);
 
+  useEffect(() => {
+    if (students.length && !students.find((s) => s.id === removeStudentId)) {
+      setRemoveStudentId(students[0]?.id || '');
+    }
+  }, [students, removeStudentId]);
+
   return (
     <div className="space-y-4">
       <Select value={page} onChange={setPage} className="max-w-xs">
         <option value="add-student">Student toevoegen</option>
+        <option value="remove-student">Student verwijderen</option>
         <option value="add-group">Groep toevoegen</option>
         <option value="assign-group">Student aan groep koppelen</option>
         <option value="badges">Badges toekennen</option>
@@ -154,6 +167,27 @@ export default function Admin() {
                 Voeg toe
               </Button>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {page === 'remove-student' && (
+        <Card title="Student verwijderen">
+          <div className="grid grid-cols-1 gap-2">
+            <Select value={removeStudentId} onChange={setRemoveStudentId}>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+            <Button
+              className="bg-rose-600 text-white"
+              disabled={!removeStudentId}
+              onClick={() => removeStudent(removeStudentId)}
+            >
+              Verwijder
+            </Button>
           </div>
         </Card>
       )}
