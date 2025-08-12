@@ -6,6 +6,8 @@ import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
 import { BADGE_DEFS } from './badgeDefs';
+import Student from './Student';
+import usePersistentState from './hooks/usePersistentState';
 
 export default function Admin() {
   const [students, setStudents] = useStudents();
@@ -90,6 +92,9 @@ export default function Admin() {
 
   const [page, setPage] = useState('add-student');
 
+  // Preview state (gedeeld met Student-weergave via localStorage)
+  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
+
   useEffect(() => {
     if (students.length === 0) {
       setAwardStudentIds([]);
@@ -125,6 +130,13 @@ export default function Admin() {
     }
   }, [students, removeStudentId]);
 
+  // Houd preview-selectie geldig als de lijst verandert
+  useEffect(() => {
+    if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
+      setSelectedStudentId(students[0]?.id || '');
+    }
+  }, [students, selectedStudentId, setSelectedStudentId]);
+
   return (
     <div className="space-y-4">
       <Select value={page} onChange={setPage} className="max-w-xs">
@@ -136,6 +148,7 @@ export default function Admin() {
         <option value="points">Punten invoeren</option>
         <option value="leaderboard-students">Scorebord – Individueel</option>
         <option value="leaderboard-groups">Scorebord – Groepen</option>
+        <option value="preview">Preview student</option>
       </Select>
 
       {page === 'add-student' && (
@@ -406,6 +419,38 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
+        </Card>
+      )}
+
+      {page === 'preview' && (
+        <Card title="Preview student">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-end">
+            <div>
+              <label className="text-sm">Student</label>
+              <Select value={selectedStudentId} onChange={setSelectedStudentId}>
+                <option value="">— Kies student —</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.id})
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-neutral-500 mt-2">
+                Laat leeg om te zien wat een student zonder selectie ziet.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button className="border" onClick={() => setSelectedStudentId('')}>Leegmaken</Button>
+              <a href="#/admin/preview" className="px-4 py-2 rounded-2xl border">Open als losse pagina</a>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Student
+              selectedStudentId={selectedStudentId}
+              setSelectedStudentId={setSelectedStudentId}
+            />
+          </div>
         </Card>
       )}
     </div>
