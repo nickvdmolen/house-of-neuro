@@ -105,7 +105,7 @@ function AdminGate({ onAllow }) {
     <div className="max-w-md mx-auto">
       <Card title="Beheer – Toegang">
         <p className="text-sm text-neutral-600 mb-3">Alleen docenten. Vul de toegangscode in om door te gaan.</p>
-        <TextInput value={code} onChange={setCode} placeholder="Toegangscode" />
+        <TextInput value={code} onChange={setCode} placeholder="Toegangscode" className="mb-4" />
         {error && <div className="text-sm text-rose-600 mt-2">{error}</div>}
         <div className="mt-3 flex gap-2">
           <Button className="bg-indigo-600 text-white" onClick={submit}>Inloggen</Button>
