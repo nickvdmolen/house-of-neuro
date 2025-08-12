@@ -53,6 +53,11 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
 
   const [authMode, setAuthMode] = useState('login');
 
+  const handleLogout = () => {
+    setSelectedStudentId('');
+    window.location.hash = '/';
+  };
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginError, setLoginError] = useState('');
   const handleLogin = () => {
@@ -161,36 +166,50 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   if (showBadges) {
     return (
       <div className="max-w-3xl mx-auto">
+        {me && (
+          <div className="flex items-center justify-between mb-4">
+            <span>Ingelogd als {me.name}</span>
+            <Button className="bg-indigo-600 text-white" onClick={handleLogout}>Uitloggen</Button>
+          </div>
+        )}
         <Card title="Verdiende badges">
-
           {me ? (
-            <BadgeOverview badgeDefs={BADGE_DEFS} earnedBadges={myBadges} />
+            <>
+              <div className="sticky top-0 bg-white pb-4 z-10">
+                <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(false)}>
+                  Terug naar puntenoverzicht
+                </Button>
+              </div>
+              <BadgeOverview badgeDefs={BADGE_DEFS} earnedBadges={myBadges} />
+            </>
           ) : (
             <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
           )}
-          <div className="mt-4">
-            <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(false)}>
-              Terug naar puntenoverzicht
-            </Button>
-          </div>
         </Card>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-      <Card title="Badges" className="lg:col-span-3">
-        {me ? (
-          <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
-            Bekijk badges
-          </Button>
-        ) : (
-          <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
-        )}
-      </Card>
+    <div>
+      {me && (
+        <div className="flex items-center justify-between mb-4">
+          <span>Ingelogd als {me.name}</span>
+          <Button className="bg-indigo-600 text-white" onClick={handleLogout}>Uitloggen</Button>
+        </div>
+      )}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <Card title="Badges" className="lg:col-span-3">
+          {me ? (
+            <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
+              Bekijk badges
+            </Button>
+          ) : (
+            <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
+          )}
+        </Card>
 
-      <Card title="Jouw recente activiteiten" className="lg:col-span-2 max-h-[320px] overflow-auto">
+        <Card title="Jouw recente activiteiten" className="lg:col-span-2 max-h-[320px] overflow-auto">
         <ul className="space-y-2 text-sm">
           {myAwards.length === 0 && <li>Geen recente items.</li>}
           {myAwards.map((a) => (
@@ -202,9 +221,9 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
             </li>
           ))}
         </ul>
-      </Card>
+        </Card>
 
-      <Card title="Leaderboard – Individueel" className="lg:col-span-2">
+        <Card title="Leaderboard – Individueel" className="lg:col-span-2">
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="text-left border-b">
@@ -242,9 +261,9 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
             })()}
           </tbody>
         </table>
-      </Card>
+        </Card>
 
-      <Card title="Leaderboard – Groepen" className="lg:col-span-3">
+        <Card title="Leaderboard – Groepen" className="lg:col-span-3">
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="text-left border-b">
@@ -263,7 +282,8 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
             ))}
           </tbody>
         </table>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

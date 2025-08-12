@@ -3,7 +3,6 @@ import Admin from './Admin';
 import Student from './Student';
 import AdminRoster from './AdminRoster';
 import { Card, Button, TextInput } from './components/ui';
-import useStudents from './hooks/useStudents';
 import usePersistentState from './hooks/usePersistentState';
 
 export default function App() {
@@ -22,18 +21,9 @@ export default function App() {
   const allowAdmin = () => { try { localStorage.setItem(ADMIN_LS, '1'); } catch {} setIsAdmin(true); };
   const denyAdmin  = () => { try { localStorage.removeItem(ADMIN_LS); } catch {} setIsAdmin(false); };
 
-  const [students] = useStudents();
   const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
-  const me = students.find((s) => s.id === selectedStudentId) || null;
 
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const logoutStudent = () => {
-    try { localStorage.removeItem('nm_points_current_student'); } catch {}
-    setSelectedStudentId('');
-    setMenuOpen(false);
-    window.location.hash = '/';
-  };
 
   const logoutAdmin = () => {
     denyAdmin();
@@ -57,9 +47,6 @@ export default function App() {
                 <div className="dropdown">
                   <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
                   <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
-                  {me && (
-                    <button onClick={logoutStudent} className="dropdown-button">Uitloggen student</button>
-                  )}
                   {isAdmin && (
                     <button onClick={logoutAdmin} className="dropdown-button">Uitloggen beheer</button>
                   )}
@@ -68,10 +55,6 @@ export default function App() {
             </div>
           )}
         </header>
-
-        {route === '/student' && me && (
-          <div className="text-center mb-4">Ingelogd als {me.name}</div>
-        )}
 
         {route === '/admin' ? (
           isAdmin ? <Admin /> : <AdminGate onAllow={allowAdmin} />
@@ -121,10 +104,10 @@ function RoleSelect() {
     <div className="max-w-md mx-auto">
       <Card title="Wie ben je?">
         <div className="flex flex-col gap-4">
-          <a href="#/student" className="w-full">
+          <a href="#/student" className="block w-full">
             <Button className="w-full bg-indigo-600 text-white">Ik ben student</Button>
           </a>
-          <a href="#/admin" className="w-full">
+          <a href="#/admin" className="block w-full">
             <Button className="w-full bg-indigo-600 text-white">Ik ben docent</Button>
           </a>
         </div>
