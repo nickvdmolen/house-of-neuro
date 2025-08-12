@@ -347,7 +347,7 @@ export default function Admin() {
 
       {page === 'leaderboard-students' && (
         <Card title="Leaderboard – Individueel">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead>
               <tr className="text-left border-b">
                 <th className="py-1 pr-2">#</th>
@@ -376,7 +376,7 @@ export default function Admin() {
 
       {page === 'leaderboard-groups' && (
         <Card title="Leaderboard – Groepen">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead>
               <tr className="text-left border-b">
                 <th className="py-1 pr-2">#</th>
