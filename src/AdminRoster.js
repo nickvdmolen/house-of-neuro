@@ -17,7 +17,7 @@ export default function AdminRoster() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card title="Scores – Studenten" className="md:col-span-2">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="text-left border-b">
               <th className="py-1 pr-2">#</th>

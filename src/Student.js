@@ -51,6 +51,8 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
 
   const [showBadges, setShowBadges] = useState(false);
 
+  const [authMode, setAuthMode] = useState('login');
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginError, setLoginError] = useState('');
   const handleLogin = () => {
@@ -67,7 +69,6 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   };
 
   const [signupEmail, setSignupEmail] = useState('');
-
   const [signupName, setSignupName] = useState('');
   const [signupError, setSignupError] = useState('');
   const handleSignup = () => {
@@ -85,80 +86,74 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
       setSignupError('');
     }
   };
-
-  const handleSelfSignup = () => {
-    if (!signupEmail.trim() || !emailValid(signupEmail)) return;
-
-    const normEmail = signupEmail.trim().toLowerCase();
-    const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
-    if (existing) {
-      setSignupError('E-mailadres bestaat al.');
-    } else {
-      const derivedName = nameFromEmail(normEmail);
-      const newId = addStudent(derivedName, normEmail);
-      setSelectedStudentId(newId);
-      setSignupName('');
-      setSignupError('');
-    }
-
-    setSignupEmail('');
-  };
   
   if (!selectedStudentId) {
     return (
       <div className="max-w-md mx-auto">
-        <Card title="Log in of account aanmaken">
-
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-              <h2 className="font-semibold mb-2">Bestaand account</h2>
+        {authMode === 'login' ? (
+          <Card title="Log in">
+            <div className="grid grid-cols-1 gap-4">
               <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
               {loginEmail && !emailValid(loginEmail) && (
                 <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
               )}
               {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
               <Button
-                className="mt-2 bg-indigo-600 text-white"
+                className="bg-indigo-600 text-white"
                 disabled={!loginEmail.trim() || !emailValid(loginEmail)}
                 onClick={handleLogin}
               >
                 Log in
               </Button>
+              <button
+                className="text-sm text-indigo-600 text-left"
+                onClick={() => {
+                  setSignupEmail('');
+                  setSignupName('');
+                  setSignupError('');
+                  setAuthMode('signup');
+                }}
+              >
+                Account aanmaken
+              </button>
             </div>
-            <div className="border-t pt-4">
-              <h2 className="font-semibold mb-2">Nieuw account</h2>
-              <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+          </Card>
+        ) : (
+          <Card title="Account aanmaken">
+            <div className="grid grid-cols-1 gap-4">
+              <TextInput
+                value={signupEmail}
+                onChange={(v) => {
+                  setSignupEmail(v);
+                  setSignupName(nameFromEmail(v));
+                }}
+                placeholder="E-mail (@student.nhlstenden.com)"
+              />
               {signupEmail && !emailValid(signupEmail) && (
                 <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
               )}
               <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
               {signupError && <div className="text-sm text-rose-600">{signupError}</div>}
-                <Button
-                  className="mt-2 bg-indigo-600 text-white"
-                  disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
-                  onClick={handleSignup}
-                >
-                  Account aanmaken
-                </Button>
-              </div>
-
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              <TextInput value={signupEmail} onChange={setSignupEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-              {signupEmail && !emailValid(signupEmail) && (
-                <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-              )}
               <Button
-              className="bg-indigo-600 text-white"
-              disabled={!signupEmail.trim() || !emailValid(signupEmail)}
-              onClick={handleSelfSignup}
-            >
-              Log in / Maak account
-            </Button>
-
-          </div>
-        </Card>
+                className="bg-indigo-600 text-white"
+                disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
+                onClick={handleSignup}
+              >
+                Account aanmaken
+              </Button>
+              <button
+                className="text-sm text-indigo-600 text-left"
+                onClick={() => {
+                  setLoginEmail('');
+                  setLoginError('');
+                  setAuthMode('login');
+                }}
+              >
+                Terug naar inloggen
+              </button>
+            </div>
+          </Card>
+        )}
       </div>
     );
   }
@@ -210,7 +205,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
       </Card>
 
       <Card title="Leaderboard – Individueel" className="lg:col-span-2">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="text-left border-b">
               <th className="py-1 pr-2">#</th>
@@ -250,7 +245,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
       </Card>
 
       <Card title="Leaderboard – Groepen" className="lg:col-span-3">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="text-left border-b">
               <th className="py-1 pr-2">#</th>
