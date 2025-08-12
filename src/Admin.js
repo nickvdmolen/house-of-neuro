@@ -232,7 +232,7 @@ export default function Admin() {
       {page === 'badges' && (
         <Card title="Badges toekennen">
           <div className="grid grid-cols-1 gap-2">
-            <Select value={badgeStudentId} onChange={setBadgeStudentId}>
+            <Select value={badgeStudentId} onChange={setBadgeStudentId} className="max-w-xs">
               <option value="">Kies student…</option>
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
