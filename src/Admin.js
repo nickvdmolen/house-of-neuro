@@ -7,7 +7,6 @@ import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
 import Student from './Student';
 import useBadges from './hooks/useBadges';
-import BadgeOverview from './components/BadgeOverview';
 import usePersistentState from './hooks/usePersistentState';
 
 export default function Admin() {
@@ -98,6 +97,10 @@ export default function Admin() {
     setNewBadgeTitle('');
     setNewBadgeImage('');
   }, [newBadgeTitle, newBadgeImage, setBadgeDefs]);
+
+  const removeBadge = useCallback((badgeId) => {
+    setBadgeDefs((prev) => prev.filter((b) => b.id !== badgeId));
+  }, [setBadgeDefs]);
 
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
@@ -324,7 +327,28 @@ export default function Admin() {
       {page === 'manage-badges' && (
         <Card title="Badges beheren">
           <div className="grid grid-cols-1 gap-4">
-            <BadgeOverview badgeDefs={badgeDefs} earnedBadges={badgeDefs.map((b) => b.id)} />
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4">
+              {badgeDefs.map((b) => (
+                <div key={b.id} className="flex flex-col items-center text-sm">
+                  <img
+                    src={b.image}
+                    alt={b.title}
+                    className="badge-box rounded-full border object-cover"
+                  />
+                  <div className="mt-2 text-center flex items-center gap-1">
+                    <span>{b.title}</span>
+                    <Button
+                      className="p-1 text-rose-600"
+                      onClick={() => {
+                        if (window.confirm('Badge verwijderen?')) removeBadge(b.id);
+                      }}
+                    >
+                      &#x2715;
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="grid grid-cols-1 gap-2">
               <TextInput value={newBadgeTitle} onChange={setNewBadgeTitle} placeholder="Titel" />
               <input
