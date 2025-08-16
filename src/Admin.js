@@ -346,6 +346,34 @@ export default function Admin() {
                       &#x2715;
                     </Button>
                   </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id={`edit-badge-image-${b.id}`}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setBadgeDefs((prev) =>
+                          prev.map((bd) =>
+                            bd.id === b.id ? { ...bd, image: ev.target.result } : bd
+                          )
+                        );
+                      };
+                      reader.readAsDataURL(file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <Button
+                    className="mt-1 p-1 text-indigo-600"
+                    onClick={() =>
+                      document.getElementById(`edit-badge-image-${b.id}`).click()
+                    }
+                  >
+                    Edit image
+                  </Button>
                 </div>
               ))}
             </div>
