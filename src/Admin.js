@@ -330,21 +330,34 @@ export default function Admin() {
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4">
               {badgeDefs.map((b) => (
                 <div key={b.id} className="flex flex-col items-center text-sm">
-                  <img
-                    src={b.image}
-                    alt={b.title}
-                    className="badge-box rounded-full border object-cover"
-                  />
-                  <div className="mt-2 text-center flex items-center gap-1">
-                    <span>{b.title}</span>
+                  <div className="relative">
+                    <img
+                      src={b.image}
+                      alt={b.title}
+                      className="badge-box rounded-full border object-cover"
+                    />
                     <Button
-                      className="p-1 text-rose-600"
+                      className={
+                        "absolute inset-0 flex items-center justify-center text-xl text-white bg-transparent " +
+                        "hover:bg-black/30 rounded-full z-0"
+                      }
+                      onClick={() =>
+                        document.getElementById(`edit-badge-image-${b.id}`).click()
+                      }
+                    >
+                      ✏️
+                    </Button>
+                    <Button
+                      className="absolute top-1 right-1 p-1 text-rose-600 bg-white/80 rounded-full text-xs z-10"
                       onClick={() => {
                         if (window.confirm('Badge verwijderen?')) removeBadge(b.id);
                       }}
                     >
                       &#x2715;
                     </Button>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <span>{b.title}</span>
                   </div>
                   <input
                     type="file"
@@ -366,14 +379,6 @@ export default function Admin() {
                       e.target.value = '';
                     }}
                   />
-                  <Button
-                    className="mt-1 p-1 text-indigo-600"
-                    onClick={() =>
-                      document.getElementById(`edit-badge-image-${b.id}`).click()
-                    }
-                  >
-                    Edit image
-                  </Button>
                 </div>
               ))}
             </div>
