@@ -336,24 +336,25 @@ export default function Admin() {
                       alt={b.title}
                       className="badge-box rounded-full border object-cover"
                     />
-                    <Button
-                      className={
-                        "absolute inset-0 flex items-center justify-center text-xl text-white bg-transparent " +
-                        "hover:bg-black/30 rounded-full z-0"
-                      }
+                    <button
+                      type="button"
+                      className="absolute inset-0 flex items-center justify-center text-xl text-white rounded-full z-0"
                       onClick={() =>
                         document.getElementById(`edit-badge-image-${b.id}`).click()
                       }
+                      style={{ background: 'transparent' }}
                     >
                       ✏️
-                    </Button>
+                    </button>
                     <Button
                       className="absolute top-1 right-1 p-1 text-rose-600 bg-white/80 rounded-full text-xs z-10"
                       onClick={() => {
                         if (window.confirm('Badge verwijderen?')) removeBadge(b.id);
                       }}
                     >
-                      &#x2715;
+                      <span style={{ display: 'inline-block', transform: 'scaleX(0.5)' }}>
+                        &#x2715;
+                      </span>
                     </Button>
                   </div>
                   <div className="mt-2 text-center">
