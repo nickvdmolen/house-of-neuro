@@ -366,7 +366,8 @@ img{
   background: transparent;
 }
 
-/* Make delete icon one sixth as wide (one third of previous width) */
+/* Explicitly size delete icon instead of scaling */
 .delete-icon {
-  transform: scaleX(0.1667);
+  width: 12px;
+  height: 12px;
 }
