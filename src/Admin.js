@@ -5,14 +5,16 @@ import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
-import { BADGE_DEFS } from './badgeDefs';
 import Student from './Student';
+import useBadges from './hooks/useBadges';
+import BadgeOverview from './components/BadgeOverview';
 import usePersistentState from './hooks/usePersistentState';
 
 export default function Admin() {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
   const [, setAwards] = useAwards();
+  const [badgeDefs, setBadgeDefs] = useBadges();
 
   const studentById = useMemo(() => {
     const m = new Map();
@@ -85,6 +87,18 @@ export default function Admin() {
   const [awardAmount, setAwardAmount] = useState(5);
   const [awardReason, setAwardReason] = useState('');
 
+  const [newBadgeTitle, setNewBadgeTitle] = useState('');
+  const [newBadgeImage, setNewBadgeImage] = useState('');
+
+  const addBadge = useCallback(() => {
+    const title = newBadgeTitle.trim();
+    if (!title || !newBadgeImage) return;
+    const id = genId();
+    setBadgeDefs((prev) => [...prev, { id, title, image: newBadgeImage }]);
+    setNewBadgeTitle('');
+    setNewBadgeImage('');
+  }, [newBadgeTitle, newBadgeImage, setBadgeDefs]);
+
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
 
@@ -145,6 +159,7 @@ export default function Admin() {
         <option value="add-group">Groep toevoegen</option>
         <option value="assign-group">Student aan groep koppelen</option>
         <option value="badges">Badges toekennen</option>
+        <option value="manage-badges">Badges beheren</option>
         <option value="points">Punten invoeren</option>
         <option value="leaderboard-students">Scorebord – Individueel</option>
         <option value="leaderboard-groups">Scorebord – Groepen</option>
@@ -297,11 +312,47 @@ export default function Admin() {
             </Select>
             {badgeStudentId && (
               <BadgeChecklist
-                badgeDefs={BADGE_DEFS}
+                badgeDefs={badgeDefs}
                 studentBadges={studentById.get(badgeStudentId)?.badges || []}
                 onToggle={(badgeId, checked) => toggleStudentBadge(badgeStudentId, badgeId, checked)}
               />
             )}
+          </div>
+        </Card>
+      )}
+
+      {page === 'manage-badges' && (
+        <Card title="Badges beheren">
+          <div className="grid grid-cols-1 gap-4">
+            <BadgeOverview badgeDefs={badgeDefs} earnedBadges={badgeDefs.map((b) => b.id)} />
+            <div className="grid grid-cols-1 gap-2">
+              <TextInput value={newBadgeTitle} onChange={setNewBadgeTitle} placeholder="Titel" />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setNewBadgeImage(ev.target.result);
+                  reader.readAsDataURL(file);
+                }}
+              />
+              {newBadgeImage && (
+                <img
+                  src={newBadgeImage}
+                  alt="Preview"
+                  className="badge-box rounded-full border object-cover"
+                />
+              )}
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!newBadgeTitle.trim() || !newBadgeImage}
+                onClick={addBadge}
+              >
+                Maak badge
+              </Button>
+            </div>
           </div>
         </Card>
       )}

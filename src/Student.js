@@ -5,12 +5,13 @@ import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
-import { BADGE_DEFS } from './badgeDefs';
+import useBadges from './hooks/useBadges';
 
 export default function Student({ selectedStudentId, setSelectedStudentId }) {
   const [students, setStudents] = useStudents();
   const [groups] = useGroups();
   const [awards] = useAwards();
+  const [badgeDefs] = useBadges();
 
   const groupById = useMemo(() => {
     const m = new Map();
@@ -180,7 +181,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                   Terug naar puntenoverzicht
                 </Button>
               </div>
-              <BadgeOverview badgeDefs={BADGE_DEFS} earnedBadges={myBadges} />
+              <BadgeOverview badgeDefs={badgeDefs} earnedBadges={myBadges} />
             </>
           ) : (
             <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
