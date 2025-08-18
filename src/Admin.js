@@ -12,8 +12,9 @@ import usePersistentState from './hooks/usePersistentState';
 export default function Admin() {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
-  const [, setAwards] = useAwards();
+  const [awards, setAwards] = useAwards();
   const [badgeDefs, setBadgeDefs] = useBadges();
+  const [restoreFile, setRestoreFile] = useState(null);
 
   const studentById = useMemo(() => {
     const m = new Map();
@@ -102,6 +103,34 @@ export default function Admin() {
     setBadgeDefs((prev) => prev.filter((b) => b.id !== badgeId));
   }, [setBadgeDefs]);
 
+  const handleBackup = useCallback(() => {
+    const data = { students, groups, awards, badges: badgeDefs };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [students, groups, awards, badgeDefs]);
+
+  const handleRestore = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (Array.isArray(data.students)) setStudents(data.students);
+        if (Array.isArray(data.groups)) setGroups(data.groups);
+        if (Array.isArray(data.awards)) setAwards(data.awards);
+        if (Array.isArray(data.badges)) setBadgeDefs(data.badges);
+      } catch {
+        alert('Ongeldige backup');
+      }
+    };
+    reader.readAsText(file);
+  }, [setStudents, setGroups, setAwards, setBadgeDefs]);
+
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
 
@@ -166,6 +195,7 @@ export default function Admin() {
         <option value="points">Punten invoeren</option>
         <option value="leaderboard-students">Scorebord – Individueel</option>
         <option value="leaderboard-groups">Scorebord – Groepen</option>
+        <option value="backup">Backup & herstel</option>
         <option value="preview">Preview student</option>
       </Select>
 
@@ -528,6 +558,33 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
+        </Card>
+      )}
+
+      {page === 'backup' && (
+        <Card title="Backup & herstel">
+          <div className="space-y-4">
+            <Button className="bg-indigo-600 text-white" onClick={handleBackup}>
+              Backup downloaden
+            </Button>
+            <div>
+              <input
+                type="file"
+                accept="application/json"
+                onChange={(e) => setRestoreFile(e.target.files[0] || null)}
+              />
+              <Button
+                className="bg-indigo-600 text-white mt-2"
+                disabled={!restoreFile}
+                onClick={() => {
+                  handleRestore(restoreFile);
+                  setRestoreFile(null);
+                }}
+              >
+                Herstel backup
+              </Button>
+            </div>
+          </div>
         </Card>
       )}
 
