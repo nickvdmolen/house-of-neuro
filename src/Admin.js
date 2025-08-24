@@ -5,12 +5,16 @@ import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
-import { BADGE_DEFS } from './badgeDefs';
+import Student from './Student';
+import useBadges from './hooks/useBadges';
+import usePersistentState from './hooks/usePersistentState';
 
 export default function Admin() {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
-  const [, setAwards] = useAwards();
+  const [awards, setAwards] = useAwards();
+  const [badgeDefs, setBadgeDefs] = useBadges();
+  const [restoreFile, setRestoreFile] = useState(null);
 
   const studentById = useMemo(() => {
     const m = new Map();
@@ -83,12 +87,59 @@ export default function Admin() {
   const [awardAmount, setAwardAmount] = useState(5);
   const [awardReason, setAwardReason] = useState('');
 
+  const [newBadgeTitle, setNewBadgeTitle] = useState('');
+  const [newBadgeImage, setNewBadgeImage] = useState('');
+
+  const addBadge = useCallback(() => {
+    const title = newBadgeTitle.trim();
+    if (!title || !newBadgeImage) return;
+    const id = genId();
+    setBadgeDefs((prev) => [...prev, { id, title, image: newBadgeImage }]);
+    setNewBadgeTitle('');
+    setNewBadgeImage('');
+  }, [newBadgeTitle, newBadgeImage, setBadgeDefs]);
+
+  const removeBadge = useCallback((badgeId) => {
+    setBadgeDefs((prev) => prev.filter((b) => b.id !== badgeId));
+  }, [setBadgeDefs]);
+
+  const handleBackup = useCallback(() => {
+    const data = { students, groups, awards, badges: badgeDefs };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [students, groups, awards, badgeDefs]);
+
+  const handleRestore = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (Array.isArray(data.students)) setStudents(data.students);
+        if (Array.isArray(data.groups)) setGroups(data.groups);
+        if (Array.isArray(data.awards)) setAwards(data.awards);
+        if (Array.isArray(data.badges)) setBadgeDefs(data.badges);
+      } catch {
+        alert('Ongeldige backup');
+      }
+    };
+    reader.readAsText(file);
+  }, [setStudents, setGroups, setAwards, setBadgeDefs]);
+
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
 
   const [removeStudentId, setRemoveStudentId] = useState(students[0]?.id || '');
 
   const [page, setPage] = useState('add-student');
+
+  // Preview state (gedeeld met Student-weergave via localStorage)
+  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
 
   useEffect(() => {
     if (students.length === 0) {
@@ -125,6 +176,13 @@ export default function Admin() {
     }
   }, [students, removeStudentId]);
 
+  // Houd preview-selectie geldig als de lijst verandert
+  useEffect(() => {
+    if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
+      setSelectedStudentId(students[0]?.id || '');
+    }
+  }, [students, selectedStudentId, setSelectedStudentId]);
+
   return (
     <div className="space-y-4">
       <Select value={page} onChange={setPage} className="max-w-xs">
@@ -133,9 +191,12 @@ export default function Admin() {
         <option value="add-group">Groep toevoegen</option>
         <option value="assign-group">Student aan groep koppelen</option>
         <option value="badges">Badges toekennen</option>
+        <option value="manage-badges">Badges beheren</option>
         <option value="points">Punten invoeren</option>
         <option value="leaderboard-students">Scorebord – Individueel</option>
         <option value="leaderboard-groups">Scorebord – Groepen</option>
+        <option value="backup">Backup & herstel</option>
+        <option value="preview">Preview student</option>
       </Select>
 
       {page === 'add-student' && (
@@ -284,11 +345,102 @@ export default function Admin() {
             </Select>
             {badgeStudentId && (
               <BadgeChecklist
-                badgeDefs={BADGE_DEFS}
+                badgeDefs={badgeDefs}
                 studentBadges={studentById.get(badgeStudentId)?.badges || []}
                 onToggle={(badgeId, checked) => toggleStudentBadge(badgeStudentId, badgeId, checked)}
               />
             )}
+          </div>
+        </Card>
+      )}
+
+      {page === 'manage-badges' && (
+        <Card title="Badges beheren">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4">
+              {badgeDefs.map((b) => (
+                <div key={b.id} className="flex flex-col items-center text-sm">
+                  <div className="relative">
+                    <img
+                      src={b.image}
+                      alt={b.title}
+                      className="badge-box rounded-full border object-cover"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-0 flex items-center justify-center text-xl text-white rounded-full z-0"
+                      onClick={() =>
+                        document.getElementById(`edit-badge-image-${b.id}`).click()
+                      }
+                      style={{ background: 'transparent' }}
+                    >
+                      ✏️
+                    </button>
+                    <Button
+                      className="absolute top-1 right-1 p-1 text-rose-600 bg-white/80 rounded-full text-xs z-10"
+                      onClick={() => {
+                        if (window.confirm('Badge verwijderen?')) removeBadge(b.id);
+                      }}
+                    >
+                      <span style={{ display: 'inline-block', transform: 'scaleX(0.5)' }}>
+                        &#x2715;
+                      </span>
+                    </Button>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <span>{b.title}</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id={`edit-badge-image-${b.id}`}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setBadgeDefs((prev) =>
+                          prev.map((bd) =>
+                            bd.id === b.id ? { ...bd, image: ev.target.result } : bd
+                          )
+                        );
+                      };
+                      reader.readAsDataURL(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <TextInput value={newBadgeTitle} onChange={setNewBadgeTitle} placeholder="Titel" />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setNewBadgeImage(ev.target.result);
+                  reader.readAsDataURL(file);
+                }}
+              />
+              {newBadgeImage && (
+                <img
+                  src={newBadgeImage}
+                  alt="Preview"
+                  className="badge-box rounded-full border object-cover"
+                />
+              )}
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!newBadgeTitle.trim() || !newBadgeImage}
+                onClick={addBadge}
+              >
+                Maak badge
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -406,6 +558,65 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
+        </Card>
+      )}
+
+      {page === 'backup' && (
+        <Card title="Backup & herstel">
+          <div className="space-y-4">
+            <Button className="bg-indigo-600 text-white" onClick={handleBackup}>
+              Backup downloaden
+            </Button>
+            <div>
+              <input
+                type="file"
+                accept="application/json"
+                onChange={(e) => setRestoreFile(e.target.files[0] || null)}
+              />
+              <Button
+                className="bg-indigo-600 text-white mt-2"
+                disabled={!restoreFile}
+                onClick={() => {
+                  handleRestore(restoreFile);
+                  setRestoreFile(null);
+                }}
+              >
+                Herstel backup
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {page === 'preview' && (
+        <Card title="Preview student">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-end">
+            <div>
+              <label className="text-sm">Student</label>
+              <Select value={selectedStudentId} onChange={setSelectedStudentId}>
+                <option value="">— Kies student —</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.id})
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-neutral-500 mt-2">
+                Laat leeg om te zien wat een student zonder selectie ziet.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button className="border" onClick={() => setSelectedStudentId('')}>Leegmaken</Button>
+              <a href="#/admin/preview" className="px-4 py-2 rounded-2xl border">Open als losse pagina</a>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Student
+              selectedStudentId={selectedStudentId}
+              setSelectedStudentId={setSelectedStudentId}
+            />
+          </div>
         </Card>
       )}
     </div>

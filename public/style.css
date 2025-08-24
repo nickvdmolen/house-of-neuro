@@ -356,3 +356,18 @@ img{
 .icon-bubble--warn{ background:linear-gradient(180deg, #FFF7E6, #FFE9B8); }
 .icon-bubble--info{ background:linear-gradient(180deg, #E8F4FF, #D6ECFF); }
 
+/* Ensure overlay is always transparent */
+.overlay {
+  background: transparent;
+  opacity: 1;
+}
+
+.overlay:hover {
+  background: transparent;
+}
+
+/* Explicitly size delete icon instead of scaling */
+.delete-icon {
+  width: 12px;
+  height: 12px;
+}
