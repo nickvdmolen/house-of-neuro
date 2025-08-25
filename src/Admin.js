@@ -88,6 +88,17 @@ export default function Admin() {
   const [newGroup, setNewGroup] = useState('');
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
+  const resetTeacherPassword = useCallback((id) => {
+    const pwd = window.prompt('Nieuw wachtwoord:');
+    if (!pwd?.trim()) return;
+    const hash = bcrypt.hashSync(pwd.trim(), 10);
+    setTeachers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, passwordHash: hash } : t))
+    );
+  }, [setTeachers]);
+  const removeTeacher = useCallback((id) => {
+    setTeachers((prev) => prev.filter((t) => t.id !== id));
+  }, [setTeachers]);
   const [badgeStudentId, setBadgeStudentId] = useState('');
   const [awardType, setAwardType] = useState('student');
   const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
@@ -561,9 +572,27 @@ export default function Admin() {
             >
               Voeg docent toe
             </Button>
-            <ul className="mt-4 list-disc pl-5">
+            <ul className="mt-4 space-y-2">
               {teachers.map((t) => (
-                <li key={t.id}>{t.email}</li>
+                <li key={t.id} className="flex items-center gap-2">
+                  <span className="flex-1">{t.email}</span>
+                  <Button
+                    className="bg-indigo-600 text-white"
+                    onClick={() => resetTeacherPassword(t.id)}
+                  >
+                    Reset wachtwoord
+                  </Button>
+                  <Button
+                    className="bg-rose-600 text-white"
+                    onClick={() => {
+                      if (window.confirm(`Verwijder ${t.email}?`)) {
+                        removeTeacher(t.id);
+                      }
+                    }}
+                  >
+                    Verwijder
+                  </Button>
+                </li>
               ))}
             </ul>
           </div>
