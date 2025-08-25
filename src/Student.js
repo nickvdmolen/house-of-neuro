@@ -26,9 +26,12 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
     [groups, students]
   );
 
-  const addStudent = useCallback((name, email) => {
+  const addStudent = useCallback((name, email, password = '') => {
     const id = genId();
-    setStudents((prev) => [...prev, { id, name, email: email || undefined, groupId: null, points: 0, badges: [] }]);
+    setStudents((prev) => [
+      ...prev,
+      { id, name, email: email || undefined, password, groupId: null, points: 0, badges: [] }
+    ]);
     return id;
   }, [setStudents]);
 
@@ -60,15 +63,31 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   };
 
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [resetStudent, setResetStudent] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPassword2, setNewPassword2] = useState('');
+
   const handleLogin = () => {
     if (!emailValid(loginEmail)) return;
     const normEmail = loginEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
-      setSelectedStudentId(existing.id);
-      setLoginEmail('');
-      setLoginError('');
+      const pass = loginPassword.trim();
+      if (existing.tempCode && pass === existing.tempCode) {
+        setResetStudent(existing);
+        setLoginEmail('');
+        setLoginPassword('');
+        setLoginError('');
+      } else if ((existing.password || '') === pass) {
+        setSelectedStudentId(existing.id);
+        setLoginEmail('');
+        setLoginPassword('');
+        setLoginError('');
+      } else {
+        setLoginError('Onjuist wachtwoord of code.');
+      }
     } else {
       setLoginError('Onbekend e-mailadres.');
     }
@@ -76,23 +95,82 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
 
   const [signupEmail, setSignupEmail] = useState('');
   const [signupName, setSignupName] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupPassword2, setSignupPassword2] = useState('');
   const [signupError, setSignupError] = useState('');
   const handleSignup = () => {
-    if (!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)) return;
+    if (
+      !signupEmail.trim() ||
+      !signupName.trim() ||
+      !emailValid(signupEmail) ||
+      !signupPassword.trim()
+    )
+      return;
+
+    if (signupPassword !== signupPassword2) {
+      setSignupError('Wachtwoorden komen niet overeen.');
+      return;
+    }
 
     const normEmail = signupEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
       setSignupError('E-mailadres bestaat al.');
     } else {
-      const newId = addStudent(signupName.trim(), normEmail);
+      const newId = addStudent(signupName.trim(), normEmail, signupPassword);
       setSelectedStudentId(newId);
       setSignupEmail('');
       setSignupName('');
+      setSignupPassword('');
+      setSignupPassword2('');
       setSignupError('');
     }
   };
+
+  const handleSetNewPassword = () => {
+    if (!resetStudent) return;
+    if (!newPassword.trim() || newPassword !== newPassword2) return;
+    const id = resetStudent.id;
+    const pass = newPassword.trim();
+    setStudents((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, password: pass, tempCode: undefined } : s))
+    );
+    setResetStudent(null);
+    setSelectedStudentId(id);
+    setNewPassword('');
+    setNewPassword2('');
+  };
   
+  if (resetStudent) {
+    return (
+      <div className="max-w-md mx-auto">
+        <Card title="Nieuw wachtwoord instellen">
+          <div className="grid grid-cols-1 gap-4">
+            <TextInput
+              type="password"
+              value={newPassword}
+              onChange={setNewPassword}
+              placeholder="Nieuw wachtwoord"
+            />
+            <TextInput
+              type="password"
+              value={newPassword2}
+              onChange={setNewPassword2}
+              placeholder="Bevestig wachtwoord"
+            />
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={!newPassword.trim() || newPassword !== newPassword2}
+              onClick={handleSetNewPassword}
+            >
+              Opslaan
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   if (!selectedStudentId) {
     return (
       <div className="max-w-md mx-auto">
@@ -100,13 +178,19 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
           <Card title="Log in">
             <div className="grid grid-cols-1 gap-4">
               <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+              <TextInput
+                type="password"
+                value={loginPassword}
+                onChange={setLoginPassword}
+                placeholder="Wachtwoord of code"
+              />
               {loginEmail && !emailValid(loginEmail) && (
                 <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
               )}
               {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
               <Button
                 className="bg-indigo-600 text-white"
-                disabled={!loginEmail.trim() || !emailValid(loginEmail)}
+                disabled={!loginEmail.trim() || !emailValid(loginEmail) || !loginPassword.trim()}
                 onClick={handleLogin}
               >
                 Log in
@@ -116,6 +200,8 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 onClick={() => {
                   setSignupEmail('');
                   setSignupName('');
+                  setSignupPassword('');
+                  setSignupPassword2('');
                   setSignupError('');
                   setAuthMode('signup');
                 }}
@@ -139,10 +225,28 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
               )}
               <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
+              <TextInput
+                type="password"
+                value={signupPassword}
+                onChange={setSignupPassword}
+                placeholder="Wachtwoord"
+              />
+              <TextInput
+                type="password"
+                value={signupPassword2}
+                onChange={setSignupPassword2}
+                placeholder="Bevestig wachtwoord"
+              />
               {signupError && <div className="text-sm text-rose-600">{signupError}</div>}
               <Button
                 className="bg-indigo-600 text-white"
-                disabled={!signupEmail.trim() || !signupName.trim() || !emailValid(signupEmail)}
+                disabled={
+                  !signupEmail.trim() ||
+                  !signupName.trim() ||
+                  !emailValid(signupEmail) ||
+                  !signupPassword.trim() ||
+                  signupPassword !== signupPassword2
+                }
                 onClick={handleSignup}
               >
                 Account aanmaken
@@ -151,7 +255,11 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 className="text-sm text-indigo-600 text-left"
                 onClick={() => {
                   setLoginEmail('');
+                  setLoginPassword('');
                   setLoginError('');
+                  setSignupPassword('');
+                  setSignupPassword2('');
+                  setSignupError('');
                   setAuthMode('login');
                 }}
               >
