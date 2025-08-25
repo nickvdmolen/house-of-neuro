@@ -35,6 +35,22 @@ export default function App() {
     window.location.hash = '/';
   };
 
+  // Add proper menu management
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuOpen && !event.target.closest('.menu-wrapper')) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
+  // Add route change handler to close menu
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [route]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800">
       <div className="max-w-6xl mx-auto">
