@@ -9,27 +9,28 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
     <div className="p-4">
 
       <div className="badge-stack">
-
-      <div className="flex -space-x-4">
-
         {badgeDefs.map((b) => {
           const earned = earnedBadges.includes(b.id);
           return (
-            <div key={b.id} className="relative z-0 hover:z-10">
+            <div key={b.id} className="badge-box relative z-0 hover:z-10">
+
               {earned ? (
                 <img
                   src={b.image}
                   alt={b.title}
-                  className="badge-box rounded-full border object-cover cursor-pointer"
+
+                  className="w-full h-full rounded-full border object-cover cursor-pointer"
                   onClick={() => setExpanded(b.id)}
                 />
               ) : (
-                <div className="badge-box rounded-full border bg-white"></div>
+                <div className="w-full h-full rounded-full border bg-white"></div>
+
               )}
             </div>
           );
         })}
       </div>
+
 
       {expandedBadge && (
         <div
@@ -39,10 +40,7 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
           <img
             src={expandedBadge.image}
             alt={expandedBadge.title}
-
             className="max-w-full max-h-full cursor-pointer object-contain"
-
-            className="max-w-full max-h-full cursor-pointer"
 
           />
         </div>
