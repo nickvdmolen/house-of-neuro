@@ -216,6 +216,32 @@ select:focus {
   }
 }
 
+/* Stacked badge layout */
+.badge-stack {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.badge-stack > * {
+  margin-left: -1rem;
+}
+
+.badge-stack > *:nth-child(3n + 1) {
+  margin-left: 0;
+}
+
+@media (min-width: 640px) {
+  .badge-stack > *:nth-child(4n + 1) {
+    margin-left: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .badge-stack > *:nth-child(6n + 1) {
+    margin-left: 0;
+  }
+}
+
 /* Header/menu styles */
 .app-header {
   position: relative;
