@@ -89,15 +89,20 @@ export default function Admin() {
 
   const [newBadgeTitle, setNewBadgeTitle] = useState('');
   const [newBadgeImage, setNewBadgeImage] = useState('');
+  const [newBadgeRequirement, setNewBadgeRequirement] = useState('');
 
   const addBadge = useCallback(() => {
     const title = newBadgeTitle.trim();
     if (!title || !newBadgeImage) return;
     const id = genId();
-    setBadgeDefs((prev) => [...prev, { id, title, image: newBadgeImage }]);
+    setBadgeDefs((prev) => [
+      ...prev,
+      { id, title, image: newBadgeImage, requirement: newBadgeRequirement.trim() },
+    ]);
     setNewBadgeTitle('');
     setNewBadgeImage('');
-  }, [newBadgeTitle, newBadgeImage, setBadgeDefs]);
+    setNewBadgeRequirement('');
+  }, [newBadgeTitle, newBadgeImage, newBadgeRequirement, setBadgeDefs]);
 
   const removeBadge = useCallback((badgeId) => {
     setBadgeDefs((prev) => prev.filter((b) => b.id !== badgeId));
@@ -387,8 +392,20 @@ export default function Admin() {
                       </span>
                     </Button>
                   </div>
-                  <div className="mt-2 text-center">
+                  <div className="mt-2 text-center w-full">
                     <span>{b.title}</span>
+                    <TextInput
+                      value={b.requirement || ''}
+                      onChange={(val) =>
+                        setBadgeDefs((prev) =>
+                          prev.map((bd) =>
+                            bd.id === b.id ? { ...bd, requirement: val } : bd
+                          )
+                        )
+                      }
+                      placeholder="Wat moet student doen?"
+                      className="mt-1 text-xs"
+                    />
                   </div>
                   <input
                     type="file"
@@ -415,6 +432,11 @@ export default function Admin() {
             </div>
             <div className="grid grid-cols-1 gap-2">
               <TextInput value={newBadgeTitle} onChange={setNewBadgeTitle} placeholder="Titel" />
+              <TextInput
+                value={newBadgeRequirement}
+                onChange={setNewBadgeRequirement}
+                placeholder="Wat moet student doen?"
+              />
               <input
                 type="file"
                 accept="image/*"
