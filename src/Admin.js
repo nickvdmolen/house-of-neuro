@@ -722,7 +722,7 @@ export default function Admin() {
                 <option value="">— Kies student —</option>
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.id})
+                    {s.name} ({s.email || s.id})
                   </option>
                 ))}
               </Select>
