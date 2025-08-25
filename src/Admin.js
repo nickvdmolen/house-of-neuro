@@ -4,16 +4,19 @@ import BadgeChecklist from './components/BadgeChecklist';
 import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
-import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard } from './utils';
+import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, teacherEmailValid } from './utils';
 import Student from './Student';
 import useBadges from './hooks/useBadges';
 import usePersistentState from './hooks/usePersistentState';
+import useTeachers from './hooks/useTeachers';
+import bcrypt from 'bcryptjs';
 
 export default function Admin() {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
   const [awards, setAwards] = useAwards();
   const [badgeDefs, setBadgeDefs] = useBadges();
+  const [teachers, setTeachers] = useTeachers();
   const [restoreFile, setRestoreFile] = useState(null);
 
   const studentById = useMemo(() => {
@@ -83,6 +86,8 @@ export default function Admin() {
   const [newStudent, setNewStudent] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newGroup, setNewGroup] = useState('');
+  const [newTeacherEmail, setNewTeacherEmail] = useState('');
+  const [newTeacherPassword, setNewTeacherPassword] = useState('');
   const [badgeStudentId, setBadgeStudentId] = useState('');
   const [awardType, setAwardType] = useState('student');
   const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
@@ -107,7 +112,7 @@ export default function Admin() {
   }, [setBadgeDefs]);
 
   const handleBackup = useCallback(() => {
-    const data = { students, groups, awards, badges: badgeDefs };
+    const data = { students, groups, awards, badges: badgeDefs, teachers };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -115,7 +120,7 @@ export default function Admin() {
     a.download = 'backup.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [students, groups, awards, badgeDefs]);
+  }, [students, groups, awards, badgeDefs, teachers]);
 
   const handleRestore = useCallback((file) => {
     if (!file) return;
@@ -127,12 +132,13 @@ export default function Admin() {
         if (Array.isArray(data.groups)) setGroups(data.groups);
         if (Array.isArray(data.awards)) setAwards(data.awards);
         if (Array.isArray(data.badges)) setBadgeDefs(data.badges);
+        if (Array.isArray(data.teachers)) setTeachers(data.teachers);
       } catch {
         alert('Ongeldige backup');
       }
     };
     reader.readAsText(file);
-  }, [setStudents, setGroups, setAwards, setBadgeDefs]);
+  }, [setStudents, setGroups, setAwards, setBadgeDefs, setTeachers]);
 
   const handleResetPassword = useCallback(() => {
     if (!resetStudentId) return;
@@ -215,6 +221,7 @@ export default function Admin() {
         <option value="assign-group">Student aan groep koppelen</option>
         <option value="badges">Badges toekennen</option>
         <option value="manage-badges">Badges beheren</option>
+        <option value="manage-teachers">Docenten beheren</option>
         <option value="points">Punten invoeren</option>
         <option value="leaderboard-students">Scorebord – Individueel</option>
         <option value="leaderboard-groups">Scorebord – Groepen</option>
@@ -490,6 +497,52 @@ export default function Admin() {
                 Maak badge
               </Button>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {page === 'manage-teachers' && (
+        <Card title="Docenten beheren">
+          <div className="grid grid-cols-1 gap-2">
+            <TextInput
+              value={newTeacherEmail}
+              onChange={setNewTeacherEmail}
+              placeholder="E-mail (@nhlstenden.com)"
+            />
+            <TextInput
+              type="password"
+              value={newTeacherPassword}
+              onChange={setNewTeacherPassword}
+              placeholder="Wachtwoord"
+            />
+            {newTeacherEmail && !teacherEmailValid(newTeacherEmail) && (
+              <div className="text-sm text-rose-600">
+                Alleen adressen eindigend op @nhlstenden.com zijn toegestaan.
+              </div>
+            )}
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={
+                !newTeacherEmail.trim() ||
+                !newTeacherPassword.trim() ||
+                !teacherEmailValid(newTeacherEmail)
+              }
+              onClick={() => {
+                const email = newTeacherEmail.trim().toLowerCase();
+                if (teachers.some((t) => t.email.toLowerCase() === email)) return;
+                const hash = bcrypt.hashSync(newTeacherPassword.trim(), 10);
+                setTeachers((prev) => [...prev, { id: genId(), email, passwordHash: hash }]);
+                setNewTeacherEmail('');
+                setNewTeacherPassword('');
+              }}
+            >
+              Voeg docent toe
+            </Button>
+            <ul className="mt-4 list-disc pl-5">
+              {teachers.map((t) => (
+                <li key={t.id}>{t.email}</li>
+              ))}
+            </ul>
           </div>
         </Card>
       )}

@@ -5,6 +5,9 @@ import AdminRoster from './AdminRoster';
 import { Card, Button, TextInput } from './components/ui';
 import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
+import useTeachers from './hooks/useTeachers';
+import { teacherEmailValid } from './utils';
+import bcrypt from 'bcryptjs';
 
 export default function App() {
   const getRoute = () => (typeof location !== 'undefined' && location.hash ? location.hash.slice(1) : '/');
@@ -86,27 +89,52 @@ export default function App() {
 }
 
 function AdminGate({ onAllow }) {
-  const [code, setCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const ACCEPT = 'neuro2025';
+  const [teachers] = useTeachers();
 
   const submit = () => {
-    if (code.trim() === ACCEPT) {
+    const norm = email.trim().toLowerCase();
+    if (!teacherEmailValid(norm)) {
+      setError('Alleen adressen eindigend op @nhlstenden.com zijn toegestaan.');
+      return;
+    }
+    const t = teachers.find((te) => te.email.toLowerCase() === norm);
+    if (t && bcrypt.compareSync(password, t.passwordHash)) {
       setError('');
       onAllow();
     } else {
-      setError('Onjuiste code.');
+      setError('Onjuiste e-mail of wachtwoord.');
     }
   };
 
   return (
     <div className="max-w-md mx-auto">
       <Card title="Beheer – Toegang">
-        <p className="text-sm text-neutral-600 mb-3">Alleen docenten. Vul de toegangscode in om door te gaan.</p>
-        <TextInput value={code} onChange={setCode} placeholder="Toegangscode" className="mb-4" />
+        <p className="text-sm text-neutral-600 mb-3">Alleen docenten. Log in met je @nhlstenden.com e-mailadres.</p>
+        <TextInput
+          value={email}
+          onChange={setEmail}
+          placeholder="E-mail"
+          className="mb-2"
+        />
+        <TextInput
+          type="password"
+          value={password}
+          onChange={setPassword}
+          placeholder="Wachtwoord"
+          className="mb-4"
+        />
         {error && <div className="text-sm text-rose-600 mt-2">{error}</div>}
         <div className="mt-3 flex gap-2">
-          <Button className="bg-indigo-600 text-white" onClick={submit}>Inloggen</Button>
+          <Button
+            className="bg-indigo-600 text-white"
+            onClick={submit}
+            disabled={!email.trim() || !password.trim()}
+          >
+            Inloggen
+          </Button>
           <a href="#/student" className="px-4 py-2 rounded-2xl border">Terug naar studenten</a>
         </div>
       </Card>

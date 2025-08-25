@@ -6,6 +6,9 @@ export function genId() {
 const EMAIL_RE = /@student\.nhlstenden\.com$/i;
 export const emailValid = (email) => EMAIL_RE.test((email || '').trim());
 
+const TEACHER_EMAIL_RE = /@nhlstenden\.com$/i;
+export const teacherEmailValid = (email) => TEACHER_EMAIL_RE.test((email || '').trim());
+
 export function nameFromEmail(email) {
   const prefix = (email || '').split('@')[0];
   const parts = prefix.split('.').filter(Boolean);
