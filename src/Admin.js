@@ -35,9 +35,12 @@ export default function Admin() {
     [groups, students]
   );
 
-  const addStudent = useCallback((name, email) => {
+  const addStudent = useCallback((name, email, password = '') => {
     const id = genId();
-    setStudents((prev) => [...prev, { id, name, email: email || undefined, groupId: null, points: 0, badges: [] }]);
+    setStudents((prev) => [
+      ...prev,
+      { id, name, email: email || undefined, password, groupId: null, points: 0, badges: [] }
+    ]);
     return id;
   }, [setStudents]);
 
@@ -131,10 +134,23 @@ export default function Admin() {
     reader.readAsText(file);
   }, [setStudents, setGroups, setAwards, setBadgeDefs]);
 
+  const handleResetPassword = useCallback(() => {
+    if (!resetStudentId) return;
+    const code = Math.random().toString(36).slice(2, 8);
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === resetStudentId ? { ...s, password: '', tempCode: code } : s
+      )
+    );
+    setResetCode(code);
+  }, [resetStudentId, setStudents]);
+
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
 
   const [removeStudentId, setRemoveStudentId] = useState(students[0]?.id || '');
+  const [resetStudentId, setResetStudentId] = useState(students[0]?.id || '');
+  const [resetCode, setResetCode] = useState('');
 
   const [page, setPage] = useState('add-student');
 
@@ -176,6 +192,12 @@ export default function Admin() {
     }
   }, [students, removeStudentId]);
 
+  useEffect(() => {
+    if (students.length && !students.find((s) => s.id === resetStudentId)) {
+      setResetStudentId(students[0]?.id || '');
+    }
+  }, [students, resetStudentId]);
+
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
     if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
@@ -188,6 +210,7 @@ export default function Admin() {
       <Select value={page} onChange={setPage} className="max-w-xs">
         <option value="add-student">Student toevoegen</option>
         <option value="remove-student">Student verwijderen</option>
+        <option value="reset-password">Wachtwoord resetten</option>
         <option value="add-group">Groep toevoegen</option>
         <option value="assign-group">Student aan groep koppelen</option>
         <option value="badges">Badges toekennen</option>
@@ -255,6 +278,32 @@ export default function Admin() {
             >
               Verwijder
             </Button>
+          </div>
+        </Card>
+      )}
+
+      {page === 'reset-password' && (
+        <Card title="Wachtwoord resetten">
+          <div className="grid grid-cols-1 gap-2">
+            <Select value={resetStudentId} onChange={setResetStudentId}>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={!resetStudentId}
+              onClick={handleResetPassword}
+            >
+              Genereer code
+            </Button>
+            {resetCode && (
+              <div className="text-sm">
+                Tijdelijke code: <code>{resetCode}</code>
+              </div>
+            )}
           </div>
         </Card>
       )}
