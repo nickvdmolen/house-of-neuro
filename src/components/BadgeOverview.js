@@ -11,20 +11,24 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
       <div className="badge-stack">
         {badgeDefs.map((b) => {
           const earned = earnedBadges.includes(b.id);
+          const req = b.requirement || '';
+          const fontSize = Math.max(8, 14 - req.length / 5);
           return (
             <div key={b.id} className="badge-box relative z-0 hover:z-10">
-
               {earned ? (
                 <img
                   src={b.image}
                   alt={b.title}
-
                   className="w-full h-full rounded-full border object-cover cursor-pointer"
                   onClick={() => setExpanded(b.id)}
                 />
               ) : (
-                <div className="w-full h-full rounded-full border bg-white"></div>
-
+                <div
+                  className="w-full h-full rounded-full border bg-white flex items-center justify-center text-center p-1 break-words leading-tight"
+                  style={{ fontSize: `${fontSize}px` }}
+                >
+                  {req}
+                </div>
               )}
             </div>
           );
