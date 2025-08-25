@@ -145,6 +145,9 @@ export default function Admin() {
     reader.readAsText(file);
   }, [setStudents, setGroups, setAwards, setBadgeDefs, setTeachers]);
 
+  const [resetStudentId, setResetStudentId] = useState(students[0]?.id || '');
+  const [resetCode, setResetCode] = useState('');
+
   const handleResetPassword = useCallback(() => {
     if (!resetStudentId) return;
     const code = Math.random().toString(36).slice(2, 8);
@@ -160,8 +163,6 @@ export default function Admin() {
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
 
   const [removeStudentId, setRemoveStudentId] = useState(students[0]?.id || '');
-  const [resetStudentId, setResetStudentId] = useState(students[0]?.id || '');
-  const [resetCode, setResetCode] = useState('');
 
   const [page, setPage] = useState('add-student');
 
