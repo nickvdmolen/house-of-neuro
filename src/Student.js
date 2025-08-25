@@ -174,6 +174,11 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   if (!selectedStudentId) {
     return (
       <div className="max-w-md mx-auto">
+        <img
+          src="images/voorpagina.png"
+          alt="Voorpagina"
+          className="w-full h-auto mb-4"
+        />
         {authMode === 'login' ? (
           <Card title="Log in">
             <div className="grid grid-cols-1 gap-4">
