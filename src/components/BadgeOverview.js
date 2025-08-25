@@ -7,7 +7,11 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
 
   return (
     <div className="p-4">
+
+      <div className="badge-stack">
+
       <div className="flex -space-x-4">
+
         {badgeDefs.map((b) => {
           const earned = earnedBadges.includes(b.id);
           return (
@@ -35,7 +39,11 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
           <img
             src={expandedBadge.image}
             alt={expandedBadge.title}
+
+            className="max-w-full max-h-full cursor-pointer object-contain"
+
             className="max-w-full max-h-full cursor-pointer"
+
           />
         </div>
       )}
