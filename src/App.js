@@ -209,9 +209,10 @@ function AdminPreview({ selectedStudentId, setSelectedStudentId }) {
               {students.map((s, i) => {
                 const id = toId(s, i);
                 const name = toName(s, id);
+                const email = typeof s === 'string' ? '' : s?.email;
                 return (
                   <option key={id} value={id}>
-                    {name} ({id})
+                    {name} ({email || id})
                   </option>
                 );
               })}

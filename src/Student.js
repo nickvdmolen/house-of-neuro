@@ -277,7 +277,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
       <div className="max-w-3xl mx-auto">
         {me && (
           <div className="flex items-center justify-between mb-4">
-            <span>Ingelogd als {me.name}</span>
+            <span>Ingelogd als {me.name}{me.email ? ` (${me.email})` : ''}</span>
             <Button className="bg-indigo-600 text-white" onClick={handleLogout}>Uitloggen</Button>
           </div>
         )}
@@ -303,7 +303,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
     <div>
       {me && (
         <div className="flex items-center justify-between mb-4">
-          <span>Ingelogd als {me.name}</span>
+          <span>Ingelogd als {me.name}{me.email ? ` (${me.email})` : ''}</span>
           <Button className="bg-indigo-600 text-white" onClick={handleLogout}>Uitloggen</Button>
         </div>
       )}
