@@ -55,10 +55,10 @@ export default function App() {
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800 overflow-hidden">
       {route === '/' && (
         <picture className="pointer-events-none absolute inset-0 m-auto h-full w-auto max-h-screen">
-          <source srcSet="images/voorpagina.webp" type="image/webp" />
-          <source srcSet="images/voorpagina.png" type="image/png" />
+          <source srcSet="/images/voorpagina.webp" type="image/webp" />
+          <source srcSet="/images/voorpagina.png" type="image/png" />
           <img
-            src="images/voorpagina.jpg"
+            src="/images/voorpagina.jpg"
             alt="Voorpagina"
             className="h-full w-auto object-contain"
           />
