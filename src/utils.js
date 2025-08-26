@@ -9,6 +9,19 @@ export const emailValid = (email) => EMAIL_RE.test((email || '').trim());
 const TEACHER_EMAIL_RE = /@nhlstenden\.com$/i;
 export const teacherEmailValid = (email) => TEACHER_EMAIL_RE.test((email || '').trim());
 
+export async function requestPasswordReset(email) {
+  if (typeof fetch === 'undefined') return;
+  try {
+    await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+  } catch (err) {
+    console.error('Failed to request password reset', err);
+  }
+}
+
 export function nameFromEmail(email) {
   const prefix = (email || '').split('@')[0];
   const parts = prefix.split('.').filter(Boolean);

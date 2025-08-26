@@ -6,8 +6,10 @@ import { Card, Button, TextInput } from './components/ui';
 import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
-import { teacherEmailValid, genId, emailValid, nameFromEmail } from './utils';
-import bcrypt from 'bcryptjs';
+import { teacherEmailValid, genId, emailValid, nameFromEmail, requestPasswordReset } from './utils';
+
+const SUPERUSER_EMAIL = 'admin@nhlstenden.com';
+const SUPERUSER_PASSWORD = 'Neuro2025!';
 
 export default function App() {
   const getRoute = () => (typeof location !== 'undefined' && location.hash ? location.hash.slice(1) : '/');
@@ -67,32 +69,41 @@ export default function App() {
       <div className="relative z-10 max-w-6xl mx-auto">
         <header className="app-header">
           <h1 className="app-title">Neuromarketing Housepoints</h1>
-          {route !== '/' && (
-            <div className="menu-wrapper">
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="menu-button"
-                aria-label="Menu"
-              >☰</button>
-              {menuOpen && (
-                <div className="dropdown">
-                  <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
-                  <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
-                  {isAdmin && (
+          <div className="menu-wrapper">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="menu-button"
+              aria-label="Menu"
+            >☰</button>
+            {menuOpen && (
+              <div className="dropdown">
+                <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
+                {!isAdmin && (
+                  <a href="#/docent" className="dropdown-link" onClick={() => setMenuOpen(false)}>Docent</a>
+                )}
+                {isAdmin && (
+                  <>
+                    <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
                     <a href="#/admin/preview" className="dropdown-link" onClick={() => setMenuOpen(false)}>
                       Preview student
                     </a>
-                  )}
-                  {isAdmin && (
                     <button onClick={logoutAdmin} className="dropdown-button">Uitloggen beheer</button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </header>
 
-        {route === '/admin' ? (
+        {route === '/docent' ? (
+          <AdminGate
+            title="Docenten – Inloggen"
+            onAllow={() => {
+              allowAdmin();
+              window.location.hash = '/admin';
+            }}
+          />
+        ) : route === '/admin' ? (
           isAdmin ? <Admin /> : <AdminGate onAllow={allowAdmin} />
         ) : route === '/student' ? (
           <Student selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} />
@@ -117,11 +128,12 @@ export default function App() {
 
 
 
-function AdminGate({ onAllow }) {
+function AdminGate({ onAllow, title = 'Beheer – Toegang' }) {
   const [authMode, setAuthMode] = useState('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPassword2, setSignupPassword2] = useState('');
@@ -129,13 +141,19 @@ function AdminGate({ onAllow }) {
   const [teachers, setTeachers] = useTeachers();
 
   const handleLogin = () => {
+    setResetMessage('');
     const norm = loginEmail.trim().toLowerCase();
+    if (norm === SUPERUSER_EMAIL && loginPassword === SUPERUSER_PASSWORD) {
+      setLoginError('');
+      onAllow();
+      return;
+    }
     if (!teacherEmailValid(norm)) {
       setLoginError('Alleen adressen eindigend op @nhlstenden.com zijn toegestaan.');
       return;
     }
     const t = teachers.find((te) => te.email.toLowerCase() === norm);
-    if (t && bcrypt.compareSync(loginPassword, t.passwordHash)) {
+    if (t && loginPassword === t.password) {
       setLoginError('');
       onAllow();
     } else {
@@ -146,6 +164,10 @@ function AdminGate({ onAllow }) {
   const handleSignup = () => {
     const norm = signupEmail.trim().toLowerCase();
     if (!teacherEmailValid(norm)) return;
+    if (norm === SUPERUSER_EMAIL) {
+      setSignupError('Dit e-mailadres is gereserveerd.');
+      return;
+    }
     if (!signupPassword.trim() || signupPassword !== signupPassword2) {
       setSignupError('Wachtwoorden komen niet overeen.');
       return;
@@ -154,8 +176,10 @@ function AdminGate({ onAllow }) {
       setSignupError('E-mailadres bestaat al.');
       return;
     }
-    const hash = bcrypt.hashSync(signupPassword.trim(), 10);
-    setTeachers((prev) => [...prev, { id: genId(), email: norm, passwordHash: hash }]);
+    setTeachers((prev) => [
+      ...prev,
+      { id: genId(), email: norm, password: signupPassword.trim() }
+    ]);
     setSignupEmail('');
     setSignupPassword('');
     setSignupPassword2('');
@@ -163,16 +187,31 @@ function AdminGate({ onAllow }) {
     onAllow();
   };
 
+  const handlePasswordReset = async () => {
+    const norm = loginEmail.trim().toLowerCase();
+    if (!teacherEmailValid(norm)) {
+      setLoginError('Vul een geldig e-mailadres in.');
+      return;
+    }
+    const t = teachers.find((te) => te.email.toLowerCase() === norm);
+    if (t || norm === SUPERUSER_EMAIL) {
+      await requestPasswordReset(norm);
+      setResetMessage('Als het e-mailadres bestaat, is een resetmail verstuurd.');
+    } else {
+      setResetMessage('E-mailadres niet gevonden.');
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto">
-      <Card title="Beheer – Toegang">
+      <Card title={title}>
         {authMode === 'login' ? (
           <>
             <p className="text-sm text-neutral-600 mb-3">Alleen docenten. Log in met je @nhlstenden.com e-mailadres.</p>
             <TextInput
               value={loginEmail}
               onChange={setLoginEmail}
-              placeholder="E-mail"
+              placeholder="E-mail (@nhlstenden.com)"
               className="mb-2"
             />
             <TextInput
@@ -183,6 +222,7 @@ function AdminGate({ onAllow }) {
               className="mb-4"
             />
             {loginError && <div className="text-sm text-rose-600 mt-2">{loginError}</div>}
+            {resetMessage && <div className="text-sm text-green-600 mt-2">{resetMessage}</div>}
             <div className="mt-3 flex gap-2">
               <Button
                 className="bg-indigo-600 text-white"
@@ -195,10 +235,17 @@ function AdminGate({ onAllow }) {
             </div>
             <button
               className="text-sm text-indigo-600 text-left mt-2"
+              onClick={handlePasswordReset}
+            >
+              Wachtwoord vergeten?
+            </button>
+            <button
+              className="text-sm text-indigo-600 text-left mt-2"
               onClick={() => {
                 setLoginEmail('');
                 setLoginPassword('');
                 setLoginError('');
+                setResetMessage('');
                 setAuthMode('signup');
               }}
             >
@@ -253,6 +300,7 @@ function AdminGate({ onAllow }) {
                 setSignupPassword('');
                 setSignupPassword2('');
                 setSignupError('');
+                setResetMessage('');
                 setAuthMode('login');
               }}
             >
@@ -341,8 +389,10 @@ function StudentGate({ setSelectedStudentId }) {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
 
   const handleLogin = () => {
+    setResetMessage('');
     if (!emailValid(loginEmail)) return;
     const normEmail = loginEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
@@ -354,6 +404,21 @@ function StudentGate({ setSelectedStudentId }) {
       window.location.hash = '/student';
     } else {
       setLoginError('Onjuist e-mailadres of wachtwoord.');
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const normEmail = loginEmail.trim().toLowerCase();
+    if (!emailValid(normEmail)) {
+      setLoginError('Vul een geldig e-mailadres in.');
+      return;
+    }
+    const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
+    if (existing) {
+      await requestPasswordReset(normEmail);
+      setResetMessage('Als het e-mailadres bestaat, is een resetmail verstuurd.');
+    } else {
+      setResetMessage('E-mailadres niet gevonden.');
     }
   };
 
@@ -424,6 +489,7 @@ function StudentGate({ setSelectedStudentId }) {
               </div>
             )}
             {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
+            {resetMessage && <div className="text-sm text-green-600">{resetMessage}</div>}
             <Button
               className="bg-indigo-600 text-white"
               disabled={!loginEmail.trim() || !emailValid(loginEmail) || !loginPassword.trim()}
@@ -433,12 +499,19 @@ function StudentGate({ setSelectedStudentId }) {
             </Button>
             <button
               className="text-sm text-indigo-600 text-left"
+              onClick={handlePasswordReset}
+            >
+              Wachtwoord vergeten?
+            </button>
+            <button
+              className="text-sm text-indigo-600 text-left"
               onClick={() => {
                 setSignupEmail('');
                 setSignupName('');
                 setSignupPassword('');
                 setSignupPassword2('');
                 setSignupError('');
+                setResetMessage('');
                 setAuthMode('signup');
               }}
             >
@@ -502,6 +575,7 @@ function StudentGate({ setSelectedStudentId }) {
                 setSignupPassword('');
                 setSignupPassword2('');
                 setSignupError('');
+                setResetMessage('');
                 setAuthMode('login');
               }}
             >
