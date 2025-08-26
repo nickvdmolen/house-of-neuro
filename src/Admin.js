@@ -99,6 +99,11 @@ export default function Admin() {
   const removeTeacher = useCallback((id) => {
     setTeachers((prev) => prev.filter((t) => t.id !== id));
   }, [setTeachers]);
+  const approveTeacher = useCallback((id) => {
+    setTeachers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, approved: true } : t))
+    );
+  }, [setTeachers]);
   const [badgeStudentId, setBadgeStudentId] = useState('');
   const [awardType, setAwardType] = useState('student');
   const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
@@ -565,7 +570,10 @@ export default function Admin() {
                 const email = newTeacherEmail.trim().toLowerCase();
                 if (teachers.some((t) => t.email.toLowerCase() === email)) return;
                 const hash = bcrypt.hashSync(newTeacherPassword.trim(), 10);
-                setTeachers((prev) => [...prev, { id: genId(), email, passwordHash: hash }]);
+                setTeachers((prev) => [
+                  ...prev,
+                  { id: genId(), email, passwordHash: hash, approved: true },
+                ]);
                 setNewTeacherEmail('');
                 setNewTeacherPassword('');
               }}
@@ -573,27 +581,43 @@ export default function Admin() {
               Voeg docent toe
             </Button>
             <ul className="mt-4 space-y-2">
-              {teachers.map((t) => (
-                <li key={t.id} className="flex items-center gap-2">
-                  <span className="flex-1">{t.email}</span>
-                  <Button
-                    className="bg-indigo-600 text-white"
-                    onClick={() => resetTeacherPassword(t.id)}
-                  >
-                    Reset wachtwoord
-                  </Button>
-                  <Button
-                    className="bg-rose-600 text-white"
-                    onClick={() => {
-                      if (window.confirm(`Verwijder ${t.email}?`)) {
-                        removeTeacher(t.id);
-                      }
-                    }}
-                  >
-                    Verwijder
-                  </Button>
-                </li>
-              ))}
+              {teachers.map((t) => {
+                const approved = t.approved !== false;
+                return (
+                  <li key={t.id} className="flex items-center gap-2">
+                    <span className="flex-1">
+                      {t.email}
+                      {!approved && (
+                        <span className="text-sm text-rose-600 ml-2">In afwachting</span>
+                      )}
+                    </span>
+                    {!approved && (
+                      <Button
+                        className="bg-emerald-600 text-white"
+                        onClick={() => approveTeacher(t.id)}
+                      >
+                        Keur goed
+                      </Button>
+                    )}
+                    <Button
+                      className="bg-indigo-600 text-white"
+                      onClick={() => resetTeacherPassword(t.id)}
+                    >
+                      Reset wachtwoord
+                    </Button>
+                    <Button
+                      className="bg-rose-600 text-white"
+                      onClick={() => {
+                        if (window.confirm(`Verwijder ${t.email}?`)) {
+                          removeTeacher(t.id);
+                        }
+                      }}
+                    >
+                      Verwijder
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </Card>
