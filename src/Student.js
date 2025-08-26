@@ -7,11 +7,17 @@ import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
 import useBadges from './hooks/useBadges';
 
-export default function Student({ selectedStudentId, setSelectedStudentId }) {
+export default function Student({
+  selectedStudentId = '',
+  setSelectedStudentId = () => {},
+  previewStudentId,
+}) {
   const [students, setStudents] = useStudents();
   const [groups] = useGroups();
   const [awards] = useAwards();
   const [badgeDefs] = useBadges();
+
+  const activeStudentId = previewStudentId ?? selectedStudentId;
 
   const groupById = useMemo(() => {
     const m = new Map();
@@ -36,26 +42,26 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
   }, [setStudents]);
 
   useEffect(() => {
-    if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
+    if (!previewStudentId && selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
       setSelectedStudentId('');
     }
-  }, [students, selectedStudentId, setSelectedStudentId]);
+  }, [students, selectedStudentId, setSelectedStudentId, previewStudentId]);
 
-  const me = students.find((s) => s.id === selectedStudentId) || null;
+  const me = students.find((s) => s.id === activeStudentId) || null;
   const myGroup = me && me.groupId ? groupById.get(me.groupId) || null : null;
   const myBadges = me?.badges || [];
 
   const myAwards = useMemo(() => {
     return awards.filter(
       (a) =>
-        (a.type === 'student' && a.targetId === selectedStudentId) ||
+        (a.type === 'student' && a.targetId === activeStudentId) ||
         (a.type === 'group' && myGroup && a.targetId === myGroup.id)
     );
-  }, [awards, selectedStudentId, myGroup]);
+  }, [awards, activeStudentId, myGroup]);
 
   const myRank = useMemo(
-    () => individualLeaderboard.find((r) => r.id === selectedStudentId) || null,
-    [individualLeaderboard, selectedStudentId]
+    () => individualLeaderboard.find((r) => r.id === activeStudentId) || null,
+    [individualLeaderboard, activeStudentId]
   );
 
   const myGroupRank = useMemo(
@@ -194,18 +200,26 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
 
       {/* Main content */}
       <div className="relative z-10">
-        {selectedStudentId && me && (
-          <div className="flex items-center justify-between mb-4">
-            <span className="bg-white/90 px-2 py-1 rounded">
-              Ingelogd als {me.name}{me.email ? ` (${me.email})` : ''}
-            </span>
-            <Button className="bg-indigo-600 text-white" onClick={handleLogout}>
-              Uitloggen
-            </Button>
-          </div>
+        {activeStudentId && me && (
+          previewStudentId ? (
+            <div className="flex items-center justify-between mb-4">
+              <span className="bg-white/90 px-2 py-1 rounded">
+                Preview van {me.name}{me.email ? ` (${me.email})` : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between mb-4">
+              <span className="bg-white/90 px-2 py-1 rounded">
+                Ingelogd als {me.name}{me.email ? ` (${me.email})` : ''}
+              </span>
+              <Button className="bg-indigo-600 text-white" onClick={handleLogout}>
+                Uitloggen
+              </Button>
+            </div>
+          )
         )}
 
-        {!selectedStudentId ? (
+        {!activeStudentId ? (
           <div className="max-w-md mx-auto">
             {authMode === 'login' ? (
               <Card title="Log in">
@@ -353,12 +367,12 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 <tbody>
                   {(() => {
                     const top3 = individualLeaderboard.slice(0, 3);
-                    const meRow = individualLeaderboard.find((r) => r.id === selectedStudentId);
+                    const meRow = individualLeaderboard.find((r) => r.id === activeStudentId);
                     const isTop3 = meRow && meRow.rank <= 3;
                     return (
                       <>
                         {top3.map((row) => (
-                          <tr key={row.id} className={`border-b last:border-0 ${row.id === selectedStudentId ? 'bg-indigo-50' : ''}`}>
+                          <tr key={row.id} className={`border-b last:border-0 ${row.id === activeStudentId ? 'bg-indigo-50' : ''}`}>
                             <td className="py-1 pr-2">{row.rank}</td>
                             <td className="py-1 pr-2">{row.name}</td>
                             <td className={`py-1 pr-2 text-right font-semibold ${row.points > 0 ? 'text-emerald-700' : row.points < 0 ? 'text-rose-700' : 'text-neutral-700'}`}>{row.points}</td>

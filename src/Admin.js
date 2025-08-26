@@ -7,7 +7,6 @@ import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, teacherEmailValid } from './utils';
 import Student from './Student';
 import useBadges from './hooks/useBadges';
-import usePersistentState from './hooks/usePersistentState';
 import useTeachers from './hooks/useTeachers';
 import bcrypt from 'bcryptjs';
 
@@ -183,7 +182,7 @@ export default function Admin() {
   const [page, setPage] = useState('add-student');
 
   // Preview state (gedeeld met Student-weergave via localStorage)
-  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
+  const [previewId, setPreviewId] = useState('');
 
   useEffect(() => {
     if (students.length === 0) {
@@ -228,10 +227,10 @@ export default function Admin() {
 
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
-    if (selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
-      setSelectedStudentId(students[0]?.id || '');
+    if (previewId && !students.find((s) => s.id === previewId)) {
+      setPreviewId(students[0]?.id || '');
     }
-  }, [students, selectedStudentId, setSelectedStudentId]);
+  }, [students, previewId]);
 
   return (
     <div className="space-y-4">
@@ -771,7 +770,7 @@ export default function Admin() {
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-end">
             <div>
               <label className="text-sm">Student</label>
-              <Select value={selectedStudentId} onChange={setSelectedStudentId}>
+              <Select value={previewId} onChange={setPreviewId}>
                 <option value="">— Kies student —</option>
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -784,16 +783,13 @@ export default function Admin() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button className="border" onClick={() => setSelectedStudentId('')}>Leegmaken</Button>
+              <Button className="border" onClick={() => setPreviewId('')}>Leegmaken</Button>
               <a href="#/admin/preview" className="px-4 py-2 rounded-2xl border">Open als losse pagina</a>
             </div>
           </div>
 
           <div className="mt-4">
-            <Student
-              selectedStudentId={selectedStudentId}
-              setSelectedStudentId={setSelectedStudentId}
-            />
+            <Student previewStudentId={previewId} />
           </div>
         </Card>
       )}

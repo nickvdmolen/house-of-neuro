@@ -142,10 +142,7 @@ export default function App() {
           )
         ) : route === '/admin/preview' ? (
           isAdmin ? (
-            <AdminPreview
-              selectedStudentId={selectedStudentId}
-              setSelectedStudentId={setSelectedStudentId}
-            />
+            <AdminPreview />
           ) : (
             <Auth
               onAdminLogin={() => {
@@ -176,7 +173,8 @@ export default function App() {
 }
 
 /* AdminPreview: dropdown met studenten uit useStudents */
-function AdminPreview({ selectedStudentId, setSelectedStudentId }) {
+function AdminPreview() {
+  const [previewId, setPreviewId] = useState('');
   const studentsHook = useStudents();
   // Ondersteun zowel return van [students, setStudents] als direct students
   const studentsRaw =
@@ -207,8 +205,8 @@ function AdminPreview({ selectedStudentId, setSelectedStudentId }) {
           <div className="flex-1">
             <label className="block text-sm text-neutral-600 mb-1">Selecteer student</label>
             <select
-              value={selectedStudentId}
-              onChange={(e) => setSelectedStudentId(e.target.value)}
+              value={previewId}
+              onChange={(e) => setPreviewId(e.target.value)}
               className="w-full rounded-2xl border border-slate-300 px-3 py-2 bg-white"
             >
               <option value="">— Geen selectie —</option>
@@ -228,17 +226,14 @@ function AdminPreview({ selectedStudentId, setSelectedStudentId }) {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button className="border" onClick={() => setSelectedStudentId('')}>Leegmaken</Button>
+            <Button className="border" onClick={() => setPreviewId('')}>Leegmaken</Button>
             <a href="#/admin" className="px-4 py-2 rounded-2xl border">Terug naar beheer</a>
           </div>
         </div>
       </Card>
 
       <div className="mt-6">
-        <Student
-          selectedStudentId={selectedStudentId}
-          setSelectedStudentId={setSelectedStudentId}
-        />
+        <Student previewStudentId={previewId} />
       </div>
     </div>
   );
