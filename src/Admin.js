@@ -11,6 +11,8 @@ import useTeachers from './hooks/useTeachers';
 import bcrypt from 'bcryptjs';
 import usePersistentState from './hooks/usePersistentState';
 
+const BADGE_POINTS = 50;
+
 export default function Admin() {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
@@ -59,15 +61,29 @@ export default function Admin() {
 
   const toggleStudentBadge = useCallback((studentId, badgeId, hasBadge) => {
     if (!studentId || !badgeId) return;
+    let delta = 0;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
         const current = new Set(s.badges || []);
-        if (hasBadge) current.add(badgeId); else current.delete(badgeId);
-        return { ...s, badges: Array.from(current) };
+        const hadBadge = current.has(badgeId);
+        if (hasBadge && !hadBadge) {
+          current.add(badgeId);
+          delta = BADGE_POINTS;
+          return { ...s, badges: Array.from(current), points: s.points + BADGE_POINTS };
+        } else if (!hasBadge && hadBadge) {
+          current.delete(badgeId);
+          delta = -BADGE_POINTS;
+          return { ...s, badges: Array.from(current), points: s.points - BADGE_POINTS };
+        }
+        return s;
       })
     );
-  }, [setStudents]);
+    if (delta !== 0) {
+      const award = { id: genId(), ts: Date.now(), type: 'student', targetId: studentId, amount: delta, reason: `Badge ${badgeId}` };
+      setAwards((prev) => [award, ...prev].slice(0, 500));
+    }
+  }, [setStudents, setAwards]);
 
   const awardToStudent = useCallback((studentId, amount, reason) => {
     if (!studentId || !Number.isFinite(amount)) return;
