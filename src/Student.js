@@ -53,6 +53,16 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
     );
   }, [awards, selectedStudentId, myGroup]);
 
+  const myRank = useMemo(
+    () => individualLeaderboard.find((r) => r.id === selectedStudentId) || null,
+    [individualLeaderboard, selectedStudentId]
+  );
+
+  const myGroupRank = useMemo(
+    () => (myGroup ? groupLeaderboard.find((r) => r.id === myGroup.id) || null : null),
+    [groupLeaderboard, myGroup]
+  );
+
   const [showBadges, setShowBadges] = useState(false);
 
   const [authMode, setAuthMode] = useState('login');
@@ -301,20 +311,55 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 <Button className="bg-indigo-600 text-white" onClick={handleLogout}>Uitloggen</Button>
               </div>
             )}
-            <Card title="Verdiende badges">
-              {me ? (
-                <>
-                  <div className="sticky top-0 bg-white pb-4 z-10">
-                    <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(false)}>
-                      Terug naar puntenoverzicht
+            {showBadges ? (
+              <Card title="Verdiende badges">
+                {me ? (
+                  <>
+                    <div className="sticky top-0 bg-white pb-4 z-10">
+                      <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(false)}>
+                        Terug naar puntenoverzicht
+                      </Button>
+                    </div>
+                    <BadgeOverview badgeDefs={badgeDefs} earnedBadges={myBadges} />
+                  </>
+                ) : (
+                  <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
+                )}
+              </Card>
+            ) : (
+              <Card title="Puntenoverzicht">
+                {me ? (
+                  <div className="space-y-4">
+                    <div>
+                      Jouw punten: <span className="font-semibold">{me.points}</span>
+                    </div>
+                    <div>
+                      Plaats individueel: <span className="font-semibold">{myRank ? myRank.rank : '-'}</span> / {individualLeaderboard.length}
+                    </div>
+                    {myGroup ? (
+                      <>
+                        <div>
+                          Groep: <span className="font-semibold">{myGroup.name}</span>
+                        </div>
+                        <div>
+                          Punten groep: <span className="font-semibold">{myGroup.points}</span>
+                        </div>
+                        <div>
+                          Plaats groep: <span className="font-semibold">{myGroupRank ? myGroupRank.rank : '-'}</span> / {groupLeaderboard.length}
+                        </div>
+                      </>
+                    ) : (
+                      <div>Geen groep</div>
+                    )}
+                    <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
+                      Bekijk badges
                     </Button>
                   </div>
-                  <BadgeOverview badgeDefs={badgeDefs} earnedBadges={myBadges} />
-                </>
-              ) : (
-                <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
-              )}
-            </Card>
+                ) : (
+                  <p className="text-sm text-neutral-600">Selecteer een student om het puntenoverzicht te bekijken.</p>
+                )}
+              </Card>
+            )}
           </div>
         )}
       </div>
