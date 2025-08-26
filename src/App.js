@@ -6,7 +6,7 @@ import { Card, Button, TextInput } from './components/ui';
 import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
-import { teacherEmailValid } from './utils';
+import { teacherEmailValid, genId } from './utils';
 import bcrypt from 'bcryptjs';
 
 export default function App() {
@@ -116,54 +116,148 @@ export default function App() {
 }
 
 function AdminGate({ onAllow }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [teachers] = useTeachers();
+  const [authMode, setAuthMode] = useState('login');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupPassword2, setSignupPassword2] = useState('');
+  const [signupError, setSignupError] = useState('');
+  const [teachers, setTeachers] = useTeachers();
 
-  const submit = () => {
-    const norm = email.trim().toLowerCase();
+  const handleLogin = () => {
+    const norm = loginEmail.trim().toLowerCase();
     if (!teacherEmailValid(norm)) {
-      setError('Alleen adressen eindigend op @nhlstenden.com zijn toegestaan.');
+      setLoginError('Alleen adressen eindigend op @nhlstenden.com zijn toegestaan.');
       return;
     }
     const t = teachers.find((te) => te.email.toLowerCase() === norm);
-    if (t && bcrypt.compareSync(password, t.passwordHash)) {
-      setError('');
+    if (t && bcrypt.compareSync(loginPassword, t.passwordHash)) {
+      setLoginError('');
       onAllow();
     } else {
-      setError('Onjuiste e-mail of wachtwoord.');
+      setLoginError('Onjuiste e-mail of wachtwoord.');
     }
+  };
+
+  const handleSignup = () => {
+    const norm = signupEmail.trim().toLowerCase();
+    if (!teacherEmailValid(norm)) return;
+    if (!signupPassword.trim() || signupPassword !== signupPassword2) {
+      setSignupError('Wachtwoorden komen niet overeen.');
+      return;
+    }
+    if (teachers.some((t) => t.email.toLowerCase() === norm)) {
+      setSignupError('E-mailadres bestaat al.');
+      return;
+    }
+    const hash = bcrypt.hashSync(signupPassword.trim(), 10);
+    setTeachers((prev) => [...prev, { id: genId(), email: norm, passwordHash: hash }]);
+    setSignupEmail('');
+    setSignupPassword('');
+    setSignupPassword2('');
+    setSignupError('');
+    onAllow();
   };
 
   return (
     <div className="max-w-md mx-auto">
       <Card title="Beheer – Toegang">
-        <p className="text-sm text-neutral-600 mb-3">Alleen docenten. Log in met je @nhlstenden.com e-mailadres.</p>
-        <TextInput
-          value={email}
-          onChange={setEmail}
-          placeholder="E-mail"
-          className="mb-2"
-        />
-        <TextInput
-          type="password"
-          value={password}
-          onChange={setPassword}
-          placeholder="Wachtwoord"
-          className="mb-4"
-        />
-        {error && <div className="text-sm text-rose-600 mt-2">{error}</div>}
-        <div className="mt-3 flex gap-2">
-          <Button
-            className="bg-indigo-600 text-white"
-            onClick={submit}
-            disabled={!email.trim() || !password.trim()}
-          >
-            Inloggen
-          </Button>
-          <a href="#/student" className="px-4 py-2 rounded-2xl border">Terug naar studenten</a>
-        </div>
+        {authMode === 'login' ? (
+          <>
+            <p className="text-sm text-neutral-600 mb-3">Alleen docenten. Log in met je @nhlstenden.com e-mailadres.</p>
+            <TextInput
+              value={loginEmail}
+              onChange={setLoginEmail}
+              placeholder="E-mail"
+              className="mb-2"
+            />
+            <TextInput
+              type="password"
+              value={loginPassword}
+              onChange={setLoginPassword}
+              placeholder="Wachtwoord"
+              className="mb-4"
+            />
+            {loginError && <div className="text-sm text-rose-600 mt-2">{loginError}</div>}
+            <div className="mt-3 flex gap-2">
+              <Button
+                className="bg-indigo-600 text-white"
+                onClick={handleLogin}
+                disabled={!loginEmail.trim() || !loginPassword.trim()}
+              >
+                Inloggen
+              </Button>
+              <a href="#/student" className="px-4 py-2 rounded-2xl border">Terug naar studenten</a>
+            </div>
+            <button
+              className="text-sm text-indigo-600 text-left mt-2"
+              onClick={() => {
+                setLoginEmail('');
+                setLoginPassword('');
+                setLoginError('');
+                setAuthMode('signup');
+              }}
+            >
+              Account aanmaken
+            </button>
+          </>
+        ) : (
+          <>
+            <TextInput
+              value={signupEmail}
+              onChange={setSignupEmail}
+              placeholder="E-mail (@nhlstenden.com)"
+            />
+            {signupEmail && !teacherEmailValid(signupEmail) && (
+              <div className="text-sm text-rose-600">
+                Alleen adressen eindigend op @nhlstenden.com zijn toegestaan.
+              </div>
+            )}
+            <TextInput
+              type="password"
+              value={signupPassword}
+              onChange={setSignupPassword}
+              placeholder="Wachtwoord"
+            />
+            <TextInput
+              type="password"
+              value={signupPassword2}
+              onChange={setSignupPassword2}
+              placeholder="Bevestig wachtwoord"
+              className="mb-4"
+            />
+            {signupError && <div className="text-sm text-rose-600 mt-2">{signupError}</div>}
+            <div className="mt-3 flex gap-2">
+              <Button
+                className="bg-indigo-600 text-white"
+                onClick={handleSignup}
+                disabled={
+                  !signupEmail.trim() ||
+                  !signupPassword.trim() ||
+                  signupPassword !== signupPassword2 ||
+                  !teacherEmailValid(signupEmail)
+                }
+              >
+                Account aanmaken
+              </Button>
+              <a href="#/student" className="px-4 py-2 rounded-2xl border">Terug naar studenten</a>
+            </div>
+            <button
+              className="text-sm text-indigo-600 text-left mt-2"
+              onClick={() => {
+                setSignupEmail('');
+                setSignupPassword('');
+                setSignupPassword2('');
+                setSignupError('');
+                setAuthMode('login');
+              }}
+            >
+              Terug naar inloggen
+            </button>
+          </>
+        )}
       </Card>
     </div>
   );
