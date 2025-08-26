@@ -53,6 +53,16 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
     );
   }, [awards, selectedStudentId, myGroup]);
 
+  const myRank = useMemo(
+    () => individualLeaderboard.find((r) => r.id === selectedStudentId) || null,
+    [individualLeaderboard, selectedStudentId]
+  );
+
+  const myGroupRank = useMemo(
+    () => (myGroup ? groupLeaderboard.find((r) => r.id === myGroup.id) || null : null),
+    [groupLeaderboard, myGroup]
+  );
+
   const [showBadges, setShowBadges] = useState(false);
 
   const [authMode, setAuthMode] = useState('login');
@@ -294,6 +304,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
           </div>
         ) : showBadges ? (
           <div className="max-w-3xl mx-auto">
+
             <Card title="Verdiende badges">
               <div className="sticky top-0 bg-white pb-4 z-10">
                 <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(false)}>
@@ -390,6 +401,7 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
                 </tbody>
               </table>
             </Card>
+
           </div>
         )}
       </div>
