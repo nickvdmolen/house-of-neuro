@@ -266,8 +266,10 @@ export default function Admin() {
   ];
 
   return (
-    <div className="pr-60">
-      <nav className="fixed right-0 top-0 h-screen w-60 overflow-y-auto border-l bg-white p-4 space-y-2">
+
+    <div className="pl-60">
+      <nav className="fixed left-0 top-0 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2">
+
         {menuItems.map((item) => (
           <button
             key={item.value}
