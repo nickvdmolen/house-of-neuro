@@ -78,11 +78,7 @@ export default function App() {
                 <div className="dropdown">
                   <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
                   <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
-                  {isAdmin && (
-                    <a href="#/admin/preview" className="dropdown-link" onClick={() => setMenuOpen(false)}>
-                      Preview student
-                    </a>
-                  )}
+
                   {isAdmin && (
                     <button onClick={logoutAdmin} className="dropdown-button">Uitloggen beheer</button>
                   )}
