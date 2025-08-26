@@ -2,8 +2,8 @@ import React from 'react';
 
 export function Card({ title, children, className = '' }) {
   return (
-    <div className={`card ${className}`}>
-      {title && <h3 className="mb-3">{title}</h3>}
+    <div className={`bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 ${className}`}>
+      {title && <h2 className="text-lg font-semibold mb-4">{title}</h2>}
       {children}
     </div>
   );
