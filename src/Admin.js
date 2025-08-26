@@ -80,10 +80,18 @@ export default function Admin() {
       })
     );
     if (delta !== 0) {
-      const award = { id: genId(), ts: Date.now(), type: 'student', targetId: studentId, amount: delta, reason: `Badge ${badgeId}` };
+      const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
+      const award = {
+        id: genId(),
+        ts: Date.now(),
+        type: 'student',
+        targetId: studentId,
+        amount: delta,
+        reason: `Badge ${badgeTitle}`,
+      };
       setAwards((prev) => [award, ...prev].slice(0, 500));
     }
-  }, [setStudents, setAwards]);
+  }, [setStudents, setAwards, badgeDefs]);
 
   const awardToStudent = useCallback((studentId, amount, reason) => {
     if (!studentId || !Number.isFinite(amount)) return;
