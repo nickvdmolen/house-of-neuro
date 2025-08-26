@@ -9,6 +9,7 @@ import Student from './Student';
 import useBadges from './hooks/useBadges';
 import useTeachers from './hooks/useTeachers';
 import bcrypt from 'bcryptjs';
+import usePersistentState from './hooks/usePersistentState';
 
 export default function Admin() {
   const [students, setStudents] = useStudents();
@@ -182,7 +183,7 @@ export default function Admin() {
   const [page, setPage] = useState('add-student');
 
   // Preview state (gedeeld met Student-weergave via localStorage)
-  const [previewId, setPreviewId] = useState('');
+  const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
 
   useEffect(() => {
     if (students.length === 0) {

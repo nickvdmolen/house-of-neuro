@@ -174,7 +174,7 @@ export default function App() {
 
 /* AdminPreview: dropdown met studenten uit useStudents */
 function AdminPreview() {
-  const [previewId, setPreviewId] = useState('');
+  const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
   const studentsHook = useStudents();
   // Ondersteun zowel return van [students, setStudents] als direct students
   const studentsRaw =

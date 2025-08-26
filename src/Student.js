@@ -17,7 +17,9 @@ export default function Student({
   const [awards] = useAwards();
   const [badgeDefs] = useBadges();
 
-  const activeStudentId = previewStudentId ?? selectedStudentId;
+  const inPreview = previewStudentId !== undefined;
+  const activeStudentId = inPreview ? previewStudentId : selectedStudentId;
+  const bgPosClass = inPreview ? 'absolute' : 'fixed';
 
   const groupById = useMemo(() => {
     const m = new Map();
@@ -42,10 +44,10 @@ export default function Student({
   }, [setStudents]);
 
   useEffect(() => {
-    if (!previewStudentId && selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
+    if (!inPreview && selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
       setSelectedStudentId('');
     }
-  }, [students, selectedStudentId, setSelectedStudentId, previewStudentId]);
+  }, [students, selectedStudentId, setSelectedStudentId, inPreview]);
 
   const me = students.find((s) => s.id === activeStudentId) || null;
   const myGroup = me && me.groupId ? groupById.get(me.groupId) || null : null;
@@ -190,7 +192,7 @@ export default function Student({
   return (
     <div className="relative">
       {/* Background image */}
-      <div className="fixed inset-0 z-0">
+      <div className={`${bgPosClass} inset-0 z-0 pointer-events-none`}>
         <img
           src={process.env.PUBLIC_URL + '/images/voorpagina.png'}
           alt="Background"
@@ -201,7 +203,7 @@ export default function Student({
       {/* Main content */}
       <div className="relative z-10">
         {activeStudentId && me && (
-          previewStudentId ? (
+          inPreview ? (
             <div className="flex items-center justify-between mb-4">
               <span className="bg-white/90 px-2 py-1 rounded">
                 Preview van {me.name}{me.email ? ` (${me.email})` : ''}
@@ -220,102 +222,112 @@ export default function Student({
         )}
 
         {!activeStudentId ? (
-          <div className="max-w-md mx-auto">
-            {authMode === 'login' ? (
-              <Card title="Log in">
-                <div className="grid grid-cols-1 gap-4">
-                  <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-                  <TextInput
-                    type="password"
-                    value={loginPassword}
-                    onChange={setLoginPassword}
-                    placeholder="Wachtwoord of code"
-                  />
-                  {loginEmail && !emailValid(loginEmail) && (
-                    <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-                  )}
-                  {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
-                  <Button
-                    className="bg-indigo-600 text-white"
-                    disabled={!loginEmail.trim() || !emailValid(loginEmail) || !loginPassword.trim()}
-                    onClick={handleLogin}
-                  >
-                    Log in
-                  </Button>
-                  <button
-                    className="text-sm text-indigo-600 text-left"
-                    onClick={() => {
-                      setSignupEmail('');
-                      setSignupName('');
-                      setSignupPassword('');
-                      setSignupPassword2('');
-                      setSignupError('');
-                      setAuthMode('signup');
-                    }}
-                  >
-                    Account aanmaken
-                  </button>
-                </div>
+          inPreview ? (
+            <div className="max-w-md mx-auto">
+              <Card title="Geen student geselecteerd">
+                <p className="text-sm text-neutral-700">
+                  Selecteer een student om de preview te zien.
+                </p>
               </Card>
-            ) : (
-              <Card title="Account aanmaken">
-                <div className="grid grid-cols-1 gap-4">
-                  <TextInput
-                    value={signupEmail}
-                    onChange={(v) => {
-                      setSignupEmail(v);
-                      setSignupName(nameFromEmail(v));
-                    }}
-                    placeholder="E-mail (@student.nhlstenden.com)"
-                  />
-                  {signupEmail && !emailValid(signupEmail) && (
-                    <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
-                  )}
-                  <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
-                  <TextInput
-                    type="password"
-                    value={signupPassword}
-                    onChange={setSignupPassword}
-                    placeholder="Wachtwoord"
-                  />
-                  <TextInput
-                    type="password"
-                    value={signupPassword2}
-                    onChange={setSignupPassword2}
-                    placeholder="Bevestig wachtwoord"
-                  />
-                  {signupError && <div className="text-sm text-rose-600">{signupError}</div>}
-                  <Button
-                    className="bg-indigo-600 text-white"
-                    disabled={
-                      !signupEmail.trim() ||
-                      !signupName.trim() ||
-                      !emailValid(signupEmail) ||
-                      !signupPassword.trim() ||
-                      signupPassword !== signupPassword2
-                    }
-                    onClick={handleSignup}
-                  >
-                    Account aanmaken
-                  </Button>
-                  <button
-                    className="text-sm text-indigo-600 text-left"
-                    onClick={() => {
-                      setLoginEmail('');
-                      setLoginPassword('');
-                      setLoginError('');
-                      setSignupPassword('');
-                      setSignupPassword2('');
-                      setSignupError('');
-                      setAuthMode('login');
-                    }}
-                  >
-                    Terug naar inloggen
-                  </button>
-                </div>
-              </Card>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto">
+              {authMode === 'login' ? (
+                <Card title="Log in">
+                  <div className="grid grid-cols-1 gap-4">
+                    <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+                    <TextInput
+                      type="password"
+                      value={loginPassword}
+                      onChange={setLoginPassword}
+                      placeholder="Wachtwoord of code"
+                    />
+                    {loginEmail && !emailValid(loginEmail) && (
+                      <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+                    )}
+                    {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
+                    <Button
+                      className="bg-indigo-600 text-white"
+                      disabled={!loginEmail.trim() || !emailValid(loginEmail) || !loginPassword.trim()}
+                      onClick={handleLogin}
+                    >
+                      Log in
+                    </Button>
+                    <button
+                      className="text-sm text-indigo-600 text-left"
+                      onClick={() => {
+                        setSignupEmail('');
+                        setSignupName('');
+                        setSignupPassword('');
+                        setSignupPassword2('');
+                        setSignupError('');
+                        setAuthMode('signup');
+                      }}
+                    >
+                      Account aanmaken
+                    </button>
+                  </div>
+                </Card>
+              ) : (
+                <Card title="Account aanmaken">
+                  <div className="grid grid-cols-1 gap-4">
+                    <TextInput
+                      value={signupEmail}
+                      onChange={(v) => {
+                        setSignupEmail(v);
+                        setSignupName(nameFromEmail(v));
+                      }}
+                      placeholder="E-mail (@student.nhlstenden.com)"
+                    />
+                    {signupEmail && !emailValid(signupEmail) && (
+                      <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
+                    )}
+                    <TextInput value={signupName} onChange={setSignupName} placeholder="Volledige naam" />
+                    <TextInput
+                      type="password"
+                      value={signupPassword}
+                      onChange={setSignupPassword}
+                      placeholder="Wachtwoord"
+                    />
+                    <TextInput
+                      type="password"
+                      value={signupPassword2}
+                      onChange={setSignupPassword2}
+                      placeholder="Bevestig wachtwoord"
+                    />
+                    {signupError && <div className="text-sm text-rose-600">{signupError}</div>}
+                    <Button
+                      className="bg-indigo-600 text-white"
+                      disabled={
+                        !signupEmail.trim() ||
+                        !signupName.trim() ||
+                        !emailValid(signupEmail) ||
+                        !signupPassword.trim() ||
+                        signupPassword !== signupPassword2
+                      }
+                      onClick={handleSignup}
+                    >
+                      Account aanmaken
+                    </Button>
+                    <button
+                      className="text-sm text-indigo-600 text-left"
+                      onClick={() => {
+                        setLoginEmail('');
+                        setLoginPassword('');
+                        setLoginError('');
+                        setSignupPassword('');
+                        setSignupPassword2('');
+                        setSignupError('');
+                        setAuthMode('login');
+                      }}
+                    >
+                      Terug naar inloggen
+                    </button>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )
         ) : showBadges ? (
           <div className="max-w-3xl mx-auto">
 
