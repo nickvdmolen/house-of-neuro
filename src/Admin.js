@@ -180,7 +180,7 @@ export default function Admin() {
 
   const [removeStudentId, setRemoveStudentId] = useState(students[0]?.id || '');
 
-  const [page, setPage] = useState('add-student');
+  const [page, setPage] = useState('points');
 
   // Preview state (gedeeld met Student-weergave via localStorage)
   const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
@@ -233,33 +233,46 @@ export default function Admin() {
     }
   }, [students, previewId]);
 
-  return (
-    <div className="space-y-4">
-      <Select value={page} onChange={setPage} className="max-w-xs">
-        <option value="add-student">Student toevoegen</option>
-        <option value="remove-student">Student verwijderen</option>
-        <option value="reset-password">Wachtwoord resetten</option>
-        <option value="add-group">Groep toevoegen</option>
-        <option value="assign-group">Student aan groep koppelen</option>
-        <option value="badges">Badges toekennen</option>
-        <option value="manage-badges">Badges beheren</option>
-        <option value="manage-teachers">Docenten beheren</option>
-        <option value="points">Punten invoeren</option>
-        <option value="leaderboard-students">Scorebord – Individueel</option>
-        <option value="leaderboard-groups">Scorebord – Groepen</option>
-        <option value="backup">Backup & herstel</option>
-        <option value="preview">Preview student</option>
-      </Select>
+  const menuItems = [
+    { value: 'points', label: 'Punten invoeren' },
+    { value: 'badges', label: 'Badges toekennen' },
+    { value: 'leaderboard-students', label: 'Scorebord – Individueel' },
+    { value: 'leaderboard-groups', label: 'Scorebord – Groepen' },
+    { value: 'add-group', label: 'Groepen toevoegen' },
+    { value: 'assign-group', label: 'Student aan groep koppelen' },
+    { value: 'reset-password', label: 'Wachtwoord resetten' },
+    { value: 'manage-badges', label: 'Badges beheren' },
+    { value: 'backup', label: 'Backup & herstel' },
+    { value: 'preview', label: 'Preview student' },
+    { value: 'add-student', label: 'Student toevoegen' },
+    { value: 'remove-student', label: 'Student verwijderen' },
+    { value: 'manage-teachers', label: 'Docenten beheren' }
+  ];
 
-      {page === 'add-student' && (
-        <Card title="Student toevoegen">
-          <div className="grid grid-cols-1 gap-2">
-            <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />
-            <TextInput
-              value={newStudentEmail}
-              onChange={setNewStudentEmail}
-              placeholder="E-mail (@student.nhlstenden.com)"
-            />
+  return (
+    <div className="pr-60">
+      <nav className="fixed right-0 top-0 h-screen w-60 overflow-y-auto border-l bg-white p-4 space-y-2">
+        {menuItems.map((item) => (
+          <button
+            key={item.value}
+            onClick={() => setPage(item.value)}
+            className={`block w-full text-left px-2 py-1 rounded ${page === item.value ? 'bg-neutral-200' : ''}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="space-y-4">
+        {page === 'add-student' && (
+          <Card title="Student toevoegen">
+            <div className="grid grid-cols-1 gap-2">
+              <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />
+              <TextInput
+                value={newStudentEmail}
+                onChange={setNewStudentEmail}
+                placeholder="E-mail (@student.nhlstenden.com)"
+              />
             {newStudentEmail && !emailValid(newStudentEmail) && (
               <div className="text-sm text-rose-600">
                 Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.
@@ -795,5 +808,6 @@ export default function Admin() {
         </Card>
       )}
     </div>
+  </div>
   );
 }
