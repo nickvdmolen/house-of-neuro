@@ -239,17 +239,37 @@ function AdminPreview({ selectedStudentId, setSelectedStudentId }) {
 }
 
 function RoleSelect() {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = () => {
+    const norm = email.trim().toLowerCase();
+    if (norm.endsWith('@student.nhlstenden.com')) {
+      window.location.hash = '/student';
+    } else if (norm.endsWith('@nhlstenden.com')) {
+      window.location.hash = '/admin';
+    } else {
+      setError('Gebruik een @student.nhlstenden.com of @nhlstenden.com adres.');
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto">
-      <Card title="Wie ben je?">
-        <div className="flex flex-col gap-4">
-          <a href="#/student" className="block w-full">
-            <Button className="w-full bg-indigo-600 text-white">Ik ben student</Button>
-          </a>
-          <a href="#/admin" className="block w-full">
-            <Button className="w-full bg-indigo-600 text-white">Ik ben docent</Button>
-          </a>
-        </div>
+      <Card title="Log in">
+        <TextInput
+          value={email}
+          onChange={setEmail}
+          placeholder="E-mail"
+          className="mb-4"
+        />
+        {error && <div className="text-sm text-rose-600 mb-2">{error}</div>}
+        <Button
+          className="w-full bg-indigo-600 text-white"
+          onClick={submit}
+          disabled={!email.trim()}
+        >
+          Ga verder
+        </Button>
       </Card>
     </div>
   );
