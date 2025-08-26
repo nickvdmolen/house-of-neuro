@@ -175,9 +175,10 @@ export default function Student({ selectedStudentId, setSelectedStudentId }) {
     return (
       <div className="max-w-md mx-auto">
         <img
-          src="images/voorpagina.png"
+          src="/images/voorpagina.png"
           alt="Voorpagina"
           className="w-full h-auto mb-4"
+          onError={(e) => console.error('Image failed to load:', e)}
         />
         {authMode === 'login' ? (
           <Card title="Log in">
