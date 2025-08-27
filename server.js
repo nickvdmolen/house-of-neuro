@@ -2,18 +2,16 @@ require('dotenv').config();
 const express = require('express');
 const nodemailer = require('nodemailer');
 
-const app = express();
-app.use(express.json());
-
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.strato.com',
-  port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465,
-  secure: true,
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: true, // 465 => true, 587 => false
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
+    pass: process.env.SMTP_PASS
+  }
 });
+
 
 app.post('/api/send-reset', async (req, res) => {
   const { email, link } = req.body || {};
