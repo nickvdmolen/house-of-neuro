@@ -13,7 +13,7 @@ import usePersistentState from './hooks/usePersistentState';
 
 const BADGE_POINTS = 50;
 
-export default function Admin() {
+export default function Admin({ onLogout = () => {} }) {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
   const [awards, setAwards] = useAwards();
@@ -253,6 +253,13 @@ export default function Admin() {
       </nav>
 
       <div className="space-y-4">
+        <div className="flex items-center justify-between p-4">
+          <span className="bg-white/90 px-2 py-1 rounded">Ingelogd als beheerder</span>
+          <Button className="bg-indigo-600 text-white" onClick={onLogout}>
+            Uitloggen
+          </Button>
+        </div>
+
       {page === 'manage-students' && (
         <Card title="Studenten beheren">
           <div className="grid grid-cols-1 gap-2">

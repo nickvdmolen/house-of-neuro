@@ -90,7 +90,7 @@ export default function App() {
 
         {route === '/admin' ? (
           isAdmin ? (
-            <Admin />
+            <Admin onLogout={logoutAdmin} />
           ) : (
             <Auth
               onAdminLogin={() => {
