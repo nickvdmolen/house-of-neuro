@@ -18,7 +18,7 @@
   },
   "scripts": {
     "build": "react-app-rewired build",
-    "start": "react-app-rewired start",
+    "start": "concurrently \"react-app-rewired start\" \"node server.js\"",
     "server": "node server.js"
   },
   "browserslist": {
@@ -37,6 +37,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "@vitejs/plugin-react": "^5.0.1",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
     "postcss": "^8.5.6",
     "react-app-rewired": "^2.2.1",
     "tailwindcss": "^3.4.17",
