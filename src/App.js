@@ -93,14 +93,38 @@ export default function App() {
                 window.location.hash = '/admin';
               }}
               onStudentLogin={(id) => {
+            setSelectedStudentId(id);
+            window.location.hash = '/student';
+          }}
+        />
+          )
+        ) : route === '/admin/preview' ? (
+            isAdmin ? (
+              <AdminPreview />
+            ) : (
+              <Auth
+                onAdminLogin={() => {
+                  allowAdmin();
+                  window.location.hash = '/admin';
+                }}
+                onStudentLogin={(id) => {
+                  setSelectedStudentId(id);
+                  window.location.hash = '/student';
+                }}
+              />
+            )
+          ) : route.startsWith('/reset/') ? (
+            <Auth
+              resetToken={route.slice('/reset/'.length)}
+              onAdminLogin={() => {
+                allowAdmin();
+                window.location.hash = '/admin';
+              }}
+              onStudentLogin={(id) => {
                 setSelectedStudentId(id);
                 window.location.hash = '/student';
               }}
             />
-          )
-        ) : route === '/admin/preview' ? (
-          isAdmin ? (
-            <AdminPreview />
           ) : (
             <Auth
               onAdminLogin={() => {
@@ -112,22 +136,10 @@ export default function App() {
                 window.location.hash = '/student';
               }}
             />
-          )
-        ) : (
-          <Auth
-            onAdminLogin={() => {
-              allowAdmin();
-              window.location.hash = '/admin';
-            }}
-            onStudentLogin={(id) => {
-              setSelectedStudentId(id);
-              window.location.hash = '/student';
-            }}
-          />
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
 }
 
 /* AdminPreview: dropdown met studenten uit useStudents */
@@ -197,12 +209,12 @@ function AdminPreview() {
   );
 }
 
-function Auth({ onStudentLogin, onAdminLogin }) {
+function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const [mode, setMode] = useState('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [resetStudent, setResetStudent] = useState(null);
+  const [resetUser, setResetUser] = useState(null); // { type: 'student'|'teacher', id }
   const [newPassword, setNewPassword] = useState('');
   const [newPassword2, setNewPassword2] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
@@ -212,26 +224,43 @@ function Auth({ onStudentLogin, onAdminLogin }) {
   const [students, setStudents] = useStudents();
   const [teachers, setTeachers] = useTeachers();
 
+  const sendResetEmail = async (email, token) => {
+    const link = `${window.location.origin}/#/reset/${token}`;
+    try {
+      await fetch('/api/send-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, link }),
+      });
+    } catch (err) {
+      console.error('Failed to send reset email', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!resetToken) return;
+    const s = students.find((st) => st.resetToken === resetToken);
+    if (s) {
+      setResetUser({ type: 'student', id: s.id });
+      return;
+    }
+    const t = teachers.find((te) => te.resetToken === resetToken);
+    if (t) {
+      setResetUser({ type: 'teacher', id: t.id });
+    }
+  }, [resetToken, students, teachers]);
+
   const handleLogin = () => {
     const norm = loginEmail.trim().toLowerCase();
     const pass = loginPassword.trim();
     if (norm.endsWith('@student.nhlstenden.com')) {
       const s = students.find((st) => (st.email || '').toLowerCase() === norm);
-      if (s) {
-        if (s.tempCode && pass === s.tempCode) {
-          setResetStudent(s);
-          setLoginEmail('');
-          setLoginPassword('');
-          setLoginError('');
-        } else if ((s.password || '') === pass) {
+        if (s && (s.password || '') === pass) {
           setLoginError('');
           onStudentLogin(s.id);
         } else {
           setLoginError('Onjuiste e-mail of wachtwoord.');
         }
-      } else {
-        setLoginError('Onjuiste e-mail of wachtwoord.');
-      }
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
       if (!t) {
@@ -298,47 +327,66 @@ function Auth({ onStudentLogin, onAdminLogin }) {
         setLoginError('Onbekend e-mailadres.');
         return;
       }
-      const code = Math.random().toString(36).slice(2, 8);
+      const token = Math.random().toString(36).slice(2);
       setStudents((prev) =>
         prev.map((st) =>
-          st.id === s.id ? { ...st, password: '', tempCode: code } : st
+          st.id === s.id ? { ...st, resetToken: token } : st
         )
       );
-      window.alert(`Resetmail verstuurd. Gebruik code: ${code}`);
+      sendResetEmail(norm, token);
+      window.alert('Resetlink verstuurd. Controleer je e-mail.');
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
       if (!t) {
         setLoginError('Onbekend e-mailadres.');
         return;
       }
-      const code = Math.random().toString(36).slice(2, 8);
-      const hash = bcrypt.hashSync(code, 10);
+      const token = Math.random().toString(36).slice(2);
       setTeachers((prev) =>
-        prev.map((te) => (te.id === t.id ? { ...te, passwordHash: hash } : te))
+        prev.map((te) =>
+          te.id === t.id ? { ...te, resetToken: token } : te
+        )
       );
-      window.alert(`Resetmail verstuurd. Tijdelijk wachtwoord: ${code}`);
+      sendResetEmail(norm, token);
+      window.alert('Resetlink verstuurd. Controleer je e-mail.');
     } else {
       setLoginError('Gebruik een geldig e-mailadres.');
     }
   };
 
   const handleSetNewPassword = () => {
-    if (!resetStudent) return;
+    if (!resetUser) return;
     if (!newPassword.trim() || newPassword !== newPassword2) return;
-    const id = resetStudent.id;
     const pass = newPassword.trim();
-    setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, password: pass, tempCode: undefined } : s))
-    );
-    setResetStudent(null);
-    setNewPassword('');
-    setNewPassword2('');
-    onStudentLogin(id);
+    if (resetUser.type === 'student') {
+      const id = resetUser.id;
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, password: pass, resetToken: undefined } : s
+        )
+      );
+      setResetUser(null);
+      setNewPassword('');
+      setNewPassword2('');
+      onStudentLogin(id);
+    } else if (resetUser.type === 'teacher') {
+      const id = resetUser.id;
+      const hash = bcrypt.hashSync(pass, 10);
+      setTeachers((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, passwordHash: hash, resetToken: undefined } : t
+        )
+      );
+      setResetUser(null);
+      setNewPassword('');
+      setNewPassword2('');
+      onAdminLogin();
+    }
   };
 
   return (
     <div className="max-w-md mx-auto">
-      {resetStudent ? (
+        {resetUser ? (
         <Card title="Nieuw wachtwoord instellen">
           <TextInput
             type="password"
