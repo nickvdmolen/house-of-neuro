@@ -53,6 +53,16 @@ export default function Admin() {
     setStudents((prev) => prev.filter((s) => s.id !== id));
   }, [setStudents]);
 
+  const resetStudentPassword = useCallback((id) => {
+    const code = Math.random().toString(36).slice(2, 8);
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, password: '', tempCode: code } : s
+      )
+    );
+    window.alert(`Nieuwe code: ${code}`);
+  }, [setStudents]);
+
   const addGroup = useCallback((name) => {
     const id = genId();
     setGroups((prev) => [...prev, { id, name, points: 0 }]);
@@ -184,25 +194,8 @@ export default function Admin() {
     };
     reader.readAsText(file);
   }, [setStudents, setGroups, setAwards, setBadgeDefs, setTeachers]);
-
-  const [resetStudentId, setResetStudentId] = useState(students[0]?.id || '');
-  const [resetCode, setResetCode] = useState('');
-
-  const handleResetPassword = useCallback(() => {
-    if (!resetStudentId) return;
-    const code = Math.random().toString(36).slice(2, 8);
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === resetStudentId ? { ...s, password: '', tempCode: code } : s
-      )
-    );
-    setResetCode(code);
-  }, [resetStudentId, setStudents]);
-
   const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
   const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
-
-  const [removeStudentId, setRemoveStudentId] = useState(students[0]?.id || '');
 
   const [page, setPage] = useState('points');
 
@@ -238,18 +231,6 @@ export default function Admin() {
     }
   }, [groups, assignGroupId]);
 
-  useEffect(() => {
-    if (students.length && !students.find((s) => s.id === removeStudentId)) {
-      setRemoveStudentId(students[0]?.id || '');
-    }
-  }, [students, removeStudentId]);
-
-  useEffect(() => {
-    if (students.length && !students.find((s) => s.id === resetStudentId)) {
-      setResetStudentId(students[0]?.id || '');
-    }
-  }, [students, resetStudentId]);
-
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
     if (previewId && !students.find((s) => s.id === previewId)) {
@@ -264,12 +245,10 @@ export default function Admin() {
     { value: 'leaderboard-groups', label: 'Scorebord – Groepen' },
     { value: 'add-group', label: 'Groepen toevoegen' },
     { value: 'assign-group', label: 'Student aan groep koppelen' },
-    { value: 'reset-password', label: 'Wachtwoord resetten' },
+    { value: 'manage-students', label: 'Studenten beheren' },
     { value: 'manage-badges', label: 'Badges beheren' },
     { value: 'backup', label: 'Backup & herstel' },
     { value: 'preview', label: 'Preview student' },
-    { value: 'add-student', label: 'Student toevoegen' },
-    { value: 'remove-student', label: 'Student verwijderen' },
     { value: 'manage-teachers', label: 'Docenten beheren' }
   ];
 
@@ -290,88 +269,59 @@ export default function Admin() {
       </nav>
 
       <div className="space-y-4">
-        {page === 'add-student' && (
-          <Card title="Student toevoegen">
-            <div className="grid grid-cols-1 gap-2">
-              <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />
-              <TextInput
-                value={newStudentEmail}
-                onChange={setNewStudentEmail}
-                placeholder="E-mail (@student.nhlstenden.com)"
-              />
+      {page === 'manage-students' && (
+        <Card title="Studenten beheren">
+          <div className="grid grid-cols-1 gap-2">
+            <TextInput value={newStudent} onChange={setNewStudent} placeholder="Naam" />
+            <TextInput
+              value={newStudentEmail}
+              onChange={setNewStudentEmail}
+              placeholder="E-mail (@student.nhlstenden.com)"
+            />
             {newStudentEmail && !emailValid(newStudentEmail) && (
               <div className="text-sm text-rose-600">
                 Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.
               </div>
             )}
-            <div className="flex gap-2 items-center">
-              <Button
-                className="bg-indigo-600 text-white"
-                disabled={!newStudent.trim() || (newStudentEmail.trim() !== '' && !emailValid(newStudentEmail))}
-                onClick={() => {
-                  const name = newStudent.trim();
-                  const email = newStudentEmail.trim();
-                  addStudent(name, email || undefined);
-                  setNewStudent('');
-                  setNewStudentEmail('');
-                }}
-              >
-                Voeg toe
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {page === 'remove-student' && (
-        <Card title="Student verwijderen">
-          <div className="grid grid-cols-1 gap-2">
-            <Select value={removeStudentId} onChange={setRemoveStudentId}>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-            <Button
-              className="bg-rose-600 text-white"
-              disabled={!removeStudentId}
-              onClick={() => {
-                const student = students.find((s) => s.id === removeStudentId);
-                const name = student?.name || 'deze student';
-                if (window.confirm(`Weet je zeker dat je ${name} wilt verwijderen?`)) {
-                  removeStudent(removeStudentId);
-                }
-              }}
-            >
-              Verwijder
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {page === 'reset-password' && (
-        <Card title="Wachtwoord resetten">
-          <div className="grid grid-cols-1 gap-2">
-            <Select value={resetStudentId} onChange={setResetStudentId}>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
             <Button
               className="bg-indigo-600 text-white"
-              disabled={!resetStudentId}
-              onClick={handleResetPassword}
+              disabled={!newStudent.trim() || (newStudentEmail.trim() !== '' && !emailValid(newStudentEmail))}
+              onClick={() => {
+                const name = newStudent.trim();
+                const email = newStudentEmail.trim();
+                addStudent(name, email || undefined);
+                setNewStudent('');
+                setNewStudentEmail('');
+              }}
             >
-              Genereer code
+              Voeg student toe
             </Button>
-            {resetCode && (
-              <div className="text-sm">
-                Tijdelijke code: <code>{resetCode}</code>
-              </div>
-            )}
+            <ul className="mt-4 space-y-2">
+              {students
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((s) => (
+                  <li key={s.id} className="flex items-center gap-2">
+                    <span className="flex-1">{s.name}</span>
+                    <Button
+                      className="bg-indigo-600 text-white"
+                      onClick={() => resetStudentPassword(s.id)}
+                    >
+                      Reset wachtwoord
+                    </Button>
+                    <Button
+                      className="bg-rose-600 text-white"
+                      onClick={() => {
+                        if (window.confirm(`Verwijder ${s.name}?`)) {
+                          removeStudent(s.id);
+                        }
+                      }}
+                    >
+                      Verwijder
+                    </Button>
+                  </li>
+                ))}
+            </ul>
           </div>
         </Card>
       )}
