@@ -11,11 +11,14 @@
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "stream-browserify": "^3.0.0",
-    "vm-browserify": "^1.1.2"
+    "vm-browserify": "^1.1.2",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.11"
   },
   "scripts": {
     "build": "react-app-rewired build",
-    "start": "react-app-rewired start"
+    "start": "react-app-rewired start",
+    "server": "node server.js"
   },
   "browserslist": {
     "production": [
