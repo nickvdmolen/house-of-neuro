@@ -27,29 +27,10 @@ export default function App() {
 
   const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
 
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const logoutAdmin = () => {
     denyAdmin();
-    setMenuOpen(false);
     window.location.hash = '/';
   };
-
-  // Add proper menu management
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuOpen && !event.target.closest('.menu-wrapper')) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
-
-  // Add route change handler to close menu
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [route]);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800 overflow-hidden">
@@ -67,25 +48,6 @@ export default function App() {
       <div className="relative z-10 max-w-6xl mx-auto">
         <header className="app-header">
           <h1 className="app-title">Neuromarketing Housepoints</h1>
-          {route !== '/' && (
-            <div className="menu-wrapper">
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="menu-button"
-                aria-label="Menu"
-              >☰</button>
-              {menuOpen && (
-                <div className="dropdown">
-                  <a href="#/student" className="dropdown-link" onClick={() => setMenuOpen(false)}>Student</a>
-                  <a href="#/admin" className="dropdown-link" onClick={() => setMenuOpen(false)}>Beheer</a>
-
-                  {isAdmin && (
-                    <button onClick={logoutAdmin} className="dropdown-button">Uitloggen beheer</button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </header>
 
         {route === '/admin' ? (

@@ -242,7 +242,7 @@ select:focus {
   }
 }
 
-/* Header/menu styles */
+/* Header styles */
 .app-header {
   position: relative;
   margin-bottom: 1.5rem;
@@ -254,48 +254,3 @@ select:focus {
   text-align: center;
 }
 
-.menu-wrapper {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 50;
-}
-
-.menu-button {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 8px;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.5rem;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  z-index: 50;
-  min-width: 160px;
-  padding: 0.25rem 0;
-}
-
-.dropdown-link,
-.dropdown-button {
-  display: block;
-  padding: 0.75rem 1rem;
-  text-decoration: none;
-  color: #000;
-}
-
-.dropdown-button {
-  width: 100%;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-}
