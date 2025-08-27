@@ -194,9 +194,6 @@ export default function Admin() {
     };
     reader.readAsText(file);
   }, [setStudents, setGroups, setAwards, setBadgeDefs, setTeachers]);
-  const [assignStudentId, setAssignStudentId] = useState(students[0]?.id || '');
-  const [assignGroupId, setAssignGroupId] = useState(groups[0]?.id || '');
-
   const [page, setPage] = useState('points');
 
   // Preview state (gedeeld met Student-weergave via localStorage)
@@ -219,18 +216,6 @@ export default function Admin() {
     }
   }, [groups, awardGroupId]);
 
-  useEffect(() => {
-    if (students.length && !students.find((s) => s.id === assignStudentId)) {
-      setAssignStudentId(students[0]?.id || '');
-    }
-  }, [students, assignStudentId]);
-
-  useEffect(() => {
-    if (groups.length && !groups.find((g) => g.id === assignGroupId)) {
-      setAssignGroupId(groups[0]?.id || '');
-    }
-  }, [groups, assignGroupId]);
-
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
     if (previewId && !students.find((s) => s.id === previewId)) {
@@ -244,12 +229,11 @@ export default function Admin() {
     { value: 'leaderboard-students', label: 'Scorebord – Individueel' },
     { value: 'leaderboard-groups', label: 'Scorebord – Groepen' },
     { value: 'add-group', label: 'Groepen toevoegen' },
-    { value: 'assign-group', label: 'Student aan groep koppelen' },
     { value: 'manage-students', label: 'Studenten beheren' },
+    { value: 'manage-teachers', label: 'Docenten beheren' },
     { value: 'manage-badges', label: 'Badges beheren' },
     { value: 'backup', label: 'Backup & herstel' },
-    { value: 'preview', label: 'Preview student' },
-    { value: 'manage-teachers', label: 'Docenten beheren' }
+    { value: 'preview', label: 'Preview student' }
   ];
 
   return (
@@ -360,61 +344,6 @@ export default function Admin() {
             </Button>
           </div>
         </Card>
-      )}
-
-      {page === 'assign-group' && (
-        <>
-          <Card title="Student aan groep koppelen">
-            <div className="grid grid-cols-1 gap-2">
-              <Select value={assignStudentId} onChange={setAssignStudentId}>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-              <Select value={assignGroupId} onChange={setAssignGroupId}>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                className="bg-indigo-600 text-white"
-                disabled={!assignStudentId || !assignGroupId}
-                onClick={() => {
-                  setStudents((prev) =>
-                    prev.map((s) => (s.id === assignStudentId ? { ...s, groupId: assignGroupId } : s))
-                  );
-                }}
-              >
-                Koppel
-              </Button>
-            </div>
-          </Card>
-
-          <Card title="Overzicht groepsindeling">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b">
-                  <th className="py-1 pr-2">Student</th>
-                  <th className="py-1 pr-2">E-mail</th>
-                  <th className="py-1 pr-2">Groep</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => (
-                  <tr key={s.id} className="border-b last:border-0">
-                    <td className="py-1 pr-2">{s.name}</td>
-                    <td className="py-1 pr-2">{s.email || '-'}</td>
-                    <td className="py-1 pr-2">{s.groupId ? groupById.get(s.groupId)?.name || '-' : '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        </>
       )}
 
       {page === 'badges' && (
