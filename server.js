@@ -51,7 +51,7 @@ app.post('/api/send-reset', async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 3001;
+const port = process.env.SERVER_PORT || 3001;
 app.listen(port, () => {
   console.log(`Email server listening on port ${port}`);
 });
