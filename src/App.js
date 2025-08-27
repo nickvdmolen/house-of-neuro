@@ -202,6 +202,9 @@ function Auth({ onStudentLogin, onAdminLogin }) {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [resetStudent, setResetStudent] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPassword2, setNewPassword2] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPassword2, setSignupPassword2] = useState('');
@@ -214,9 +217,18 @@ function Auth({ onStudentLogin, onAdminLogin }) {
     const pass = loginPassword.trim();
     if (norm.endsWith('@student.nhlstenden.com')) {
       const s = students.find((st) => (st.email || '').toLowerCase() === norm);
-      if (s && (s.password || '') === pass) {
-        setLoginError('');
-        onStudentLogin(s.id);
+      if (s) {
+        if (s.tempCode && pass === s.tempCode) {
+          setResetStudent(s);
+          setLoginEmail('');
+          setLoginPassword('');
+          setLoginError('');
+        } else if ((s.password || '') === pass) {
+          setLoginError('');
+          onStudentLogin(s.id);
+        } else {
+          setLoginError('Onjuiste e-mail of wachtwoord.');
+        }
       } else {
         setLoginError('Onjuiste e-mail of wachtwoord.');
       }
@@ -278,87 +290,177 @@ function Auth({ onStudentLogin, onAdminLogin }) {
     }
   };
 
+  const handleForgotPassword = () => {
+    const norm = loginEmail.trim().toLowerCase();
+    if (norm.endsWith('@student.nhlstenden.com')) {
+      const s = students.find((st) => (st.email || '').toLowerCase() === norm);
+      if (!s) {
+        setLoginError('Onbekend e-mailadres.');
+        return;
+      }
+      const code = Math.random().toString(36).slice(2, 8);
+      setStudents((prev) =>
+        prev.map((st) =>
+          st.id === s.id ? { ...st, password: '', tempCode: code } : st
+        )
+      );
+      window.alert(`Resetmail verstuurd. Gebruik code: ${code}`);
+    } else if (norm.endsWith('@nhlstenden.com')) {
+      const t = teachers.find((te) => te.email.toLowerCase() === norm);
+      if (!t) {
+        setLoginError('Onbekend e-mailadres.');
+        return;
+      }
+      const code = Math.random().toString(36).slice(2, 8);
+      const hash = bcrypt.hashSync(code, 10);
+      setTeachers((prev) =>
+        prev.map((te) => (te.id === t.id ? { ...te, passwordHash: hash } : te))
+      );
+      window.alert(`Resetmail verstuurd. Tijdelijk wachtwoord: ${code}`);
+    } else {
+      setLoginError('Gebruik een geldig e-mailadres.');
+    }
+  };
+
+  const handleSetNewPassword = () => {
+    if (!resetStudent) return;
+    if (!newPassword.trim() || newPassword !== newPassword2) return;
+    const id = resetStudent.id;
+    const pass = newPassword.trim();
+    setStudents((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, password: pass, tempCode: undefined } : s))
+    );
+    setResetStudent(null);
+    setNewPassword('');
+    setNewPassword2('');
+    onStudentLogin(id);
+  };
+
   return (
     <div className="max-w-md mx-auto">
-      <Card title={mode === 'login' ? 'Inloggen' : 'Account aanmaken'}>
-        {mode === 'login' ? (
-          <>
-            <TextInput
-              value={loginEmail}
-              onChange={setLoginEmail}
-              placeholder="E-mail"
-              className="mb-2"
-            />
-            <TextInput
-              type="password"
-              value={loginPassword}
-              onChange={setLoginPassword}
-              placeholder="Wachtwoord"
-              className="mb-4"
-            />
-            {loginError && <div className="text-sm text-rose-600 mb-2">{loginError}</div>}
-            <Button
-              className="w-full bg-indigo-600 text-white"
-              onClick={handleLogin}
-              disabled={!loginEmail.trim() || !loginPassword.trim()}
-            >
-              Inloggen
-            </Button>
-            <button
-              className="text-sm text-indigo-600 text-left mt-2"
-              onClick={() => {
-                setLoginEmail('');
-                setLoginPassword('');
-                setLoginError('');
-                setMode('signup');
-              }}
-            >
-              Account aanmaken
-            </button>
-          </>
-        ) : (
-          <>
-            <TextInput
-              value={signupEmail}
-              onChange={setSignupEmail}
-              placeholder="E-mail"
-            />
-            <TextInput
-              type="password"
-              value={signupPassword}
-              onChange={setSignupPassword}
-              placeholder="Wachtwoord"
-            />
-            <TextInput
-              type="password"
-              value={signupPassword2}
-              onChange={setSignupPassword2}
-              placeholder="Bevestig wachtwoord"
-              className="mb-4"
-            />
-            {signupError && <div className="text-sm text-rose-600 mb-2">{signupError}</div>}
-            <Button
-              className="w-full bg-indigo-600 text-white"
-              onClick={handleSignup}
-              disabled={!signupEmail.trim() || !signupPassword.trim() || !signupPassword2.trim()}
-            >
-              Account aanmaken
-            </Button>
-            <button
-              className="text-sm text-indigo-600 text-left mt-2"
-              onClick={() => {
-                setSignupEmail('');
-                setSignupPassword('');
-                setSignupPassword2('');
-                setSignupError('');
-                setMode('login');
-              }}
-            >
-              Terug naar inloggen
-            </button>
-          </>
-        )}
-      </Card>
+      {resetStudent ? (
+        <Card title="Nieuw wachtwoord instellen">
+          <TextInput
+            type="password"
+            value={newPassword}
+            onChange={setNewPassword}
+            placeholder="Nieuw wachtwoord"
+            className="mb-2"
+          />
+          <TextInput
+            type="password"
+            value={newPassword2}
+            onChange={setNewPassword2}
+            placeholder="Bevestig wachtwoord"
+            className="mb-4"
+          />
+          <Button
+            className="w-full bg-indigo-600 text-white"
+            onClick={handleSetNewPassword}
+            disabled={
+              !newPassword.trim() ||
+              !newPassword2.trim() ||
+              newPassword !== newPassword2
+            }
+          >
+            Opslaan
+          </Button>
+        </Card>
+      ) : (
+        <Card title={mode === 'login' ? 'Inloggen' : 'Account aanmaken'}>
+          {mode === 'login' ? (
+            <>
+              <TextInput
+                value={loginEmail}
+                onChange={setLoginEmail}
+                placeholder="E-mail"
+                className="mb-2"
+              />
+              <TextInput
+                type="password"
+                value={loginPassword}
+                onChange={setLoginPassword}
+                placeholder="Wachtwoord"
+                className="mb-4"
+              />
+              {loginError && (
+                <div className="text-sm text-rose-600 mb-2">{loginError}</div>
+              )}
+              <Button
+                className="w-full bg-indigo-600 text-white"
+                onClick={handleLogin}
+                disabled={!loginEmail.trim() || !loginPassword.trim()}
+              >
+                Inloggen
+              </Button>
+              <button
+                className="text-sm text-indigo-600 text-left mt-2"
+                onClick={handleForgotPassword}
+              >
+                Wachtwoord vergeten?
+              </button>
+              <button
+                className="text-sm text-indigo-600 text-left mt-2"
+                onClick={() => {
+                  setLoginEmail('');
+                  setLoginPassword('');
+                  setLoginError('');
+                  setMode('signup');
+                }}
+              >
+                Account aanmaken
+              </button>
+            </>
+          ) : (
+            <>
+              <TextInput
+                value={signupEmail}
+                onChange={setSignupEmail}
+                placeholder="E-mail"
+              />
+              <TextInput
+                type="password"
+                value={signupPassword}
+                onChange={setSignupPassword}
+                placeholder="Wachtwoord"
+              />
+              <TextInput
+                type="password"
+                value={signupPassword2}
+                onChange={setSignupPassword2}
+                placeholder="Bevestig wachtwoord"
+                className="mb-4"
+              />
+              {signupError && (
+                <div className="text-sm text-rose-600 mb-2">{signupError}</div>
+              )}
+              <Button
+                className="w-full bg-indigo-600 text-white"
+                onClick={handleSignup}
+                disabled={
+                  !signupEmail.trim() ||
+                  !signupPassword.trim() ||
+                  !signupPassword2.trim()
+                }
+              >
+                Account aanmaken
+              </Button>
+              <button
+                className="text-sm text-indigo-600 text-left mt-2"
+                onClick={() => {
+                  setSignupEmail('');
+                  setSignupPassword('');
+                  setSignupPassword2('');
+                  setSignupError('');
+                  setMode('login');
+                }}
+              >
+                Terug naar inloggen
+              </button>
+            </>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
