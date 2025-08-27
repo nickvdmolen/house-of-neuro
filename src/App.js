@@ -230,13 +230,16 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const sendResetEmail = async (email, token) => {
     const link = `${window.location.origin}/#/reset/${token}`;
     try {
-      await fetch('/api/send-reset', {
+      const res = await fetch('/api/send-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, link }),
       });
+      if (!res.ok) throw new Error('response not ok');
+      return true;
     } catch (err) {
       console.error('Failed to send reset email', err);
+      return false;
     }
   };
 
@@ -330,7 +333,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     const norm = loginEmail.trim().toLowerCase();
     if (norm.endsWith('@student.nhlstenden.com')) {
       const s = students.find((st) => (st.email || '').toLowerCase() === norm);
@@ -344,8 +347,12 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           st.id === s.id ? { ...st, resetToken: token } : st
         )
       );
-      sendResetEmail(norm, token);
-      window.alert('Resetlink verstuurd. Controleer je e-mail.');
+      const ok = await sendResetEmail(norm, token);
+      window.alert(
+        ok
+          ? 'Resetlink verstuurd. Controleer je e-mail.'
+          : 'Versturen resetlink mislukt. Probeer opnieuw.'
+      );
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
       if (!t) {
@@ -358,8 +365,12 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           te.id === t.id ? { ...te, resetToken: token } : te
         )
       );
-      sendResetEmail(norm, token);
-      window.alert('Resetlink verstuurd. Controleer je e-mail.');
+      const ok = await sendResetEmail(norm, token);
+      window.alert(
+        ok
+          ? 'Resetlink verstuurd. Controleer je e-mail.'
+          : 'Versturen resetlink mislukt. Probeer opnieuw.'
+      );
     } else {
       setLoginError('Gebruik een geldig e-mailadres.');
     }
