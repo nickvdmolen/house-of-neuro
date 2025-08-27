@@ -224,6 +224,9 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const [students, setStudents] = useStudents();
   const [teachers, setTeachers] = useTeachers();
 
+  const SUPER_ADMIN_EMAIL = (process.env.REACT_APP_SUPERADMIN_EMAIL || '').toLowerCase();
+  const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
+
   const sendResetEmail = async (email, token) => {
     const link = `${window.location.origin}/#/reset/${token}`;
     try {
@@ -253,7 +256,15 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const handleLogin = () => {
     const norm = loginEmail.trim().toLowerCase();
     const pass = loginPassword.trim();
-    if (norm.endsWith('@student.nhlstenden.com')) {
+    if (
+      SUPER_ADMIN_EMAIL &&
+      SUPER_ADMIN_PASSWORD &&
+      norm === SUPER_ADMIN_EMAIL &&
+      pass === SUPER_ADMIN_PASSWORD
+    ) {
+      setLoginError('');
+      onAdminLogin();
+    } else if (norm.endsWith('@student.nhlstenden.com')) {
       const s = students.find((st) => (st.email || '').toLowerCase() === norm);
         if (s && (s.password || '') === pass) {
           setLoginError('');
