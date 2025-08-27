@@ -40,6 +40,18 @@ export default function Admin() {
     [groups, students]
   );
 
+  const individualStats = useMemo(() => {
+    const m = new Map();
+    individualLeaderboard.forEach((s) => m.set(s.id, s));
+    return m;
+  }, [individualLeaderboard]);
+
+  const groupStats = useMemo(() => {
+    const m = new Map();
+    groupLeaderboard.forEach((g) => m.set(g.id, g));
+    return m;
+  }, [groupLeaderboard]);
+
   const addStudent = useCallback((name, email, password = '') => {
     const id = genId();
     setStudents((prev) => [
@@ -119,6 +131,7 @@ export default function Admin() {
 
   const [newStudent, setNewStudent] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
+  const [studentSort, setStudentSort] = useState('name');
   const [newGroup, setNewGroup] = useState('');
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
@@ -280,49 +293,76 @@ export default function Admin() {
             >
               Voeg student toe
             </Button>
+            <Select
+              value={studentSort}
+              onChange={setStudentSort}
+              className="mt-2 w-60"
+            >
+              <option value="name">Sorteer op naam</option>
+              <option value="individual">Sorteer op individuele punten</option>
+              <option value="group">Sorteer op groepspunten</option>
+            </Select>
             <ul className="mt-4 space-y-2">
               {students
                 .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((s) => (
-                  <li key={s.id} className="flex items-center gap-2">
-                    <span className="flex-1">{s.name}</span>
-                    <Select
-                      value={s.groupId || ''}
-                      onChange={(val) =>
-                        setStudents((prev) =>
-                          prev.map((st) =>
-                            st.id === s.id ? { ...st, groupId: val || null } : st
+                .sort((a, b) => {
+                  if (studentSort === 'individual') {
+                    return (individualStats.get(b.id)?.points || 0) - (individualStats.get(a.id)?.points || 0);
+                  }
+                  if (studentSort === 'group') {
+                    return (groupStats.get(b.groupId)?.total || 0) - (groupStats.get(a.groupId)?.total || 0);
+                  }
+                  return a.name.localeCompare(b.name);
+                })
+                .map((s) => {
+                  const ind = individualStats.get(s.id);
+                  const grp = groupStats.get(s.groupId);
+                  return (
+                    <li key={s.id} className="flex items-center gap-2">
+                      <span className="flex-1">{s.name}</span>
+                      <span className="w-28 text-right">
+                        {s.points} ({ind?.rank})
+                      </span>
+                      <span className="w-28 text-right">
+                        {grp ? `${Math.round(grp.total)} (${grp.rank})` : '—'}
+                      </span>
+                      <Select
+                        value={s.groupId || ''}
+                        onChange={(val) =>
+                          setStudents((prev) =>
+                            prev.map((st) =>
+                              st.id === s.id ? { ...st, groupId: val || null } : st
+                            )
                           )
-                        )
-                      }
-                      className="w-40"
-                    >
-                      <option value="">Geen</option>
-                      {groups.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <Button
-                      className="bg-indigo-600 text-white"
-                      onClick={() => resetStudentPassword(s.id)}
-                    >
-                      Reset wachtwoord
-                    </Button>
-                    <Button
-                      className="bg-rose-600 text-white"
-                      onClick={() => {
-                        if (window.confirm(`Verwijder ${s.name}?`)) {
-                          removeStudent(s.id);
                         }
-                      }}
-                    >
-                      Verwijder
-                    </Button>
-                  </li>
-                ))}
+                        className="w-40"
+                      >
+                        <option value="">Geen</option>
+                        {groups.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <Button
+                        className="bg-indigo-600 text-white"
+                        onClick={() => resetStudentPassword(s.id)}
+                      >
+                        Reset wachtwoord
+                      </Button>
+                      <Button
+                        className="bg-rose-600 text-white"
+                        onClick={() => {
+                          if (window.confirm(`Verwijder ${s.name}?`)) {
+                            removeStudent(s.id);
+                          }
+                        }}
+                      >
+                        Verwijder
+                      </Button>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         </Card>
