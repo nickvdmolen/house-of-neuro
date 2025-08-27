@@ -239,8 +239,6 @@ export default function Admin() {
   const menuItems = [
     { value: 'points', label: 'Punten invoeren' },
     { value: 'badges', label: 'Badges toekennen' },
-    { value: 'leaderboard-students', label: 'Scorebord – Individueel' },
-    { value: 'leaderboard-groups', label: 'Scorebord – Groepen' },
     { value: 'add-group', label: 'Groepen toevoegen' },
     { value: 'manage-students', label: 'Studenten beheren' },
     { value: 'manage-teachers', label: 'Docenten beheren' },
@@ -654,64 +652,6 @@ export default function Admin() {
               Toekennen
             </Button>
           </div>
-        </Card>
-      )}
-
-      {page === 'leaderboard-students' && (
-        <Card title="Leaderboard – Individueel">
-          <table className="w-full text-sm whitespace-nowrap">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="py-1 pr-2">#</th>
-                <th className="py-1 pr-2">Student</th>
-                <th className="py-1 pr-2 text-right">Punten</th>
-              </tr>
-            </thead>
-            <tbody>
-              {individualLeaderboard.map((row) => (
-                <tr key={row.id} className="border-b last:border-0">
-                  <td className="py-1 pr-2">{row.rank}</td>
-                  <td className="py-1 pr-2">{row.name}</td>
-                  <td
-                    className={`py-1 pr-2 text-right font-semibold ${
-                      row.points > 0 ? 'text-emerald-700' : row.points < 0 ? 'text-rose-700' : 'text-neutral-700'
-                    }`}
-                  >
-                    {row.points}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
-
-      {page === 'leaderboard-groups' && (
-        <Card title="Leaderboard – Groepen">
-          <table className="w-full text-sm whitespace-nowrap">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="py-1 pr-2">#</th>
-                <th className="py-1 pr-2">Groep</th>
-                <th className="py-1 pr-2 text-right">Totaal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groupLeaderboard.map((row) => (
-                <tr key={row.id} className="border-b last:border-0">
-                  <td className="py-1 pr-2">{row.rank}</td>
-                  <td className="py-1 pr-2">{row.name}</td>
-                  <td
-                    className={`py-1 pr-2 text-right font-semibold ${
-                      row.total > 0 ? 'text-emerald-700' : row.total < 0 ? 'text-rose-700' : 'text-neutral-700'
-                    }`}
-                  >
-                    {row.total}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </Card>
       )}
 
