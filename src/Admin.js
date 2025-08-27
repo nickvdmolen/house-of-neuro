@@ -303,6 +303,24 @@ export default function Admin() {
                 .map((s) => (
                   <li key={s.id} className="flex items-center gap-2">
                     <span className="flex-1">{s.name}</span>
+                    <Select
+                      value={s.groupId || ''}
+                      onChange={(val) =>
+                        setStudents((prev) =>
+                          prev.map((st) =>
+                            st.id === s.id ? { ...st, groupId: val || null } : st
+                          )
+                        )
+                      }
+                      className="w-40"
+                    >
+                      <option value="">Geen</option>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </Select>
                     <Button
                       className="bg-indigo-600 text-white"
                       onClick={() => resetStudentPassword(s.id)}
