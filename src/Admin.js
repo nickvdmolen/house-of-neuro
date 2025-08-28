@@ -81,6 +81,13 @@ export default function Admin({ onLogout = () => {} }) {
     return id;
   }, [setGroups]);
 
+  const removeGroup = useCallback((id) => {
+    setGroups((prev) => prev.filter((g) => g.id !== id));
+    setStudents((prev) =>
+      prev.map((s) => (s.groupId === id ? { ...s, groupId: null } : s))
+    );
+  }, [setGroups, setStudents]);
+
   const toggleStudentBadge = useCallback((studentId, badgeId, hasBadge) => {
     if (!studentId || !badgeId) return;
     let delta = 0;
@@ -239,7 +246,7 @@ export default function Admin({ onLogout = () => {} }) {
   const menuItems = [
     { value: 'points', label: 'Punten invoeren' },
     { value: 'badges', label: 'Badges toekennen' },
-    { value: 'add-group', label: 'Groepen toevoegen' },
+    { value: 'manage-groups', label: 'Groepen beheren' },
     { value: 'manage-students', label: 'Studenten beheren' },
     { value: 'manage-teachers', label: 'Docenten beheren' },
     { value: 'manage-badges', label: 'Badges beheren' },
@@ -373,20 +380,91 @@ export default function Admin({ onLogout = () => {} }) {
         </Card>
       )}
 
-      {page === 'add-group' && (
-        <Card title="Groep toevoegen">
-          <div className="grid grid-cols-1 gap-2">
-            <TextInput value={newGroup} onChange={setNewGroup} placeholder="Groepsnaam" />
-            <Button
-              className="bg-indigo-600 text-white"
-              disabled={!newGroup.trim()}
-              onClick={() => {
-                addGroup(newGroup.trim());
-                setNewGroup('');
-              }}
-            >
-              Voeg toe
-            </Button>
+      {page === 'manage-groups' && (
+        <Card title="Groepen beheren">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex gap-2">
+              <TextInput
+                value={newGroup}
+                onChange={setNewGroup}
+                placeholder="Nieuwe groepsnaam"
+              />
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!newGroup.trim()}
+                onClick={() => {
+                  addGroup(newGroup.trim());
+                  setNewGroup('');
+                }}
+              >
+                Voeg toe
+              </Button>
+            </div>
+            <ul className="space-y-4">
+              {groups.map((g) => {
+                const members = students.filter((s) => s.groupId === g.id);
+                return (
+                  <li key={g.id} className="border rounded p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{g.name}</span>
+                      <Button
+                        className="bg-rose-600 text-white"
+                        onClick={() => {
+                          if (window.confirm('Groep verwijderen?')) {
+                            removeGroup(g.id);
+                          }
+                        }}
+                      >
+                        Verwijder groep
+                      </Button>
+                    </div>
+                    <ul className="mt-2 space-y-1">
+                      {members.map((m) => (
+                        <li key={m.id} className="flex items-center gap-2">
+                          <span className="flex-1">{m.name}</span>
+                          <Button
+                            className="bg-rose-600 text-white"
+                            onClick={() =>
+                              setStudents((prev) =>
+                                prev.map((s) =>
+                                  s.id === m.id ? { ...s, groupId: null } : s
+                                )
+                              )
+                            }
+                          >
+                            Verwijder
+                          </Button>
+                        </li>
+                      ))}
+                      {members.length === 0 && (
+                        <li className="text-sm text-neutral-500">Geen studenten</li>
+                      )}
+                    </ul>
+                    <Select
+                      value=""
+                      onChange={(val) => {
+                        if (val)
+                          setStudents((prev) =>
+                            prev.map((s) =>
+                              s.id === val ? { ...s, groupId: g.id } : s
+                            )
+                          );
+                      }}
+                      className="mt-2"
+                    >
+                      <option value="">Voeg student toe…</option>
+                      {students
+                        .filter((s) => s.groupId !== g.id)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                    </Select>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </Card>
       )}
