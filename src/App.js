@@ -228,8 +228,9 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
 
   const sendResetEmail = async (email, token) => {
-    const baseUrl = (process.env.REACT_APP_BASE_URL || window.location.origin).replace(/\/$/, '');
-    const apiBase = (process.env.REACT_APP_API_BASE || '').replace(/\/$/, '');
+    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const baseUrl = ((isLocal && process.env.REACT_APP_BASE_URL) || window.location.origin).replace(/\/$/, '');
+    const apiBase = ((isLocal && process.env.REACT_APP_API_BASE) || window.location.origin).replace(/\/$/, '');
     const link = `${baseUrl}/#/reset/${token}`;
     const url = `${apiBase}/api/send-reset`;
     try {
