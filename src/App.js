@@ -228,10 +228,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
 
   const sendResetEmail = async (email, token) => {
-    const baseUrl = process.env.REACT_APP_BASE_URL || window.location.origin;
+    const baseUrl = (process.env.REACT_APP_BASE_URL || window.location.origin).replace(/\/$/, '');
     const link = `${baseUrl}/#/reset/${token}`;
     try {
-      const res = await fetch('/api/send-reset', {
+      const apiBase = process.env.REACT_APP_API_BASE || '';
+      const res = await fetch(`${apiBase}/api/send-reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, link }),
