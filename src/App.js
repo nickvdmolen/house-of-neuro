@@ -228,7 +228,8 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
 
   const sendResetEmail = async (email, token) => {
-    const link = `${window.location.origin}/#/reset/${token}`;
+    const baseUrl = process.env.REACT_APP_BASE_URL || 'https://minorneuro.nl';
+    const link = `${baseUrl}/#/reset/${token}`;
     try {
       const res = await fetch('/api/send-reset', {
         method: 'POST',
