@@ -65,25 +65,26 @@ export default function App() {
               }}
             />
           )
-        ) : route === '/student' ? (
-          selectedStudentId ? (
-            <Student
-              selectedStudentId={selectedStudentId}
-              setSelectedStudentId={setSelectedStudentId}
-            />
-          ) : (
-            <Auth
-              onAdminLogin={() => {
-                allowAdmin();
-                window.location.hash = '/admin';
-              }}
-              onStudentLogin={(id) => {
-                setSelectedStudentId(id);
-                window.location.hash = '/student';
-              }}
-            />
-          )
-        ) : route === '/roster' ? (
+          ) : route.startsWith('/student') ? (
+            selectedStudentId ? (
+              <Student
+                selectedStudentId={selectedStudentId}
+                setSelectedStudentId={setSelectedStudentId}
+                route={route}
+              />
+            ) : (
+              <Auth
+                onAdminLogin={() => {
+                  allowAdmin();
+                  window.location.hash = '/admin';
+                }}
+                onStudentLogin={(id) => {
+                  setSelectedStudentId(id);
+                  window.location.hash = '/student';
+                }}
+              />
+            )
+          ) : route === '/roster' ? (
           isAdmin ? (
             <AdminRoster />
           ) : (
@@ -477,13 +478,14 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                 placeholder="E-mail"
                 className="mb-2"
               />
-              <TextInput
-                type="password"
-                value={loginPassword}
-                onChange={setLoginPassword}
-                placeholder="Wachtwoord"
-                className="mb-4"
-              />
+                <TextInput
+                  type="password"
+                  value={loginPassword}
+                  onChange={setLoginPassword}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  placeholder="Wachtwoord"
+                  className="mb-4"
+                />
               {loginError && (
                 <div className="text-sm text-rose-600 mb-2">{loginError}</div>
               )}

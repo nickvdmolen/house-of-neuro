@@ -11,6 +11,7 @@ export default function Student({
   selectedStudentId = '',
   setSelectedStudentId = () => {},
   previewStudentId,
+  route = '/student',
 }) {
   const [students, setStudents] = useStudents();
   const [groups] = useGroups();
@@ -38,7 +39,7 @@ export default function Student({
     const id = genId();
     setStudents((prev) => [
       ...prev,
-      { id, name, email: email || undefined, password, groupId: null, points: 0, badges: [] }
+      { id, name, email: email || undefined, password, groupId: null, points: 0, badges: [], photo: '' }
     ]);
     return id;
   }, [setStudents]);
@@ -72,6 +73,11 @@ export default function Student({
   );
 
   const [showBadges, setShowBadges] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [profilePassword2, setProfilePassword2] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
 
   const [lastSeenBadgeCount, setLastSeenBadgeCount] = useState(0);
 
@@ -102,11 +108,49 @@ export default function Student({
 
   const hasUnseenBadges = myBadges.length > lastSeenBadgeCount;
 
+  useEffect(() => {
+    setShowProfile(route === '/student/profile');
+  }, [route]);
+
+  useEffect(() => {
+    if (showProfile && me) {
+      setProfileName(me.name || '');
+      setProfilePassword('');
+      setProfilePassword2('');
+      setProfilePhoto(me.photo || '');
+    }
+  }, [showProfile, me]);
+
   const [authMode, setAuthMode] = useState('login');
 
   const handleLogout = () => {
     setSelectedStudentId('');
     window.location.hash = '/';
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setProfilePhoto(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = () => {
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === activeStudentId
+          ? {
+              ...s,
+              name: profileName.trim(),
+              password: profilePassword ? profilePassword : s.password,
+              photo: profilePhoto,
+            }
+          : s
+      )
+    );
+    window.location.hash = '/student';
   };
 
   const [loginEmail, setLoginEmail] = useState('');
@@ -243,9 +287,17 @@ export default function Student({
               <span className="bg-white/90 px-2 py-1 rounded">
                 Ingelogd als {me.name}{me.email ? ` (${me.email})` : ''}
               </span>
-              <Button className="bg-indigo-600 text-white" onClick={handleLogout}>
-                Uitloggen
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="bg-indigo-600 text-white"
+                  onClick={() => (window.location.hash = '/student/profile')}
+                >
+                  Mijn profiel
+                </Button>
+                <Button className="bg-indigo-600 text-white" onClick={handleLogout}>
+                  Uitloggen
+                </Button>
+              </div>
             </div>
           )
         )}
@@ -269,6 +321,7 @@ export default function Student({
                       type="password"
                       value={loginPassword}
                       onChange={setLoginPassword}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                       placeholder="Wachtwoord of code"
                     />
                     {loginEmail && !emailValid(loginEmail) && (
@@ -357,6 +410,51 @@ export default function Student({
               )}
             </div>
           )
+        ) : showProfile ? (
+          <div className="max-w-md mx-auto">
+            <Card title="Mijn profiel">
+              <div className="grid grid-cols-1 gap-4">
+                <TextInput value={profileName} onChange={setProfileName} placeholder="Naam" />
+                <div>
+                  <label className="block text-sm font-medium mb-1">E-mail</label>
+                  <div className="text-sm">{me.email || '-'}</div>
+                </div>
+                <TextInput
+                  type="password"
+                  value={profilePassword}
+                  onChange={setProfilePassword}
+                  placeholder="Nieuw wachtwoord"
+                />
+                <TextInput
+                  type="password"
+                  value={profilePassword2}
+                  onChange={setProfilePassword2}
+                  placeholder="Bevestig wachtwoord"
+                />
+                <div>
+                  <label className="block text-sm font-medium mb-1">Profielfoto</label>
+                  <input type="file" accept="image/*" onChange={handlePhotoChange} />
+                  {profilePhoto && (
+                    <img
+                      src={profilePhoto}
+                      alt="Profielfoto"
+                      className="mt-2 w-32 h-32 object-cover rounded-full"
+                    />
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    className="bg-indigo-600 text-white"
+                    onClick={handleSaveProfile}
+                    disabled={!profileName.trim() || (profilePassword && profilePassword !== profilePassword2)}
+                  >
+                    Opslaan
+                  </Button>
+                  <Button onClick={() => (window.location.hash = '/student')}>Annuleren</Button>
+                </div>
+              </div>
+            </Card>
+          </div>
         ) : showBadges ? (
           <div className="max-w-3xl mx-auto">
 
