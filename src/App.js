@@ -229,30 +229,43 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
 
   const sendResetEmail = async (email, token) => {
     const link = `${window.location.origin}/#/reset/${token}`;
+    console.debug('[sendResetEmail] Preparing request', { email, link });
     try {
       const res = await fetch('/api/send-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, link }),
       });
+      console.debug('[sendResetEmail] Response received', {
+        status: res.status,
+        ok: res.ok,
+      });
       if (!res.ok) throw new Error('response not ok');
       return true;
     } catch (err) {
-      console.error('Failed to send reset email', err);
+      console.error('[sendResetEmail] Failed to send reset email', err);
       return false;
     }
   };
 
   useEffect(() => {
-    if (!resetToken) return;
+    if (!resetToken) {
+      console.debug('[reset] No reset token present');
+      return;
+    }
+    console.debug('[reset] Looking up reset token', resetToken);
     const s = students.find((st) => st.resetToken === resetToken);
     if (s) {
+      console.debug('[reset] Token matched student', s.id);
       setResetUser({ type: 'student', id: s.id });
       return;
     }
     const t = teachers.find((te) => te.resetToken === resetToken);
     if (t) {
+      console.debug('[reset] Token matched teacher', t.id);
       setResetUser({ type: 'teacher', id: t.id });
+    } else {
+      console.warn('[reset] Token not found for any user');
     }
   }, [resetToken, students, teachers]);
 
@@ -335,19 +348,23 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
 
   const handleForgotPassword = async () => {
     const norm = loginEmail.trim().toLowerCase();
+    console.debug('[forgotPassword] Request for', norm);
     if (norm.endsWith('@student.nhlstenden.com')) {
       const s = students.find((st) => (st.email || '').toLowerCase() === norm);
       if (!s) {
+        console.warn('[forgotPassword] Unknown student email', norm);
         setLoginError('Onbekend e-mailadres.');
         return;
       }
       const token = Math.random().toString(36).slice(2);
+      console.debug('[forgotPassword] Generated token for student', { id: s.id, token });
       setStudents((prev) =>
         prev.map((st) =>
           st.id === s.id ? { ...st, resetToken: token } : st
         )
       );
       const ok = await sendResetEmail(norm, token);
+      console.debug('[forgotPassword] Email send result', ok);
       window.alert(
         ok
           ? 'Resetlink verstuurd. Controleer je e-mail.'
@@ -356,30 +373,44 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
       if (!t) {
+        console.warn('[forgotPassword] Unknown teacher email', norm);
         setLoginError('Onbekend e-mailadres.');
         return;
       }
       const token = Math.random().toString(36).slice(2);
+      console.debug('[forgotPassword] Generated token for teacher', { id: t.id, token });
       setTeachers((prev) =>
         prev.map((te) =>
           te.id === t.id ? { ...te, resetToken: token } : te
         )
       );
       const ok = await sendResetEmail(norm, token);
+      console.debug('[forgotPassword] Email send result', ok);
       window.alert(
         ok
           ? 'Resetlink verstuurd. Controleer je e-mail.'
           : 'Versturen resetlink mislukt. Probeer opnieuw.'
       );
     } else {
+      console.warn('[forgotPassword] Invalid email domain', norm);
       setLoginError('Gebruik een geldig e-mailadres.');
     }
   };
 
   const handleSetNewPassword = () => {
-    if (!resetUser) return;
-    if (!newPassword.trim() || newPassword !== newPassword2) return;
+    if (!resetUser) {
+      console.warn('[setNewPassword] No reset user');
+      return;
+    }
+    if (!newPassword.trim() || newPassword !== newPassword2) {
+      console.warn('[setNewPassword] Password validation failed');
+      return;
+    }
     const pass = newPassword.trim();
+    console.debug('[setNewPassword] Updating password', {
+      type: resetUser.type,
+      id: resetUser.id,
+    });
     if (resetUser.type === 'student') {
       const id = resetUser.id;
       setStudents((prev) =>
