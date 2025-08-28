@@ -229,9 +229,9 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
 
   const sendResetEmail = async (email, token) => {
     const baseUrl = (process.env.REACT_APP_BASE_URL || window.location.origin).replace(/\/$/, '');
+    let apiBase = process.env.REACT_APP_API_BASE || '';
     const link = `${baseUrl}/#/reset/${token}`;
     try {
-      const apiBase = process.env.REACT_APP_API_BASE || '';
       const res = await fetch(`${apiBase}/api/send-reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
