@@ -228,25 +228,18 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
 
   const sendResetEmail = async (email, token) => {
-    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const baseUrl = ((isLocal && process.env.REACT_APP_BASE_URL) || window.location.origin).replace(/\/$/, '');
-    const apiBase = ((isLocal && process.env.REACT_APP_API_BASE) || window.location.origin).replace(/\/$/, '');
-    const link = `${baseUrl}/#/reset/${token}`;
-    const url = `${apiBase}/api/send-reset`;
+    const link = `${window.location.origin}/#/reset/${token}`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch('/api/send-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, link }),
       });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`status ${res.status} ${text}`.trim());
-      }
-      return { ok: true };
+      if (!res.ok) throw new Error('response not ok');
+      return true;
     } catch (err) {
-      console.error('Failed to send reset email', { url, link, error: err });
-      return { ok: false, debug: `url=${url} link=${link} message=${err.message}` };
+      console.error('Failed to send reset email', err);
+      return false;
     }
   };
 
@@ -354,11 +347,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           st.id === s.id ? { ...st, resetToken: token } : st
         )
       );
-      const result = await sendResetEmail(norm, token);
+      const ok = await sendResetEmail(norm, token);
       window.alert(
-        result.ok
+        ok
           ? 'Resetlink verstuurd. Controleer je e-mail.'
-          : `Versturen resetlink mislukt. Probeer opnieuw. (${result.debug})`
+          : 'Versturen resetlink mislukt. Probeer opnieuw.'
       );
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
@@ -372,11 +365,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           te.id === t.id ? { ...te, resetToken: token } : te
         )
       );
-      const result = await sendResetEmail(norm, token);
+      const ok = await sendResetEmail(norm, token);
       window.alert(
-        result.ok
+        ok
           ? 'Resetlink verstuurd. Controleer je e-mail.'
-          : `Versturen resetlink mislukt. Probeer opnieuw. (${result.debug})`
+          : 'Versturen resetlink mislukt. Probeer opnieuw.'
       );
     } else {
       setLoginError('Gebruik een geldig e-mailadres.');
