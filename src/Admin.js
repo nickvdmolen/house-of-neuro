@@ -65,15 +65,20 @@ export default function Admin({ onLogout = () => {} }) {
     setStudents((prev) => prev.filter((s) => s.id !== id));
   }, [setStudents]);
 
-  const resetStudentPassword = useCallback((id) => {
-    const code = Math.random().toString(36).slice(2, 8);
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, password: '', tempCode: code } : s
-      )
-    );
-    window.alert(`Nieuwe code: ${code}`);
-  }, [setStudents]);
+  const resetStudentPassword = useCallback(
+    (id) => {
+      const pwd = window.prompt('Nieuw wachtwoord:');
+      if (!pwd?.trim()) return;
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? { ...s, password: pwd.trim(), tempCode: undefined }
+            : s
+        )
+      );
+    },
+    [setStudents]
+  );
 
   const addGroup = useCallback((name) => {
     const id = genId();
