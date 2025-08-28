@@ -9,4 +9,4 @@ Replace these placeholders with your real credentials before deploying. Never co
 | Variable | Purpose |
 | --- | --- |
 | `REACT_APP_BASE_URL` | Base URL of the frontend used when generating password reset links. |
-| `REACT_APP_API_BASE` | Base URL of the API server used to send reset emails. Leave empty to use the same origin. |
+| `REACT_APP_API_BASE` | Base URL of the API server used to send reset emails. Leave empty to use the same origin. Trailing slashes are removed. |

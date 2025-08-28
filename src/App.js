@@ -229,19 +229,23 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
 
   const sendResetEmail = async (email, token) => {
     const baseUrl = (process.env.REACT_APP_BASE_URL || window.location.origin).replace(/\/$/, '');
-    let apiBase = process.env.REACT_APP_API_BASE || '';
+    const apiBase = (process.env.REACT_APP_API_BASE || '').replace(/\/$/, '');
     const link = `${baseUrl}/#/reset/${token}`;
+    const url = `${apiBase}/api/send-reset`;
     try {
-      const res = await fetch(`${apiBase}/api/send-reset`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, link }),
       });
-      if (!res.ok) throw new Error('response not ok');
-      return true;
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`status ${res.status} ${text}`.trim());
+      }
+      return { ok: true };
     } catch (err) {
-      console.error('Failed to send reset email', err);
-      return false;
+      console.error('Failed to send reset email', { url, link, error: err });
+      return { ok: false, debug: `url=${url} link=${link} message=${err.message}` };
     }
   };
 
@@ -349,11 +353,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           st.id === s.id ? { ...st, resetToken: token } : st
         )
       );
-      const ok = await sendResetEmail(norm, token);
+      const result = await sendResetEmail(norm, token);
       window.alert(
-        ok
+        result.ok
           ? 'Resetlink verstuurd. Controleer je e-mail.'
-          : 'Versturen resetlink mislukt. Probeer opnieuw.'
+          : `Versturen resetlink mislukt. Probeer opnieuw. (${result.debug})`
       );
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
@@ -367,11 +371,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           te.id === t.id ? { ...te, resetToken: token } : te
         )
       );
-      const ok = await sendResetEmail(norm, token);
+      const result = await sendResetEmail(norm, token);
       window.alert(
-        ok
+        result.ok
           ? 'Resetlink verstuurd. Controleer je e-mail.'
-          : 'Versturen resetlink mislukt. Probeer opnieuw.'
+          : `Versturen resetlink mislukt. Probeer opnieuw. (${result.debug})`
       );
     } else {
       setLoginError('Gebruik een geldig e-mailadres.');
