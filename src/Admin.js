@@ -65,21 +65,33 @@ export default function Admin({ onLogout = () => {} }) {
     setStudents((prev) => prev.filter((s) => s.id !== id));
   }, [setStudents]);
 
-  const resetStudentPassword = useCallback((id) => {
-    const code = Math.random().toString(36).slice(2, 8);
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, password: '', tempCode: code } : s
-      )
-    );
-    window.alert(`Nieuwe code: ${code}`);
-  }, [setStudents]);
+  const resetStudentPassword = useCallback(
+    (id) => {
+      const pwd = window.prompt('Nieuw wachtwoord:');
+      if (!pwd?.trim()) return;
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? { ...s, password: pwd.trim(), tempCode: undefined }
+            : s
+        )
+      );
+    },
+    [setStudents]
+  );
 
   const addGroup = useCallback((name) => {
     const id = genId();
     setGroups((prev) => [...prev, { id, name, points: 0 }]);
     return id;
   }, [setGroups]);
+
+  const removeGroup = useCallback((id) => {
+    setGroups((prev) => prev.filter((g) => g.id !== id));
+    setStudents((prev) =>
+      prev.map((s) => (s.groupId === id ? { ...s, groupId: null } : s))
+    );
+  }, [setGroups, setStudents]);
 
   const toggleStudentBadge = useCallback((studentId, badgeId, hasBadge) => {
     if (!studentId || !badgeId) return;
@@ -237,9 +249,10 @@ export default function Admin({ onLogout = () => {} }) {
   }, [students, previewId]);
 
   const menuItems = [
+    { value: 'scores', label: 'Scores' },
     { value: 'points', label: 'Punten invoeren' },
     { value: 'badges', label: 'Badges toekennen' },
-    { value: 'add-group', label: 'Groepen toevoegen' },
+    { value: 'manage-groups', label: 'Groepen beheren' },
     { value: 'manage-students', label: 'Studenten beheren' },
     { value: 'manage-teachers', label: 'Docenten beheren' },
     { value: 'manage-badges', label: 'Badges beheren' },
@@ -270,6 +283,76 @@ export default function Admin({ onLogout = () => {} }) {
             Uitloggen
           </Button>
         </div>
+
+      {page === 'scores' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card title="Leaderboard – Individueel">
+            <table className="w-full text-sm whitespace-nowrap">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="py-1 pr-2">#</th>
+                  <th className="py-1 pr-2">Student</th>
+                  <th className="py-1 pr-2">Groep</th>
+                  <th className="py-1 pr-2 text-right">Punten</th>
+                </tr>
+              </thead>
+              <tbody>
+                {individualLeaderboard.map((row) => (
+                  <tr key={row.id} className="border-b last:border-0">
+                    <td className="py-1 pr-2">{row.rank}</td>
+                    <td className="py-1 pr-2">{row.name}</td>
+                    <td className="py-1 pr-2">
+                      {row.groupId ? groupById.get(row.groupId)?.name || '-' : '-'}
+                    </td>
+                    <td
+                      className={`py-1 pr-2 text-right font-semibold ${
+                        row.points > 0
+                          ? 'text-emerald-700'
+                          : row.points < 0
+                          ? 'text-rose-700'
+                          : 'text-neutral-700'
+                      }`}
+                    >
+                      {row.points}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          <Card title="Leaderboard – Groepen">
+            <table className="w-full text-sm whitespace-nowrap">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="py-1 pr-2">#</th>
+                  <th className="py-1 pr-2">Groep</th>
+                  <th className="py-1 pr-2 text-right">Totaal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupLeaderboard.map((row) => (
+                  <tr key={row.id} className="border-b last:border-0">
+                    <td className="py-1 pr-2">{row.rank}</td>
+                    <td className="py-1 pr-2">{row.name}</td>
+                    <td
+                      className={`py-1 pr-2 text-right font-semibold ${
+                        row.total > 0
+                          ? 'text-emerald-700'
+                          : row.total < 0
+                          ? 'text-rose-700'
+                          : 'text-neutral-700'
+                      }`}
+                    >
+                      {row.total}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
 
       {page === 'manage-students' && (
         <Card title="Studenten beheren">
@@ -373,20 +456,91 @@ export default function Admin({ onLogout = () => {} }) {
         </Card>
       )}
 
-      {page === 'add-group' && (
-        <Card title="Groep toevoegen">
-          <div className="grid grid-cols-1 gap-2">
-            <TextInput value={newGroup} onChange={setNewGroup} placeholder="Groepsnaam" />
-            <Button
-              className="bg-indigo-600 text-white"
-              disabled={!newGroup.trim()}
-              onClick={() => {
-                addGroup(newGroup.trim());
-                setNewGroup('');
-              }}
-            >
-              Voeg toe
-            </Button>
+      {page === 'manage-groups' && (
+        <Card title="Groepen beheren">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex gap-2">
+              <TextInput
+                value={newGroup}
+                onChange={setNewGroup}
+                placeholder="Nieuwe groepsnaam"
+              />
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!newGroup.trim()}
+                onClick={() => {
+                  addGroup(newGroup.trim());
+                  setNewGroup('');
+                }}
+              >
+                Voeg toe
+              </Button>
+            </div>
+            <ul className="space-y-4">
+              {groups.map((g) => {
+                const members = students.filter((s) => s.groupId === g.id);
+                return (
+                  <li key={g.id} className="border rounded p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{g.name}</span>
+                      <Button
+                        className="bg-rose-600 text-white"
+                        onClick={() => {
+                          if (window.confirm('Groep verwijderen?')) {
+                            removeGroup(g.id);
+                          }
+                        }}
+                      >
+                        Verwijder groep
+                      </Button>
+                    </div>
+                    <ul className="mt-2 space-y-1">
+                      {members.map((m) => (
+                        <li key={m.id} className="flex items-center gap-2">
+                          <span className="flex-1">{m.name}</span>
+                          <Button
+                            className="bg-rose-600 text-white"
+                            onClick={() =>
+                              setStudents((prev) =>
+                                prev.map((s) =>
+                                  s.id === m.id ? { ...s, groupId: null } : s
+                                )
+                              )
+                            }
+                          >
+                            Verwijder
+                          </Button>
+                        </li>
+                      ))}
+                      {members.length === 0 && (
+                        <li className="text-sm text-neutral-500">Geen studenten</li>
+                      )}
+                    </ul>
+                    <Select
+                      value=""
+                      onChange={(val) => {
+                        if (val)
+                          setStudents((prev) =>
+                            prev.map((s) =>
+                              s.id === val ? { ...s, groupId: g.id } : s
+                            )
+                          );
+                      }}
+                      className="mt-2"
+                    >
+                      <option value="">Voeg student toe…</option>
+                      {students
+                        .filter((s) => s.groupId !== g.id)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                    </Select>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </Card>
       )}

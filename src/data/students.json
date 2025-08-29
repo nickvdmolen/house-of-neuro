@@ -1,5 +1,5 @@
 [
-  { "id": "s1", "name": "Alex",  "email": "alex@student.nhlstenden.com",  "password": "1234", "groupId": "g1", "points": 10, "badges": [] },
-  { "id": "s2", "name": "Bo",    "email": "bo@student.nhlstenden.com",    "password": "1234", "groupId": "g1", "points": 5,  "badges": [] },
-  { "id": "s3", "name": "Casey", "email": "casey@student.nhlstenden.com", "password": "1234", "groupId": "g2", "points": 12, "badges": [] }
+  { "id": "s1", "name": "Alex",  "email": "alex@student.nhlstenden.com",  "password": "1234", "groupId": "g1", "points": 10, "badges": [], "photo": "" },
+  { "id": "s2", "name": "Bo",    "email": "bo@student.nhlstenden.com",    "password": "1234", "groupId": "g1", "points": 5,  "badges": [], "photo": "" },
+  { "id": "s3", "name": "Casey", "email": "casey@student.nhlstenden.com", "password": "1234", "groupId": "g2", "points": 12, "badges": [], "photo": "" }
 ]
