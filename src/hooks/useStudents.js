@@ -1,8 +1,6 @@
-import usePersistentState from './usePersistentState';
+import useServerState from './useServerState';
 import seedStudents from '../data/students.json';
 
-const LS_KEY = 'nm_points_students_v2';
-
 export default function useStudents() {
-  return usePersistentState(LS_KEY, seedStudents);
+  return useServerState('students', seedStudents);
 }

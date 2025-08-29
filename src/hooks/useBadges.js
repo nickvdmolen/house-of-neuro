@@ -1,8 +1,6 @@
-import usePersistentState from './usePersistentState';
-import { BADGE_DEFS } from '../badgeDefs';
-
-const LS_KEY = 'nm_points_badges_v1';
+import useServerState from './useServerState';
+import seedBadges from '../data/badges.json';
 
 export default function useBadges() {
-  return usePersistentState(LS_KEY, BADGE_DEFS);
+  return useServerState('badges', seedBadges);
 }
