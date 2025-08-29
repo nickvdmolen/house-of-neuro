@@ -22,12 +22,20 @@ export function Button({ children, onClick, type = 'button', className = '', dis
   );
 }
 
-export function TextInput({ value, onChange, placeholder, type = 'text', className = '' }) {
+export function TextInput({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  className = '',
+  onKeyDown,
+}) {
   return (
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
       placeholder={placeholder}
       className={`w-full ${className}`}
     />
