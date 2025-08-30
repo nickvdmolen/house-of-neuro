@@ -48,8 +48,11 @@ export default function Student({
   }, [setStudents]);
 
   useEffect(() => {
-    if (!inPreview && selectedStudentId && !students.find((s) => s.id === selectedStudentId)) {
-      setSelectedStudentId('');
+    if (!inPreview && selectedStudentId) {
+      const exists = students.some((s) => s.id === selectedStudentId);
+      if (students.length > 0 && !exists) {
+        setSelectedStudentId('');
+      }
     }
   }, [students, selectedStudentId, setSelectedStudentId, inPreview]);
 
