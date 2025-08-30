@@ -63,3 +63,22 @@ insert into badge_defs (id, title, image, requirement) values
   ('project', 'Project', 'https://rgyukpzginlyihyijbfk.supabase.co/storage/v1/object/public/hon/images/project.webp', ''),
   ('pubquiz', 'Pubquiz', 'https://rgyukpzginlyihyijbfk.supabase.co/storage/v1/object/public/hon/images/pubquiz.webp', ''),
   ('pupil-labs', 'Pupil labs', 'https://rgyukpzginlyihyijbfk.supabase.co/storage/v1/object/public/hon/images/pupil-labs.webp', '');
+
+-- Storage policies to allow authenticated uploads to the `hon` bucket
+create policy "authenticated can upload images"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (bucket_id = 'hon' and (storage.foldername(name))[1] = 'images');
+
+create policy "authenticated can update images"
+  on storage.objects
+  for update
+  to authenticated
+  using (bucket_id = 'hon' and (storage.foldername(name))[1] = 'images');
+
+create policy "authenticated can read images"
+  on storage.objects
+  for select
+  to authenticated
+  using (bucket_id = 'hon' and (storage.foldername(name))[1] = 'images');
