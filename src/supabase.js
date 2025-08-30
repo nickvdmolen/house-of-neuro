@@ -15,8 +15,10 @@ export async function uploadImage(file) {
 
   const { data: user, error: userError } = await supabase.auth.getUser();
   if (userError || !user?.user) {
-    console.error('No Supabase user', userError);
-    alert('Afbeelding uploaden mislukt. Controleer de Supabase configuratie.');
+    console.error('No Supabase user', { userError, user });
+    alert(
+      `Afbeelding uploaden mislukt: geen Supabase gebruiker gevonden (${userError?.message})`
+    );
     return null;
   }
 
@@ -33,8 +35,8 @@ export async function uploadImage(file) {
     });
 
   if (error) {
-    console.error('Error uploading image', error);
-    alert('Afbeelding uploaden mislukt. Controleer de Supabase configuratie.');
+    console.error('Error uploading image', { error, filePath, file });
+    alert(`Afbeelding uploaden mislukt: ${error.message}`);
     return null;
   }
 

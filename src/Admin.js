@@ -179,11 +179,16 @@ export default function Admin({ onLogout = () => {} }) {
 
   const addBadge = useCallback(() => {
     const title = newBadgeTitle.trim();
-    if (!title || !newBadgeImage) return;
+    if (!title) return;
     const id = genId();
     setBadgeDefs((prev) => [
       ...prev,
-      { id, title, image: newBadgeImage, requirement: newBadgeRequirement.trim() },
+      {
+        id,
+        title,
+        image: newBadgeImage || '',
+        requirement: newBadgeRequirement.trim(),
+      },
     ]);
     setNewBadgeTitle('');
     setNewBadgeImage('');
@@ -664,7 +669,7 @@ export default function Admin({ onLogout = () => {} }) {
               )}
             <Button
                 className="bg-indigo-600 text-white"
-                disabled={!newBadgeTitle.trim() || !newBadgeImage}
+                disabled={!newBadgeTitle.trim()}
                 onClick={addBadge}
               >
                 Maak badge
