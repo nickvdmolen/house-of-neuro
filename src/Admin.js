@@ -5,6 +5,7 @@ import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, teacherEmailValid } from './utils';
+import { uploadImage } from './supabase';
 import Student from './Student';
 import useBadges from './hooks/useBadges';
 import useTeachers from './hooks/useTeachers';
@@ -620,18 +621,15 @@ export default function Admin({ onLogout = () => {} }) {
                     accept="image/*"
                     id={`edit-badge-image-${b.id}`}
                     className="hidden"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
+                      const url = await uploadImage(file);
+                      if (url) {
                         setBadgeDefs((prev) =>
-                          prev.map((bd) =>
-                            bd.id === b.id ? { ...bd, image: ev.target.result } : bd
-                          )
+                          prev.map((bd) => (bd.id === b.id ? { ...bd, image: url } : bd))
                         );
-                      };
-                      reader.readAsDataURL(file);
+                      }
                       e.target.value = '';
                     }}
                   />
@@ -648,12 +646,11 @@ export default function Admin({ onLogout = () => {} }) {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = (ev) => setNewBadgeImage(ev.target.result);
-                  reader.readAsDataURL(file);
+                  const url = await uploadImage(file);
+                  if (url) setNewBadgeImage(url);
                 }}
               />
               {newBadgeImage && (

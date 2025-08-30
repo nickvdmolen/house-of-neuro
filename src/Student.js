@@ -6,7 +6,7 @@ import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
 import useBadges from './hooks/useBadges';
-import { getImageUrl } from './supabase';
+import { getImageUrl, uploadImage } from './supabase';
 
 export default function Student({
   selectedStudentId = '',
@@ -101,13 +101,11 @@ export default function Student({
     window.location.hash = '/';
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setProfilePhoto(reader.result);
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const url = await uploadImage(file);
+    if (url) setProfilePhoto(url);
   };
 
   const handleSaveProfile = () => {
