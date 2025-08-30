@@ -9,7 +9,7 @@ import Student from './Student';
 import useBadges from './hooks/useBadges';
 import useTeachers from './hooks/useTeachers';
 import bcrypt from 'bcryptjs';
-import usePersistentState from './hooks/usePersistentState';
+// Local persistence removed; state lives only in memory
 
 const BADGE_POINTS = 50;
 
@@ -221,8 +221,8 @@ export default function Admin({ onLogout = () => {} }) {
   }, [setStudents, setGroups, setAwards, setBadgeDefs, setTeachers]);
   const [page, setPage] = useState('points');
 
-  // Preview state (gedeeld met Student-weergave via localStorage)
-  const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
+  // Preview state
+  const [previewId, setPreviewId] = useState('');
 
   useEffect(() => {
     if (students.length === 0) {

@@ -1,4 +1,0 @@
-[
-  { "id": "a1", "ts": 1754980224218, "type": "group",   "targetId": "g1", "amount": 10, "reason": "Kick-off pitch" },
-  { "id": "a2", "ts": 1754980824218, "type": "student", "targetId": "s3", "amount": 4,  "reason": "Reading quiz" }
-]

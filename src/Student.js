@@ -80,34 +80,6 @@ export default function Student({
   const [profilePassword2, setProfilePassword2] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
 
-  const [lastSeenBadgeCount, setLastSeenBadgeCount] = useState(0);
-
-  useEffect(() => {
-    if (activeStudentId) {
-      try {
-        const raw = localStorage.getItem(`nm_last_seen_badges_${activeStudentId}`);
-        setLastSeenBadgeCount(raw ? parseInt(raw, 10) : 0);
-      } catch {
-        setLastSeenBadgeCount(0);
-      }
-    }
-  }, [activeStudentId]);
-
-  useEffect(() => {
-    if (showBadges && activeStudentId) {
-      try {
-        localStorage.setItem(
-          `nm_last_seen_badges_${activeStudentId}`,
-          String(myBadges.length)
-        );
-      } catch {
-        // ignore
-      }
-      setLastSeenBadgeCount(myBadges.length);
-    }
-  }, [showBadges, myBadges.length, activeStudentId]);
-
-  const hasUnseenBadges = myBadges.length > lastSeenBadgeCount;
 
   useEffect(() => {
     setShowProfile(route === '/student/profile');
@@ -473,11 +445,6 @@ export default function Student({
             <Card title="Badges" className="lg:col-span-3">
               {me ? (
                 <>
-                  {hasUnseenBadges && (
-                    <p className="text-sm text-indigo-600 mb-2">
-                      Je hebt nieuwe badges gekregen. Bekijk ze nu!
-                    </p>
-                  )}
                   <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
                     Bekijk badges
                   </Button>
