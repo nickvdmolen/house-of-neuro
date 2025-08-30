@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import bcrypt from 'bcryptjs';
 import { Card, Button, TextInput } from './components/ui';
 import BadgeOverview from './components/BadgeOverview';
 import useStudents from './hooks/useStudents';
@@ -38,9 +39,10 @@ export default function Student({
 
   const addStudent = useCallback((name, email, password = '') => {
     const id = genId();
+    const hash = bcrypt.hashSync(password, 10);
     setStudents((prev) => [
       ...prev,
-      { id, name, email: email || undefined, password, groupId: null, points: 0, badges: [], photo: '' }
+      { id, name, email: email || undefined, password: hash, groupId: null, points: 0, badges: [], photo: '' }
     ]);
     return id;
   }, [setStudents]);
@@ -109,13 +111,14 @@ export default function Student({
   };
 
   const handleSaveProfile = () => {
+    const hash = profilePassword ? bcrypt.hashSync(profilePassword, 10) : null;
     setStudents((prev) =>
       prev.map((s) =>
         s.id === activeStudentId
           ? {
               ...s,
               name: profileName.trim(),
-              password: profilePassword ? profilePassword : s.password,
+              password: hash || s.password,
               photo: profilePhoto,
             }
           : s
@@ -142,13 +145,23 @@ export default function Student({
         setLoginEmail('');
         setLoginPassword('');
         setLoginError('');
-      } else if ((existing.password || '') === pass) {
-        setSelectedStudentId(existing.id);
-        setLoginEmail('');
-        setLoginPassword('');
-        setLoginError('');
       } else {
-        setLoginError('Onjuist wachtwoord of code.');
+        let ok = false;
+        if (existing.password) {
+          try {
+            ok = bcrypt.compareSync(pass, existing.password);
+          } catch (e) {
+            ok = existing.password === pass;
+          }
+        }
+        if (ok) {
+          setSelectedStudentId(existing.id);
+          setLoginEmail('');
+          setLoginPassword('');
+          setLoginError('');
+        } else {
+          setLoginError('Onjuist wachtwoord of code.');
+        }
       }
     } else {
       setLoginError('Onbekend e-mailadres.');
@@ -194,8 +207,9 @@ export default function Student({
     if (!newPassword.trim() || newPassword !== newPassword2) return;
     const id = resetStudent.id;
     const pass = newPassword.trim();
+    const hash = bcrypt.hashSync(pass, 10);
     setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, password: pass, tempCode: undefined } : s))
+      prev.map((s) => (s.id === id ? { ...s, password: hash, tempCode: undefined } : s))
     );
     setResetStudent(null);
     setSelectedStudentId(id);
