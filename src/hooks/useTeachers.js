@@ -1,6 +1,6 @@
-import useServerState from './useServerState';
-import seedTeachers from '../data/teachers.json';
+import useSupabaseTable from './useSupabaseTable';
 
 export default function useTeachers() {
-  return useServerState('teachers', seedTeachers);
+  return useSupabaseTable('teachers');
+
 }

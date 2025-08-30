@@ -1,6 +1,5 @@
-import useServerState from './useServerState';
-import seedGroups from '../data/groups.json';
+import useSupabaseTable from './useSupabaseTable';
 
 export default function useGroups() {
-  return useServerState('groups', seedGroups);
+  return useSupabaseTable('groups');
 }

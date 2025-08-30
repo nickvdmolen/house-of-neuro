@@ -1,6 +1,7 @@
-import useServerState from './useServerState';
-import seedAwards from '../data/awards.json';
+
+import useSupabaseTable from './useSupabaseTable';
 
 export default function useAwards() {
-  return useServerState('awards', seedAwards);
+  return useSupabaseTable('awards');
+
 }

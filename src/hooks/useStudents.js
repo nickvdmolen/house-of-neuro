@@ -1,6 +1,5 @@
-import useServerState from './useServerState';
-import seedStudents from '../data/students.json';
+import useSupabaseTable from './useSupabaseTable';
 
 export default function useStudents() {
-  return useServerState('students', seedStudents);
+  return useSupabaseTable('students');
 }

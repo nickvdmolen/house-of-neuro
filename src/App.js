@@ -3,10 +3,11 @@ import Admin from './Admin';
 import Student from './Student';
 import AdminRoster from './AdminRoster';
 import { Card, Button, TextInput } from './components/ui';
-import usePersistentState from './hooks/usePersistentState';
+// Local persistence removed in favor of in-memory state
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
 import { nameFromEmail, genId } from './utils';
+import { getImageUrl } from './supabase';
 import bcrypt from 'bcryptjs';
 
 export default function App() {
@@ -18,14 +19,11 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const ADMIN_LS = 'nm_is_admin_v1';
-  const [isAdmin, setIsAdmin] = useState(() => {
-    try { return localStorage.getItem(ADMIN_LS) === '1'; } catch { return false; }
-  });
-  const allowAdmin = () => { try { localStorage.setItem(ADMIN_LS, '1'); } catch {} setIsAdmin(true); };
-  const denyAdmin  = () => { try { localStorage.removeItem(ADMIN_LS); } catch {} setIsAdmin(false); };
+  const [isAdmin, setIsAdmin] = useState(false);
+  const allowAdmin = () => setIsAdmin(true);
+  const denyAdmin = () => setIsAdmin(false);
 
-  const [selectedStudentId, setSelectedStudentId] = usePersistentState('nm_points_current_student', '');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
 
   const logoutAdmin = () => {
     denyAdmin();
@@ -36,10 +34,10 @@ export default function App() {
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800 overflow-hidden">
       {route === '/' && (
         <picture className="pointer-events-none absolute inset-0 m-auto h-full w-auto max-h-screen">
-          <source srcSet="/images/voorpagina.webp" type="image/webp" />
-          <source srcSet="/images/voorpagina.png" type="image/png" />
+          <source srcSet={getImageUrl('voorpagina.webp')} type="image/webp" />
+          <source srcSet={getImageUrl('voorpagina.png')} type="image/png" />
           <img
-            src="/images/voorpagina.jpg"
+            src={getImageUrl('voorpagina.jpg')}
             alt="Voorpagina"
             className="h-full w-auto object-contain"
           />
@@ -145,7 +143,7 @@ export default function App() {
 
 /* AdminPreview: dropdown met studenten uit useStudents */
 function AdminPreview() {
-  const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
+  const [previewId, setPreviewId] = useState('');
   const studentsHook = useStudents();
   // Ondersteun zowel return van [students, setStudents] als direct students
   const studentsRaw =

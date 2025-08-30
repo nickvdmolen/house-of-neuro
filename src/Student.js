@@ -6,6 +6,7 @@ import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
 import useBadges from './hooks/useBadges';
+import { getImageUrl } from './supabase';
 
 export default function Student({
   selectedStudentId = '',
@@ -79,34 +80,6 @@ export default function Student({
   const [profilePassword2, setProfilePassword2] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
 
-  const [lastSeenBadgeCount, setLastSeenBadgeCount] = useState(0);
-
-  useEffect(() => {
-    if (activeStudentId) {
-      try {
-        const raw = localStorage.getItem(`nm_last_seen_badges_${activeStudentId}`);
-        setLastSeenBadgeCount(raw ? parseInt(raw, 10) : 0);
-      } catch {
-        setLastSeenBadgeCount(0);
-      }
-    }
-  }, [activeStudentId]);
-
-  useEffect(() => {
-    if (showBadges && activeStudentId) {
-      try {
-        localStorage.setItem(
-          `nm_last_seen_badges_${activeStudentId}`,
-          String(myBadges.length)
-        );
-      } catch {
-        // ignore
-      }
-      setLastSeenBadgeCount(myBadges.length);
-    }
-  }, [showBadges, myBadges.length, activeStudentId]);
-
-  const hasUnseenBadges = myBadges.length > lastSeenBadgeCount;
 
   useEffect(() => {
     setShowProfile(route === '/student/profile');
@@ -267,7 +240,7 @@ export default function Student({
       {/* Background image */}
       <div className={`${bgPosClass} inset-0 z-0 pointer-events-none`}>
         <img
-          src={process.env.PUBLIC_URL + '/images/voorpagina.png'}
+          src={getImageUrl('voorpagina.png')}
           alt="Background"
           className="w-full h-full object-cover"
         />
@@ -472,11 +445,6 @@ export default function Student({
             <Card title="Badges" className="lg:col-span-3">
               {me ? (
                 <>
-                  {hasUnseenBadges && (
-                    <p className="text-sm text-indigo-600 mb-2">
-                      Je hebt nieuwe badges gekregen. Bekijk ze nu!
-                    </p>
-                  )}
                   <Button className="bg-indigo-600 text-white" onClick={() => setShowBadges(true)}>
                     Bekijk badges
                   </Button>
