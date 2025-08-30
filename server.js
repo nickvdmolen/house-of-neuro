@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const nodemailer = require('nodemailer');
+const { readData, writeData, addData } = require('./server/dataStore');
 
 const app = express();
 app.use(express.json());
@@ -74,6 +75,54 @@ app.post('/api/send-reset', async (req, res) => {
   } catch (err) {
     console.error('Failed to send email', err);
     res.status(500).json({ error: 'failed to send email' });
+  }
+});
+
+const TEACHER_TOKEN = process.env.TEACHER_TOKEN || '';
+function requireTeacher(req, res, next) {
+  if (!TEACHER_TOKEN) return res.status(500).json({ error: 'missing teacher token' });
+  const token = req.headers['x-teacher-token'];
+  if (token && token === TEACHER_TOKEN) return next();
+  res.status(403).json({ error: 'forbidden' });
+}
+
+const COLLECTIONS = ['awards', 'groups', 'students', 'teachers'];
+
+app.get('/api/:collection', async (req, res) => {
+  const { collection } = req.params;
+  if (!COLLECTIONS.includes(collection)) return res.status(404).end();
+  try {
+    const data = await readData(collection);
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to read data', err);
+    res.status(500).json({ error: 'failed to read data' });
+  }
+});
+
+app.post('/api/:collection', requireTeacher, async (req, res) => {
+  const { collection } = req.params;
+  if (!COLLECTIONS.includes(collection)) return res.status(404).end();
+  try {
+    const items = Array.isArray(req.body) ? req.body : [req.body];
+    const data = await addData(collection, items);
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to add data', err);
+    res.status(500).json({ error: 'failed to add data' });
+  }
+});
+
+app.put('/api/:collection', requireTeacher, async (req, res) => {
+  const { collection } = req.params;
+  if (!COLLECTIONS.includes(collection)) return res.status(404).end();
+  try {
+    const items = Array.isArray(req.body) ? req.body : [req.body];
+    const data = await writeData(collection, items);
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to update data', err);
+    res.status(500).json({ error: 'failed to update data' });
   }
 });
 
