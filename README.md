@@ -1,6 +1,6 @@
 # House of Neuro
 
-This project uses Supabase for persistence and asset hosting. Configuration is provided via a `.env` file; the committed `.env` contains placeholder values only.
+This project uses Supabase for persistence and asset hosting. Configuration is provided via the committed `.env` file; update it with your own Supabase credentials before running the app.
 
 ## Environment variables
 Set the following in `.env` before running the app:
@@ -9,6 +9,9 @@ Set the following in `.env` before running the app:
 REACT_APP_SUPABASE_URL=https://rgyukpzginlyihyijbfk.supabase.co
 REACT_APP_SUPABASE_ANON_KEY=<your-anon-key>
 REACT_APP_SUPABASE_BUCKET=hon
+REACT_APP_SUPABASE_S3_ENDPOINT=https://rgyukpzginlyihyijbfk.storage.supabase.co/storage/v1/s3
+REACT_APP_SUPABASE_S3_ACCESS_KEY_ID=<your-s3-access-key-id>
+REACT_APP_SUPABASE_S3_SECRET_ACCESS_KEY=<your-s3-secret-access-key>
 ```
 
 ## Database setup

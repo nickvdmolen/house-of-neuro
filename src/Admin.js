@@ -18,7 +18,7 @@ export default function Admin({ onLogout = () => {} }) {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
   const [awards, setAwards] = useAwards();
-  const [badgeDefs, setBadgeDefs] = useBadges();
+  const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty }] = useBadges();
   const [teachers, setTeachers] = useTeachers();
   const [restoreFile, setRestoreFile] = useState(null);
 
@@ -662,7 +662,7 @@ export default function Admin({ onLogout = () => {} }) {
                   className="badge-box rounded-full border object-cover"
                 />
               )}
-              <Button
+            <Button
                 className="bg-indigo-600 text-white"
                 disabled={!newBadgeTitle.trim() || !newBadgeImage}
                 onClick={addBadge}
@@ -670,6 +670,13 @@ export default function Admin({ onLogout = () => {} }) {
                 Maak badge
               </Button>
             </div>
+            <Button
+              className="bg-indigo-600 text-white"
+              disabled={!badgesDirty}
+              onClick={saveBadges}
+            >
+              Wijzigingen opslaan
+            </Button>
           </div>
         </Card>
       )}
