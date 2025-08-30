@@ -55,9 +55,10 @@ export default function Admin({ onLogout = () => {} }) {
 
   const addStudent = useCallback((name, email, password = '') => {
     const id = genId();
+    const hash = bcrypt.hashSync(password, 10);
     setStudents((prev) => [
       ...prev,
-      { id, name, email: email || undefined, password, groupId: null, points: 0, badges: [] }
+      { id, name, email: email || undefined, password: hash, groupId: null, points: 0, badges: [] }
     ]);
     return id;
   }, [setStudents]);
@@ -70,10 +71,11 @@ export default function Admin({ onLogout = () => {} }) {
     (id) => {
       const pwd = window.prompt('Nieuw wachtwoord:');
       if (!pwd?.trim()) return;
+      const hash = bcrypt.hashSync(pwd.trim(), 10);
       setStudents((prev) =>
         prev.map((s) =>
           s.id === id
-            ? { ...s, password: pwd.trim(), tempCode: undefined }
+            ? { ...s, password: hash, tempCode: undefined }
             : s
         )
       );

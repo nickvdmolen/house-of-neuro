@@ -281,12 +281,20 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       onAdminLogin();
     } else if (norm.endsWith('@student.nhlstenden.com')) {
       const s = students.find((st) => (st.email || '').toLowerCase() === norm);
-        if (s && (s.password || '') === pass) {
-          setLoginError('');
-          onStudentLogin(s.id);
-        } else {
-          setLoginError('Onjuiste e-mail of wachtwoord.');
+      let ok = false;
+      if (s && s.password) {
+        try {
+          ok = bcrypt.compareSync(pass, s.password);
+        } catch (e) {
+          ok = s.password === pass;
         }
+      }
+      if (s && ok) {
+        setLoginError('');
+        onStudentLogin(s.id);
+      } else {
+        setLoginError('Onjuiste e-mail of wachtwoord.');
+      }
     } else if (norm.endsWith('@nhlstenden.com')) {
       const t = teachers.find((te) => te.email.toLowerCase() === norm);
       if (!t) {
@@ -316,9 +324,10 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
         return;
       }
       const id = genId();
+      const hash = bcrypt.hashSync(signupPassword.trim(), 10);
       setStudents((prev) => [
         ...prev,
-        { id, name: nameFromEmail(norm), email: norm, password: signupPassword.trim(), groupId: null, points: 0, badges: [] },
+        { id, name: nameFromEmail(norm), email: norm, password: hash, groupId: null, points: 0, badges: [] },
       ]);
       setSignupEmail('');
       setSignupPassword('');
@@ -412,9 +421,10 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     });
     if (resetUser.type === 'student') {
       const id = resetUser.id;
+      const hash = bcrypt.hashSync(pass, 10);
       setStudents((prev) =>
         prev.map((s) =>
-          s.id === id ? { ...s, password: pass, resetToken: undefined } : s
+          s.id === id ? { ...s, password: hash, resetToken: undefined } : s
         )
       );
       setResetUser(null);
