@@ -6,6 +6,7 @@ import useGroups from './hooks/useGroups';
 import useAwards from './hooks/useAwards';
 import { genId, emailValid, getIndividualLeaderboard, getGroupLeaderboard, nameFromEmail } from './utils';
 import useBadges from './hooks/useBadges';
+import { getImageUrl } from './supabase';
 
 export default function Student({
   selectedStudentId = '',
@@ -267,7 +268,7 @@ export default function Student({
       {/* Background image */}
       <div className={`${bgPosClass} inset-0 z-0 pointer-events-none`}>
         <img
-          src={process.env.PUBLIC_URL + '/images/voorpagina.png'}
+          src={getImageUrl('voorpagina.png')}
           alt="Background"
           className="w-full h-full object-cover"
         />
