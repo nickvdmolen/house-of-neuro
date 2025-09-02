@@ -268,21 +268,36 @@ export default function Admin({ onLogout = () => {} }) {
     { value: 'preview', label: 'Preview student' }
   ];
 
+  const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768);
+
   return (
 
-    <div className="pl-60">
-      <nav className="fixed left-0 top-0 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2">
-
+    <div className={menuOpen ? 'md:pl-60' : ''}>
+      <nav
+        className={`fixed left-0 top-0 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2 transform transition-transform md:translate-x-0 ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         {menuItems.map((item) => (
           <button
             key={item.value}
-            onClick={() => setPage(item.value)}
+            onClick={() => {
+              setPage(item.value);
+              if (window.innerWidth < 768) setMenuOpen(false);
+            }}
             className={`block w-full text-left px-2 py-1 rounded ${page === item.value ? 'bg-neutral-200' : ''}`}
           >
             {item.label}
           </button>
         ))}
       </nav>
+
+      <button
+        className="fixed top-4 left-4 z-50 md:hidden bg-white border rounded px-2 py-1"
+        onClick={() => setMenuOpen((prev) => !prev)}
+      >
+        {menuOpen ? 'Sluit' : 'Menu'}
+      </button>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4">
