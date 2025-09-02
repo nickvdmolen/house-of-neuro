@@ -267,17 +267,29 @@ export default function Admin({ onLogout = () => {} }) {
     { value: 'backup', label: 'Backup & herstel' },
     { value: 'preview', label: 'Preview student' }
   ];
-  
+
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="pl-60">
-      <nav className="fixed left-0 top-0 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2 z-20">
+    <div className={`transition-all ${collapsed ? 'pl-16' : 'pl-60'}`}>
+      <nav
+        className={`fixed left-0 top-0 h-screen overflow-y-auto border-r bg-white p-4 space-y-2 z-20 transition-all ${collapsed ? 'w-16' : 'w-60'}`}
+      >
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="mb-4 block w-full px-2 py-1 rounded bg-neutral-200"
+        >
+          {collapsed ? '▶' : '◀'}
+        </button>
         {menuItems.map((item) => (
           <button
             key={item.value}
             onClick={() => setPage(item.value)}
-            className={`block w-full text-left px-2 py-1 rounded ${page === item.value ? 'bg-neutral-200' : ''}`}
+            className={`flex items-center w-full text-left px-2 py-1 rounded ${page === item.value ? 'bg-neutral-200' : ''}`}
+            title={item.label}
           >
-            {item.label}
+            <span className="w-4 text-center">{item.label.charAt(0)}</span>
+            {!collapsed && <span className="ml-2">{item.label}</span>}
           </button>
         ))}
       </nav>
