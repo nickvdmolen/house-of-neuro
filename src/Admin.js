@@ -170,7 +170,7 @@ export default function Admin({ onLogout = () => {} }) {
   const [awardType, setAwardType] = useState('student');
   const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
   const [awardGroupId, setAwardGroupId] = useState(groups[0]?.id || '');
-  const [awardAmount, setAwardAmount] = useState(5);
+  const [awardAmount, setAwardAmount] = useState('5');
   const [awardReason, setAwardReason] = useState('');
 
   const [newBadgeTitle, setNewBadgeTitle] = useState('');
@@ -813,7 +813,7 @@ export default function Admin({ onLogout = () => {} }) {
 
             <div>
               <label className="text-sm">Punten</label>
-              <TextInput value={String(awardAmount)} onChange={(v) => setAwardAmount(Number(v))} />
+              <TextInput value={awardAmount} onChange={setAwardAmount} />
             </div>
             <div className="md:col-span-2">
               <label className="text-sm">Reden</label>
@@ -823,12 +823,18 @@ export default function Admin({ onLogout = () => {} }) {
               className="bg-indigo-600 text-white md:col-span-5"
               disabled={awardType === 'student' ? awardStudentIds.length === 0 : !awardGroupId}
               onClick={() => {
+                const amount = Number(awardAmount);
+                if (!Number.isFinite(amount)) {
+                  alert('Ongeldige waarde');
+                  return;
+                }
                 if (awardType === 'student') {
-                  awardStudentIds.forEach((id) => awardToStudent(id, awardAmount, awardReason.trim()));
+                  awardStudentIds.forEach((id) => awardToStudent(id, amount, awardReason.trim()));
                 } else {
-                  awardToGroup(awardGroupId, awardAmount, awardReason.trim());
+                  awardToGroup(awardGroupId, amount, awardReason.trim());
                 }
                 setAwardReason('');
+                setAwardAmount('');
               }}
             >
               Toekennen

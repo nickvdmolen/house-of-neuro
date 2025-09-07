@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../supabase';
+import { supabase, ensureSession } from '../supabase';
 
 export default function useSupabaseTable(table, { autoSave = true } = {}) {
   const [data, setData] = useState([]);
@@ -10,6 +10,7 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
   useEffect(() => {
     let ignore = false;
     async function fetchData() {
+      await ensureSession();
       const { data: rows, error } = await supabase.from(table).select('*');
       if (!ignore) {
         if (error) {
@@ -34,6 +35,7 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
 
   const save = useCallback(async () => {
     if (!loaded || !dirty) return;
+    await ensureSession();
     const ids = new Set(data.map((r) => r.id));
     const toDelete = [...prevIds.current].filter((id) => !ids.has(id));
     if (toDelete.length) {

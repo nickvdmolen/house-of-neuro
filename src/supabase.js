@@ -14,7 +14,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-async function ensureSession() {
+export async function ensureSession() {
   const { data } = await supabase.auth.getSession();
   if (data.session) return data.session;
 
