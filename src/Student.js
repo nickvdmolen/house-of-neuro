@@ -64,10 +64,10 @@ export default function Student({
     return awards
       .filter(
         (a) =>
-          (a.type === 'student' && String(a.targetId) === activeStudentId) ||
-          (a.type === 'group' && myGroup && String(a.targetId) === myGroup.id)
+          (a.target === 'student' && String(a.target_id) === activeStudentId) ||
+          (a.target === 'group' && myGroup && String(a.target_id) === myGroup.id)
       )
-      .sort((a, b) => Number(b.ts) - Number(a.ts))
+      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, 20);
   }, [awards, activeStudentId, myGroup]);
 
@@ -481,7 +481,7 @@ export default function Student({
                 {myAwards.map((a) => (
                   <li key={a.id} className="flex justify-between gap-2">
                     <span>
-                      {new Date(Number(a.ts)).toLocaleString()} · {a.type === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
+                      {new Date(a.ts).toLocaleString()} · {a.target === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
                       {a.reason ? `— ${a.reason}` : ''}
                     </span>
                     <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>

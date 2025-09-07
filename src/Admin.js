@@ -120,9 +120,9 @@ export default function Admin({ onLogout = () => {} }) {
       const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
       const award = {
         id: genId(),
-        ts: Date.now(),
-        type: 'student',
-        targetId: studentId,
+        ts: new Date().toISOString(),
+        target: 'student',
+        target_id: studentId,
         amount: delta,
         reason: `Badge ${badgeTitle}`,
       };
@@ -139,9 +139,9 @@ export default function Admin({ onLogout = () => {} }) {
     );
     const award = {
       id: genId(),
-      ts: Date.now(),
-      type: 'student',
-      targetId: studentId,
+      ts: new Date().toISOString(),
+      target: 'student',
+      target_id: studentId,
       amount,
       reason,
     };
@@ -157,9 +157,9 @@ export default function Admin({ onLogout = () => {} }) {
     );
     const award = {
       id: genId(),
-      ts: Date.now(),
-      type: 'group',
-      targetId: groupId,
+      ts: new Date().toISOString(),
+      target: 'group',
+      target_id: groupId,
       amount,
       reason,
     };
