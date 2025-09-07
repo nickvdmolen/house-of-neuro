@@ -21,10 +21,10 @@ create table if not exists groups (
 );
 
 create table if not exists awards (
-  id text primary key,
-  ts bigint,
-  type text check (type in ('student','group')),
-  "targetId" text,
+  id uuid primary key default gen_random_uuid(),
+  ts timestamptz not null default now(),
+  target text check (target in ('student','group')),
+  target_id uuid not null,
   amount integer,
   reason text
 );
