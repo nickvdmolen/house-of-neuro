@@ -17,7 +17,7 @@ const BADGE_POINTS = 50;
 export default function Admin({ onLogout = () => {} }) {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
-  const [awards, setAwards] = useAwards();
+  const [awards, setAwards, { save: saveAwards }] = useAwards();
   const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty }] = useBadges();
   const [teachers, setTeachers] = useTeachers();
   const [restoreFile, setRestoreFile] = useState(null);
@@ -96,7 +96,7 @@ export default function Admin({ onLogout = () => {} }) {
     );
   }, [setGroups, setStudents]);
 
-  const toggleStudentBadge = useCallback((studentId, badgeId, hasBadge) => {
+  const toggleStudentBadge = useCallback(async (studentId, badgeId, hasBadge) => {
     if (!studentId || !badgeId) return;
     let delta = 0;
     setStudents((prev) =>
@@ -127,22 +127,46 @@ export default function Admin({ onLogout = () => {} }) {
         reason: `Badge ${badgeTitle}`,
       };
       setAwards((prev) => [award, ...prev].slice(0, 500));
+      const { error } = await saveAwards();
+      if (error) alert('Kon award niet opslaan: ' + error.message);
     }
-  }, [setStudents, setAwards, badgeDefs]);
+  }, [setStudents, setAwards, badgeDefs, saveAwards]);
 
-  const awardToStudent = useCallback((studentId, amount, reason) => {
+  const awardToStudent = useCallback(async (studentId, amount, reason) => {
     if (!studentId || !Number.isFinite(amount)) return;
-    setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, points: s.points + amount } : s)));
-    const award = { id: genId(), ts: Date.now(), type: 'student', targetId: studentId, amount, reason };
+    setStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, points: s.points + amount } : s))
+    );
+    const award = {
+      id: genId(),
+      ts: Date.now(),
+      type: 'student',
+      targetId: studentId,
+      amount,
+      reason,
+    };
     setAwards((prev) => [award, ...prev].slice(0, 500));
-  }, [setStudents, setAwards]);
+    const { error } = await saveAwards();
+    if (error) alert('Kon award niet opslaan: ' + error.message);
+  }, [setStudents, setAwards, saveAwards]);
 
-  const awardToGroup = useCallback((groupId, amount, reason) => {
+  const awardToGroup = useCallback(async (groupId, amount, reason) => {
     if (!groupId || !Number.isFinite(amount)) return;
-    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, points: g.points + amount } : g)));
-    const award = { id: genId(), ts: Date.now(), type: 'group', targetId: groupId, amount, reason };
+    setGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, points: g.points + amount } : g))
+    );
+    const award = {
+      id: genId(),
+      ts: Date.now(),
+      type: 'group',
+      targetId: groupId,
+      amount,
+      reason,
+    };
     setAwards((prev) => [award, ...prev].slice(0, 500));
-  }, [setGroups, setAwards]);
+    const { error } = await saveAwards();
+    if (error) alert('Kon award niet opslaan: ' + error.message);
+  }, [setGroups, setAwards, saveAwards]);
 
   const [newStudent, setNewStudent] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');

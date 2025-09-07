@@ -4,6 +4,7 @@ import { supabase, ensureSession } from '../supabase';
 export default function useSupabaseTable(table, { autoSave = true } = {}) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(null);
   const [dirty, setDirty] = useState(false);
   const prevIds = useRef(new Set());
 
@@ -11,13 +12,17 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
     let ignore = false;
     async function fetchData() {
       await ensureSession();
-      const { data: rows, error } = await supabase.from(table).select('*');
+      const { data: rows, error: fetchErr } = await supabase
+        .from(table)
+        .select('*');
       if (!ignore) {
-        if (error) {
-          console.error('Error fetching', table, error);
+        if (fetchErr) {
+          console.error('Error fetching', table, fetchErr);
+          setError(fetchErr);
         } else {
           setData(rows || []);
           prevIds.current = new Set((rows || []).map((r) => r.id));
+          setError(null);
         }
         setLoaded(true);
       }
@@ -34,20 +39,33 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
   }, []);
 
   const save = useCallback(async () => {
-    if (!loaded || !dirty) return;
+    if (!loaded || !dirty) return { error: null };
     await ensureSession();
     const ids = new Set(data.map((r) => r.id));
     const toDelete = [...prevIds.current].filter((id) => !ids.has(id));
+    let err = null;
     if (toDelete.length) {
-      const { error } = await supabase.from(table).delete().in('id', toDelete);
-      if (error) console.error('Error deleting from', table, error);
+      const { error: delErr } = await supabase
+        .from(table)
+        .delete()
+        .in('id', toDelete);
+      if (delErr) {
+        console.error('Error deleting from', table, delErr);
+        err = delErr;
+      }
     }
     if (data.length > 0) {
-      const { error } = await supabase.from(table).upsert(data);
-      if (error) console.error('Error saving', table, error);
+      const { error: upsertErr } = await supabase.from(table).upsert(data);
+      if (upsertErr) {
+        console.error('Error saving', table, upsertErr);
+        if (!err) err = upsertErr;
+      }
     }
-    prevIds.current = ids;
-    setDirty(false);
+    if (!err) {
+      prevIds.current = ids;
+      setDirty(false);
+    }
+    return { error: err };
   }, [data, table, loaded, dirty]);
 
   useEffect(() => {
@@ -55,6 +73,6 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
     save();
   }, [save, autoSave, dirty]);
 
-  return [data, update, { save, dirty }];
+  return [data, update, { save, dirty, error }];
 }
 

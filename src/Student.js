@@ -17,7 +17,7 @@ export default function Student({
 }) {
   const [students, setStudents] = useStudents();
   const [groups] = useGroups();
-  const [awards] = useAwards();
+  const [awards, , { error: awardsError }] = useAwards();
   const [badgeDefs] = useBadges();
 
   const inPreview = previewStudentId !== undefined;
@@ -473,8 +473,11 @@ export default function Student({
             </Card>
 
             <Card title="Jouw recente activiteiten" className="lg:col-span-2 max-h-[320px] overflow-auto">
+              {awardsError && (
+                <p className="text-sm text-rose-700 mb-2">Fout bij laden van recente activiteiten.</p>
+              )}
               <ul className="space-y-2 text-sm">
-                {myAwards.length === 0 && <li>Geen recente items.</li>}
+                {myAwards.length === 0 && !awardsError && <li>Geen recente items.</li>}
                 {myAwards.map((a) => (
                   <li key={a.id} className="flex justify-between gap-2">
                     <span>
