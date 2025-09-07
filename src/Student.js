@@ -61,11 +61,14 @@ export default function Student({
   const myBadges = me?.badges || [];
 
   const myAwards = useMemo(() => {
-    return awards.filter(
-      (a) =>
-        (a.type === 'student' && a.targetId === activeStudentId) ||
-        (a.type === 'group' && myGroup && a.targetId === myGroup.id)
-    );
+    return awards
+      .filter(
+        (a) =>
+          (a.type === 'student' && String(a.targetId) === activeStudentId) ||
+          (a.type === 'group' && myGroup && String(a.targetId) === myGroup.id)
+      )
+      .sort((a, b) => Number(b.ts) - Number(a.ts))
+      .slice(0, 20);
   }, [awards, activeStudentId, myGroup]);
 
   const myRank = useMemo(
@@ -475,7 +478,7 @@ export default function Student({
                 {myAwards.map((a) => (
                   <li key={a.id} className="flex justify-between gap-2">
                     <span>
-                      {new Date(a.ts).toLocaleString()} · {a.type === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
+                      {new Date(Number(a.ts)).toLocaleString()} · {a.type === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
                       {a.reason ? `— ${a.reason}` : ''}
                     </span>
                     <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
