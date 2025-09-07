@@ -96,41 +96,44 @@ export default function Admin({ onLogout = () => {} }) {
     );
   }, [setGroups, setStudents]);
 
-  const toggleStudentBadge = useCallback(async (studentId, badgeId, hasBadge) => {
-    if (!studentId || !badgeId) return;
-    let delta = 0;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const current = new Set(s.badges || []);
-        const hadBadge = current.has(badgeId);
-        if (hasBadge && !hadBadge) {
-          current.add(badgeId);
-          delta = BADGE_POINTS;
-          return { ...s, badges: Array.from(current), points: s.points + BADGE_POINTS };
-        } else if (!hasBadge && hadBadge) {
-          current.delete(badgeId);
-          delta = -BADGE_POINTS;
-          return { ...s, badges: Array.from(current), points: s.points - BADGE_POINTS };
-        }
-        return s;
-      })
-    );
-    if (delta !== 0) {
-      const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
-      const award = {
-        id: genId(),
-        ts: new Date().toISOString(),
-        target: 'student',
-        target_id: studentId,
-        amount: delta,
-        reason: `Badge ${badgeTitle}`,
-      };
-      setAwards((prev) => [award, ...prev].slice(0, 500));
-      const { error } = await saveAwards();
-      if (error) alert('Kon award niet opslaan: ' + error.message);
-    }
-  }, [setStudents, setAwards, badgeDefs, saveAwards]);
+  const toggleStudentBadge = useCallback(
+    async (studentId, badgeId, hasBadge) => {
+      if (!studentId || !badgeId) return;
+      let delta = 0;
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.id !== studentId) return s;
+          const current = new Set(s.badges || []);
+          const hadBadge = current.has(badgeId);
+          if (hasBadge && !hadBadge) {
+            current.add(badgeId);
+            delta = BADGE_POINTS;
+            return { ...s, badges: Array.from(current), points: s.points + BADGE_POINTS };
+          } else if (!hasBadge && hadBadge) {
+            current.delete(badgeId);
+            delta = -BADGE_POINTS;
+            return { ...s, badges: Array.from(current), points: s.points - BADGE_POINTS };
+          }
+          return s;
+        })
+      );
+      if (delta !== 0) {
+        const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
+        const award = {
+          id: genId(),
+          ts: new Date().toISOString(),
+          target: 'student',
+          target_id: studentId,
+          amount: delta,
+          reason: delta > 0 ? 'Je hebt een nieuwe badge!' : `Badge ${badgeTitle}`,
+        };
+        setAwards((prev) => [award, ...prev].slice(0, 500));
+        const { error } = await saveAwards();
+        if (error) alert('Kon award niet opslaan: ' + error.message);
+      }
+    },
+    [setStudents, setAwards, badgeDefs, saveAwards]
+  );
 
   const awardToStudent = useCallback(async (studentId, amount, reason) => {
     if (!studentId || !Number.isFinite(amount)) return;

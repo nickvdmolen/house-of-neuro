@@ -68,7 +68,7 @@ export default function Student({
           (a.target === 'group' && myGroup && String(a.target_id) === myGroup.id)
       )
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-      .slice(0, 20);
+      .slice(0, 4);
   }, [awards, activeStudentId, myGroup]);
 
   const myRank = useMemo(
