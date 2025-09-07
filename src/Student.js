@@ -478,15 +478,23 @@ export default function Student({
               )}
               <ul className="space-y-2 text-sm">
                 {myAwards.length === 0 && !awardsError && <li>Geen recente items.</li>}
-                {myAwards.map((a) => (
-                  <li key={a.id} className="flex justify-between gap-2">
-                    <span>
-                      {new Date(a.ts).toLocaleString()} · {a.target === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
-                      {a.reason ? `— ${a.reason}` : ''}
-                    </span>
-                    <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
-                  </li>
-                ))}
+                {myAwards.map((a) => {
+                  const badgeMatch = a.reason?.match(/^Badge\s+(.*)$/);
+                  return (
+                    <li key={a.id} className="flex flex-col gap-1">
+                      <div className="flex justify-between gap-2">
+                        <span>
+                          {new Date(a.ts).toLocaleString()} · {a.target === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
+                          {a.reason ? `— ${a.reason}` : ''}
+                        </span>
+                        <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
+                      </div>
+                      {badgeMatch && a.amount > 0 && (
+                        <span className="text-xs text-indigo-700">Nieuwe badge: {badgeMatch[1]}</span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </Card>
 
