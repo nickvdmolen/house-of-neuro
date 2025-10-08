@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Admin from './Admin';
 import Student from './Student';
 import AdminRoster from './AdminRoster';
@@ -7,8 +7,21 @@ import { Card, Button, TextInput } from './components/ui';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
 import { nameFromEmail, genId } from './utils';
-import { getImageUrl } from './supabase';
 import bcrypt from 'bcryptjs';
+
+const previewCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
+
+const normalizePreviewString = (value, fallback = '') => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  const stringValue = String(value).trim();
+  return stringValue || fallback;
+};
 
 export default function App() {
   const getRoute = () => (typeof location !== 'undefined' && location.hash ? location.hash.slice(1) : '/');
@@ -32,17 +45,6 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4 md:p-8 text-slate-800 overflow-hidden">
-      {route === '/' && (
-        <picture className="pointer-events-none absolute inset-0 m-auto h-full w-auto max-h-screen">
-          <source srcSet={getImageUrl('voorpagina.webp')} type="image/webp" />
-          <source srcSet={getImageUrl('voorpagina.png')} type="image/png" />
-          <img
-            src={getImageUrl('voorpagina.jpg')}
-            alt="Voorpagina"
-            className="h-full w-auto object-contain"
-          />
-        </picture>
-      )}
       <div className="relative z-10 max-w-6xl mx-auto">
         <header className="app-header">
           <h1 className="app-title">Neuromarketing Housepoints</h1>
@@ -167,6 +169,20 @@ function AdminPreview() {
     return String(name || id);
   };
 
+  const studentOptions = useMemo(
+    () =>
+      students
+        .map((s, i) => {
+          const id = toId(s, i);
+          const displayName = toName(s, id);
+          const normalizedName = normalizePreviewString(displayName, normalizePreviewString(id));
+          const email = typeof s === 'string' ? '' : s?.email;
+          return { id, displayName, normalizedName, email };
+        })
+        .sort((a, b) => previewCollator.compare(a.normalizedName, b.normalizedName)),
+    [students]
+  );
+
   return (
     <div className="max-w-5xl mx-auto">
       <Card title="Preview student">
@@ -179,16 +195,11 @@ function AdminPreview() {
               className="w-full rounded-2xl border border-slate-300 px-3 py-2 bg-white"
             >
               <option value="">— Geen selectie —</option>
-              {students.map((s, i) => {
-                const id = toId(s, i);
-                const name = toName(s, id);
-                const email = typeof s === 'string' ? '' : s?.email;
-                return (
-                  <option key={id} value={id}>
-                    {name} ({email || id})
-                  </option>
-                );
-              })}
+              {studentOptions.map(({ id, displayName, email }) => (
+                <option key={id} value={id}>
+                  {displayName} ({email || id})
+                </option>
+              ))}
             </select>
             <p className="text-xs text-neutral-500 mt-2">
               Tip: Laat leeg om te zien wat een student zonder selectie ziet.

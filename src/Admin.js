@@ -14,6 +14,45 @@ import bcrypt from 'bcryptjs';
 
 const BADGE_POINTS = 50;
 
+const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
+
+const normalizeString = (value, fallback = '') => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  const stringValue = String(value).trim();
+  return stringValue || fallback;
+};
+
+const compareStudentNames = (a, b) => {
+  const nameA = normalizeString(a?.name);
+  const nameB = normalizeString(b?.name);
+  if (!nameA && !nameB) {
+    const fallbackA = normalizeString(a?.email, normalizeString(a?.id));
+    const fallbackB = normalizeString(b?.email, normalizeString(b?.id));
+    return nameCollator.compare(fallbackA, fallbackB);
+  }
+  if (!nameA) return 1;
+  if (!nameB) return -1;
+  return nameCollator.compare(nameA, nameB);
+};
+
+const compareGroupNames = (a, b) => {
+  const nameA = normalizeString(a?.name, normalizeString(a?.id));
+  const nameB = normalizeString(b?.name, normalizeString(b?.id));
+  return nameCollator.compare(nameA, nameB);
+};
+
+const compareBadgeTitles = (a, b) => {
+  const titleA = normalizeString(a?.title, normalizeString(a?.id));
+  const titleB = normalizeString(b?.title, normalizeString(b?.id));
+  return nameCollator.compare(titleA, titleB);
+};
+
 export default function Admin({ onLogout = () => {} }) {
   const [students, setStudents] = useStudents();
   const [groups, setGroups] = useGroups();
@@ -21,6 +60,10 @@ export default function Admin({ onLogout = () => {} }) {
   const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty }] = useBadges();
   const [teachers, setTeachers] = useTeachers();
   const [restoreFile, setRestoreFile] = useState(null);
+
+  const sortedStudents = useMemo(() => [...students].sort(compareStudentNames), [students]);
+  const sortedGroups = useMemo(() => [...groups].sort(compareGroupNames), [groups]);
+  const sortedBadgeDefs = useMemo(() => [...badgeDefs].sort(compareBadgeTitles), [badgeDefs]);
 
   const studentById = useMemo(() => {
     const m = new Map();
@@ -195,8 +238,8 @@ export default function Admin({ onLogout = () => {} }) {
   }, [setTeachers]);
   const [badgeStudentId, setBadgeStudentId] = useState('');
   const [awardType, setAwardType] = useState('student');
-  const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
-  const [awardGroupId, setAwardGroupId] = useState(groups[0]?.id || '');
+  const [awardStudentIds, setAwardStudentIds] = useState([]);
+  const [awardGroupId, setAwardGroupId] = useState('');
   const [awardAmount, setAwardAmount] = useState('5');
   const [awardReason, setAwardReason] = useState('');
 
@@ -260,28 +303,28 @@ export default function Admin({ onLogout = () => {} }) {
   const [previewId, setPreviewId] = useState('');
 
   useEffect(() => {
-    if (students.length === 0) {
+    if (sortedStudents.length === 0) {
       setAwardStudentIds([]);
     } else {
       setAwardStudentIds((prev) => {
-        const valid = prev.filter((id) => students.some((s) => s.id === id));
-        return valid.length ? valid : [students[0].id];
+        const valid = prev.filter((id) => sortedStudents.some((s) => s.id === id));
+        return valid.length ? valid : [sortedStudents[0].id];
       });
     }
-  }, [students]);
+  }, [sortedStudents]);
 
   useEffect(() => {
-    if (groups.length && !groups.find((g) => g.id === awardGroupId)) {
-      setAwardGroupId(groups[0]?.id || '');
+    if (sortedGroups.length && !sortedGroups.find((g) => g.id === awardGroupId)) {
+      setAwardGroupId(sortedGroups[0]?.id || '');
     }
-  }, [groups, awardGroupId]);
+  }, [sortedGroups, awardGroupId]);
 
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
-    if (previewId && !students.find((s) => s.id === previewId)) {
-      setPreviewId(students[0]?.id || '');
+    if (previewId && !sortedStudents.find((s) => s.id === previewId)) {
+      setPreviewId(sortedStudents[0]?.id || '');
     }
-  }, [students, previewId]);
+  }, [sortedStudents, previewId]);
 
   const menuItems = [
     { value: 'scores', label: 'Scores' },
@@ -440,12 +483,16 @@ export default function Admin({ onLogout = () => {} }) {
                 .slice()
                 .sort((a, b) => {
                   if (studentSort === 'individual') {
-                    return (individualStats.get(b.id)?.points || 0) - (individualStats.get(a.id)?.points || 0);
+                    const diff = (individualStats.get(b.id)?.points || 0) - (individualStats.get(a.id)?.points || 0);
+                    if (diff !== 0) return diff;
+                    return compareStudentNames(a, b);
                   }
                   if (studentSort === 'group') {
-                    return (groupStats.get(b.groupId)?.total || 0) - (groupStats.get(a.groupId)?.total || 0);
+                    const diff = (groupStats.get(b.groupId)?.total || 0) - (groupStats.get(a.groupId)?.total || 0);
+                    if (diff !== 0) return diff;
+                    return compareStudentNames(a, b);
                   }
-                  return a.name.localeCompare(b.name);
+                  return compareStudentNames(a, b);
                 })
                 .map((s) => {
                   const ind = individualStats.get(s.id);
@@ -471,7 +518,7 @@ export default function Admin({ onLogout = () => {} }) {
                         className="w-40"
                       >
                         <option value="">Geen</option>
-                        {groups.map((g) => (
+                        {sortedGroups.map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.name}
                           </option>
@@ -522,8 +569,8 @@ export default function Admin({ onLogout = () => {} }) {
               </Button>
             </div>
             <ul className="space-y-4">
-              {groups.map((g) => {
-                const members = students.filter((s) => s.groupId === g.id);
+              {sortedGroups.map((g) => {
+                const members = sortedStudents.filter((s) => s.groupId === g.id);
                 return (
                   <li key={g.id} className="border rounded p-2">
                     <div className="flex items-center justify-between">
@@ -574,7 +621,7 @@ export default function Admin({ onLogout = () => {} }) {
                       className="mt-2"
                     >
                       <option value="">Voeg student toe…</option>
-                      {students
+                      {sortedStudents
                         .filter((s) => s.groupId !== g.id)
                         .map((s) => (
                           <option key={s.id} value={s.id}>
@@ -595,7 +642,7 @@ export default function Admin({ onLogout = () => {} }) {
           <div className="grid grid-cols-1 gap-2">
             <Select value={badgeStudentId} onChange={setBadgeStudentId} className="max-w-xs">
               <option value="">Kies student…</option>
-              {students.map((s) => (
+              {sortedStudents.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -603,7 +650,7 @@ export default function Admin({ onLogout = () => {} }) {
             </Select>
             {badgeStudentId && (
               <BadgeChecklist
-                badgeDefs={badgeDefs}
+                badgeDefs={sortedBadgeDefs}
                 studentBadges={studentById.get(badgeStudentId)?.badges || []}
                 onToggle={(badgeId, checked) => toggleStudentBadge(badgeStudentId, badgeId, checked)}
               />
@@ -616,7 +663,7 @@ export default function Admin({ onLogout = () => {} }) {
         <Card title="Badges beheren">
           <div className="grid grid-cols-1 gap-4">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4">
-              {badgeDefs.map((b) => (
+              {sortedBadgeDefs.map((b) => (
                 <div key={b.id} className="flex flex-col items-center text-sm">
                   <div className="relative">
                     <img
@@ -821,7 +868,7 @@ export default function Admin({ onLogout = () => {} }) {
               <label className="text-sm">Doel</label>
               {awardType === 'student' ? (
                 <Select multiple value={awardStudentIds} onChange={setAwardStudentIds} className="h-32">
-                  {students.map((s) => (
+                  {sortedStudents.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -829,7 +876,7 @@ export default function Admin({ onLogout = () => {} }) {
                 </Select>
               ) : (
                 <Select value={awardGroupId} onChange={setAwardGroupId}>
-                  {groups.map((g) => (
+                  {sortedGroups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}
                     </option>
@@ -904,7 +951,7 @@ export default function Admin({ onLogout = () => {} }) {
               <label className="text-sm">Student</label>
               <Select value={previewId} onChange={setPreviewId}>
                 <option value="">— Kies student —</option>
-                {students.map((s) => (
+                {sortedStudents.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} ({s.email || s.id})
                   </option>
