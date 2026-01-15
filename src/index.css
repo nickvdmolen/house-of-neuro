@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* iOS-inspired global styles */
+:root {
+  --color-bg: #F5F5F7;
+  --color-bg-card: #FFFFFF;
+  --color-text: #1C1C1E;
+  --color-accent: #007AFF;
+  --space: 1rem;
+  --radius: 12px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Better touch targets for mobile */
+a, button, input, select, textarea {
+  touch-action: manipulation;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space);
+  margin: calc(var(--space) * 0.5);
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: calc(var(--space) * 2);
+    margin: var(--space);
+  }
+}
+
+.button {
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: calc(var(--space) * 0.75) calc(var(--space) * 1.25);
+  min-height: 44px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .button {
+    padding: var(--space) calc(var(--space) * 2);
+    font-size: 1rem;
+  }
+}
+
+.button:hover {
+  background: #0063CE;
+}
+.button:active {
+  transform: scale(0.98);
+}
+
+h1,
+h2,
+h3 {
+  margin-top: 0;
+  font-weight: 700;
+}
+h1 {
+  font-size: 1.5rem;
+}
+h2 {
+  font-size: 1.25rem;
+}
+h3 {
+  font-size: 1.1rem;
+}
+
+@media (min-width: 640px) {
+  h1 {
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  h3 {
+    font-size: 1.25rem;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  table {
+    font-size: 1rem;
+  }
+}
+
+th,
+
+td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+th {
+  background-color: #fafafa;
+  font-weight: bold;
+}
+
+.positive {
+  color: #228b22;
+}
+
+.negative {
+  color: #b22222;
+}
+
+.zero {
+  color: #555;
+}
+
+.star {
+  color: #d4af37;
+  font-weight: bold;
+  margin-right: 0.25rem;
+}
+
+.nav {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+input {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: var(--radius);
+  font-size: 16px; /* Prevents zoom on iOS */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+}
+
+select {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: var(--radius);
+  font-size: 16px; /* Prevents zoom on iOS */
+  background: var(--color-bg-card);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+}
+
+.field {
+  margin: 0.5rem 0;
+}
+
+.error {
+  color: #b22222;
+  margin-top: 0.25rem;
+}
+
+/* Simple mobile responsiveness: stack table columns on small screens */
+@media (max-width: 600px) {
+  table,
+  thead,
+  tbody,
+  th,
+  td,
+  tr {
+    display: block;
+  }
+  thead tr {
+    display: none;
+  }
+  tr {
+    margin-bottom: 1rem;
+  }
+  td {
+    border: none;
+    position: relative;
+    padding-left: 50%;
+  }
+  td:before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 45%;
+    padding-left: 0.5rem;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  /* Labels for each column; order matters: adjust if table structure changes */
+  td:nth-of-type(1):before {
+    content: attr(data-label);
+  }
+}
+
+/* Badge sizing */
+.badge-box {
+  width: 2.5cm;
+  height: 2.5cm;
+}
+
+@media (min-width: 768px) {
+  .badge-box {
+    width: 4cm;
+    height: 4cm;
+  }
+}
+
+/* Stacked badge layout */
+.badge-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge-stack > * {
+  margin-left: 0;
+}
+
+/* Header styles */
+.app-header {
+  position: relative;
+  margin-bottom: 1rem;
+  padding: 0 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .app-header {
+    margin-bottom: 1.5rem;
+    padding: 0;
+  }
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .app-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* Mobile utility classes */
+.mobile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .mobile-stack {
+    flex-direction: row;
+    gap: 1rem;
+  }
+}
+
+/* Safe area padding for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
