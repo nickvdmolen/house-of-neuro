@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "72eee6e4-d6ce-4ed9-be8c-2bb396375b6e",
+    "ts": "2026-01-16T09:02:25.387Z",
+    "target": "student",
+    "target_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "amount": 50,
+    "reason": "Badge behaald: EEG"
+  },
+  {
+    "id": "2f951455-8285-41bb-974c-b75d67826531",
+    "ts": "2026-01-16T09:02:11.744Z",
+    "target": "student",
+    "target_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "amount": 5,
+    "reason": "test"
+  }
+]

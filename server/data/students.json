@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "name": "Student1",
+    "email": "student1@student.nhlstenden.com",
+    "password": "$2a$10$6PuqtQYV3xN/p2qX7lrtAeY8t9AmO/Q.UxELbvN6wl3iLF5ZcstSq",
+    "groupId": null,
+    "points": 55,
+    "badges": [
+      "eeg"
+    ],
+    "bingo": {}
+  }
+]

@@ -1,11 +1,16 @@
 // ============================================
 // HYBRID MODE - Automatisch switch tussen Local en Supabase
 // Gebruik REACT_APP_USE_LOCAL_SERVER=true voor lokale testing
+// Fallback: gebruik local server als Supabase env ontbreekt
 // ============================================
 
 import { API_BASE } from './config';
 
-const USE_LOCAL_SERVER = process.env.REACT_APP_USE_LOCAL_SERVER === 'true';
+const EXPLICIT_LOCAL_SERVER = process.env.REACT_APP_USE_LOCAL_SERVER === 'true';
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const HAS_SUPABASE_CONFIG = Boolean(supabaseUrl && supabaseAnonKey);
+const USE_LOCAL_SERVER = EXPLICIT_LOCAL_SERVER || !HAS_SUPABASE_CONFIG;
 
 let supabaseClient;
 let ensureSessionFn;
@@ -15,6 +20,9 @@ let uploadImageFn;
 if (USE_LOCAL_SERVER) {
   // LOCAL SERVER MODE - Voor development/testing
   console.log('🔧 Using LOCAL SERVER mode');
+  if (!HAS_SUPABASE_CONFIG && !EXPLICIT_LOCAL_SERVER) {
+    console.warn('Supabase env missing; falling back to local server mode.');
+  }
 
   const TEACHER_TOKEN = process.env.REACT_APP_TEACHER_TOKEN || '';
 
@@ -165,9 +173,6 @@ if (USE_LOCAL_SERVER) {
   console.log('☁️ Using SUPABASE mode');
 
   const { createClient } = require('@supabase/supabase-js');
-
-  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-  const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
   const supabaseBucket = 'hon';
 
   supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {

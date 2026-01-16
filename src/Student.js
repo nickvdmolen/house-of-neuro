@@ -1194,7 +1194,7 @@ export default function Student({
                 <p className="text-sm text-neutral-600">Selecteer een student om streak te bekijken.</p>
               )}
             </Card>
-            <Card title="Badges" className="lg:col-span-2">
+            <Card title="Nieuwste Badges" className="lg:col-span-2">
               {me ? (
                 <div className="grid grid-cols-2 gap-3">
                   {badgeSlots.map((badge, index) => (

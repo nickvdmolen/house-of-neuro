@@ -1,1 +1,104 @@
-[]
+[
+  {
+    "id": "eeg",
+    "title": "EEG",
+    "image": "/images/eeg.jpg",
+    "requirement": "Deelnemen aan een EEG experiment"
+  },
+  {
+    "id": "eeg2",
+    "title": "EEG2",
+    "image": "/images/eeg2.webp",
+    "requirement": "Deelnemen aan een tweede EEG experiment"
+  },
+  {
+    "id": "experiment",
+    "title": "Experiment",
+    "image": "/images/experiment.webp",
+    "requirement": "Uitvoeren van een wetenschappelijk experiment"
+  },
+  {
+    "id": "facereader",
+    "title": "Facereader",
+    "image": "/images/facereader.webp",
+    "requirement": "Gebruik maken van facereader software"
+  },
+  {
+    "id": "excursie",
+    "title": "Excursie",
+    "image": "/images/excursie.webp",
+    "requirement": "Deelnemen aan een excursie"
+  },
+  {
+    "id": "groupname",
+    "title": "Groepsnaam & mascotte",
+    "image": "/images/groupname.webp",
+    "requirement": "Kiezen van een groepsnaam en mascotte"
+  },
+  {
+    "id": "homework",
+    "title": "Homework",
+    "image": "/images/homework.webp",
+    "requirement": "Indienen van huiswerk opdrachten"
+  },
+  {
+    "id": "kennistoets",
+    "title": "Kennistoets",
+    "image": "/images/kennistoets.webp",
+    "requirement": "Slagen voor een kennistoets"
+  },
+  {
+    "id": "leeswerk",
+    "title": "Leeswerk",
+    "image": "/images/leeswerk.webp",
+    "requirement": "Voltooien van leeswerk opdrachten"
+  },
+  {
+    "id": "lunch",
+    "title": "Lunch",
+    "image": "/images/lunch.webp",
+    "requirement": "Deelnemen aan een lunchbijeenkomst"
+  },
+  {
+    "id": "meeting",
+    "title": "Meeting with commissioner",
+    "image": "/images/meeting.webp",
+    "requirement": "Deelnemen aan een vergadering met de commissioner"
+  },
+  {
+    "id": "minorbehaald",
+    "title": "Minor behaald",
+    "image": "/images/minorbehaald.webp",
+    "requirement": "Behalen van een minor"
+  },
+  {
+    "id": "namen",
+    "title": "Namen badge",
+    "image": "/images/namen-badge.webp",
+    "requirement": "Correcte namen van teamleden kennen"
+  },
+  {
+    "id": "partycommittee",
+    "title": "Party committee",
+    "image": "/images/partycommittee.webp",
+    "requirement": "Deelnemen aan het feestcomité"
+  },
+  {
+    "id": "project",
+    "title": "Project",
+    "image": "/images/project.webp",
+    "requirement": "Voltooien van een project"
+  },
+  {
+    "id": "pubquiz",
+    "title": "Pubquiz",
+    "image": "/images/pubquiz.webp",
+    "requirement": "Deelnemen aan een pubquiz"
+  },
+  {
+    "id": "pupil-labs",
+    "title": "Pupil labs",
+    "image": "/images/pupil-labs.webp",
+    "requirement": "Gebruik maken van Pupil Labs apparatuur"
+  }
+]
