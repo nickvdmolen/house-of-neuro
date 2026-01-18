@@ -20,6 +20,7 @@ import { hashPassword } from './auth';
 import usePersistentState from './hooks/usePersistentState';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
+import useAppSettings from './hooks/useAppSettings';
 
 const BADGE_POINTS = 50;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
@@ -43,6 +44,7 @@ export default function Admin({ onLogout = () => {} }) {
   const [meetings, setMeetings, { save: saveMeetings }] = useMeetings();
   const [attendance, setAttendance, { save: saveAttendance }] = useAttendance();
   const [peerAwards, setPeerAwards, { save: savePeerAwards }] = usePeerAwards();
+  const [appSettings, setAppSettings, { save: saveAppSettings }] = useAppSettings();
   const [restoreFile, setRestoreFile] = useState(null);
 
   // Meeting state
@@ -192,6 +194,17 @@ export default function Admin({ onLogout = () => {} }) {
       }
     },
     [setGroups, setStudents, saveGroups, saveStudents]
+  );
+
+  const toggleBingoHints = useCallback(
+    async (enabled) => {
+      setAppSettings((prev) => ({ ...prev, bingoHintsEnabled: enabled }));
+      const { error } = await saveAppSettings();
+      if (error) {
+        alert('Kon bingo-hints niet opslaan: ' + error.message);
+      }
+    },
+    [setAppSettings, saveAppSettings]
   );
 
   const toggleStudentBadge = useCallback(
@@ -1569,6 +1582,19 @@ export default function Admin({ onLogout = () => {} }) {
           >
             Open Bingo beheer
           </a>
+          <div className="mt-6 border-t pt-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(appSettings?.bingoHintsEnabled)}
+                onChange={(e) => toggleBingoHints(e.target.checked)}
+              />
+              Toon hints voor mogelijke bingo matches op de student-homepage
+            </label>
+            <p className="text-xs text-neutral-500 mt-1">
+              Blauwe vakjes betekenen dat er ergens een match mogelijk is, maar nog niet gevonden.
+            </p>
+          </div>
         </Card>
       )}
 

@@ -18,6 +18,7 @@ import { getImageUrl, uploadImage } from './supabase';
 import useStreaks from './hooks/useStreaks';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
+import useAppSettings from './hooks/useAppSettings';
 
 const WEEKLY_STREAK_POINTS = 50;
 const DATA_POLL_MS = 5000;
@@ -25,6 +26,36 @@ const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: tru
 const STREAK_FREEZE_AVAILABLE_SRC = `${process.env.PUBLIC_URL}/images/streak-freeze.png`;
 const STREAK_FREEZE_USED_SRC = `${process.env.PUBLIC_URL}/images/streak-freeze-used.png`;
 const bingoQuestionKeys = Object.keys(bingoQuestions);
+const normalizeBingoAnswer = (value) => (value || '').trim().toLowerCase();
+
+const buildBingoAnswerIndex = (students) => {
+  const index = {};
+  bingoQuestionKeys.forEach((key) => {
+    index[key] = new Map();
+  });
+  for (const student of students) {
+    const bingo = student?.bingo || {};
+    for (const key of bingoQuestionKeys) {
+      const answers = Array.isArray(bingo[key]) ? bingo[key] : [];
+      const unique = new Set();
+      for (const answer of answers) {
+        const normalized = normalizeBingoAnswer(answer);
+        if (normalized) unique.add(normalized);
+      }
+      if (!unique.size) continue;
+      const bucket = index[key];
+      for (const normalized of unique) {
+        const existing = bucket.get(normalized);
+        if (existing) {
+          existing.add(student.id);
+        } else {
+          bucket.set(normalized, new Set([student.id]));
+        }
+      }
+    }
+  }
+  return index;
+};
 
 export default function Student({
   selectedStudentId = '',
@@ -60,6 +91,7 @@ export default function Student({
     { save: savePeerAwards, refetch: refetchPeerAwards, dirty: peerAwardsDirty },
   ] = usePeerAwards();
   const [peerEvents, , { refetch: refetchPeerEvents }] = usePeerEvents();
+  const [appSettings, , { refetch: refetchAppSettings }] = useAppSettings();
 
   const inPreview = previewStudentId !== undefined;
   const activeStudentId = inPreview ? previewStudentId : selectedStudentId;
@@ -103,6 +135,7 @@ export default function Student({
       refetchBadges();
       if (!peerAwardsDirty) refetchPeerAwards();
       refetchPeerEvents();
+      refetchAppSettings();
     };
     refresh();
     const interval = setInterval(refresh, DATA_POLL_MS);
@@ -115,6 +148,7 @@ export default function Student({
     refetchBadges,
     refetchPeerAwards,
     refetchPeerEvents,
+    refetchAppSettings,
     studentsDirty,
     awardsDirty,
     peerAwardsDirty,
@@ -173,6 +207,7 @@ export default function Student({
   const me = students.find((s) => s.id === activeStudentId) || null;
   const myGroup = me && me.groupId ? groupById.get(me.groupId) || null : null;
   const myBadges = me?.badges || [];
+  const bingoHintsEnabled = Boolean(appSettings?.bingoHintsEnabled);
 
   useEffect(() => {
     if (inPreview || !activeStudentId || !me) return;
@@ -275,11 +310,32 @@ export default function Student({
   }, [recentBadges]);
 
   const bingoMatches = me?.bingoMatches || null;
+  const bingoAnswerIndex = useMemo(() => buildBingoAnswerIndex(students), [students]);
 
   const bingoFilled = useMemo(() => {
     if (!bingoMatches) return bingoQuestionKeys.map(() => false);
     return bingoQuestionKeys.map((key) => Boolean(bingoMatches[key]?.answer));
   }, [bingoMatches]);
+
+  const bingoHinted = useMemo(() => {
+    if (!bingoHintsEnabled || !me) return bingoQuestionKeys.map(() => false);
+    const myBingo = me.bingo || {};
+    return bingoQuestionKeys.map((key) => {
+      const answers = Array.isArray(myBingo[key]) ? myBingo[key] : [];
+      const normalized = new Set();
+      for (const answer of answers) {
+        const clean = normalizeBingoAnswer(answer);
+        if (clean) normalized.add(clean);
+      }
+      if (!normalized.size) return false;
+      const bucket = bingoAnswerIndex[key];
+      for (const clean of normalized) {
+        const matches = bucket.get(clean);
+        if (matches && matches.size > 1) return true;
+      }
+      return false;
+    });
+  }, [bingoHintsEnabled, me, bingoAnswerIndex]);
 
   const myRank = useMemo(
     () => individualLeaderboard.find((r) => r.id === activeStudentId) || null,
@@ -1221,20 +1277,33 @@ export default function Student({
 
             <Card title="Bingo" className="lg:col-span-2">
               {me ? (
-                <div className="flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2">
                   <div className="grid grid-cols-5 gap-1 w-full max-w-[260px]">
                     {bingoQuestionKeys.map((key, index) => {
                       const filled = bingoFilled[index];
+                      const hinted = !filled && bingoHintsEnabled && bingoHinted[index];
                       return (
                         <div
                           key={key}
                           className={`aspect-square rounded-sm border ${
-                            filled ? 'bg-emerald-500' : 'bg-white/70'
+                            filled ? 'bg-emerald-500' : hinted ? 'bg-sky-400' : 'bg-white/70'
                           }`}
                         />
                       );
                     })}
                   </div>
+                  {bingoHintsEnabled && (
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-neutral-600">
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border bg-emerald-500" />
+                        Match gevonden
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border bg-sky-400" />
+                        Match mogelijk
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-neutral-600">Selecteer een student om bingo te bekijken.</p>

@@ -53,6 +53,13 @@ create table if not exists teachers (
   "resetToken" text
 );
 
+create table if not exists app_settings (
+  id text primary key,
+  "bingoHintsEnabled" boolean default false
+);
+
+alter table app_settings add column if not exists "bingoHintsEnabled" boolean default false;
+
 create table if not exists meetings (
   id uuid primary key default gen_random_uuid(),
   date date not null,

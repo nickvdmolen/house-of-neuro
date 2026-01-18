@@ -117,6 +117,7 @@ function requireTeacher(req, res, next) {
 const COLLECTIONS = [
   'awards',
   'attendance',
+  'app_settings',
   'badge_defs',
   'groups',
   'meetings',
