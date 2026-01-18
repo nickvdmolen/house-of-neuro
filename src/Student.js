@@ -1249,6 +1249,157 @@ export default function Student({
                 <p className="text-sm text-neutral-600">Selecteer een student om streak te bekijken.</p>
               )}
             </Card>
+
+            <Card title="Jouw recente activiteiten" className="lg:col-span-2 max-h-[320px] overflow-auto">
+              <ul className="space-y-2 text-sm">
+                {myAwards.length === 0 && !awardsError && <li>Geen recente items.</li>}
+                {myAwards.map((a) => {
+                  const isNewBadge = a.reason?.startsWith('Badge behaald:') && a.amount > 0;
+                  const badgeId = isNewBadge ? a.reason.replace('Badge behaald: ', '') : null;
+                  const badgeTitle = badgeId ? badgeDefs.find(b => b.id === badgeId)?.title || badgeId : null;
+                  return (
+                    <li key={a.id} className="flex flex-col gap-1">
+                      <div className="flex justify-between gap-2">
+                        <span>
+                          {new Date(a.ts).toLocaleDateString('nl-NL')} · {a.target === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
+                          {a.reason ? `— ${a.reason}` : ''}
+                        </span>
+                        <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
+                      </div>
+                      {isNewBadge && badgeTitle && (
+                        <span className="text-xs text-indigo-700">🏅 Gefeliciteerd met je nieuwe badge: {badgeTitle}!</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+
+            <Card title="Leaderboard – Individueel" className="lg:col-span-2">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead>
+                  <tr className="text-left border-b">
+                    <th className="py-1 pr-2">#</th>
+                    <th className="py-1 pr-2">Student</th>
+                    <th className="py-1 pr-2 text-right">Punten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <>
+                    {topLeaderboardRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className={`border-b last:border-0 ${
+                          row.id === activeStudentId ? 'bg-indigo-50' : ''
+                        }`}
+                      >
+                        <td className="py-1 pr-2">{row.rank}</td>
+                        <td className="py-1 pr-2">{row.name}</td>
+                        <td
+                          className={`py-1 pr-2 text-right font-semibold ${
+                            row.points > 0
+                              ? 'text-emerald-700'
+                              : row.points < 0
+                              ? 'text-rose-700'
+                              : 'text-neutral-700'
+                          }`}
+                        >
+                          {row.points}
+                        </td>
+                      </tr>
+                    ))}
+                    {extraLeaderboardRows.length > 0 && (
+                      <>
+                        <tr className="border-b">
+                          <td colSpan="3" className="py-1"></td>
+                        </tr>
+                        {extraLeaderboardRows.map((row) => (
+                          <tr
+                            key={row.id}
+                            className={row.id === activeStudentId ? 'bg-indigo-50' : ''}
+                          >
+                            <td className="py-1 pr-2">{row.rank}</td>
+                            <td className="py-1 pr-2">{row.name}</td>
+                            <td
+                              className={`py-1 pr-2 text-right font-semibold ${
+                                row.points > 0
+                                  ? 'text-emerald-700'
+                                  : row.points < 0
+                                  ? 'text-rose-700'
+                                  : 'text-neutral-700'
+                              }`}
+                            >
+                              {row.points}
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    )}
+                  </>
+                </tbody>
+              </table>
+            </Card>
+
+            <Card title="Leaderboard – Groepen" className="lg:col-span-2">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead>
+                  <tr className="text-left border-b">
+                    <th className="py-1 pr-2">#</th>
+                    <th className="py-1 pr-2">Groep</th>
+                    <th className="py-1 pr-2 text-right">Totaal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupLeaderboard.map((row) => (
+                    <tr key={row.id} className={row.id === myGroup?.id ? 'bg-indigo-50' : ''}>
+                      <td className="py-1 pr-2">{row.rank}</td>
+                      <td className="py-1 pr-2">{row.name}</td>
+                      <td className={`py-1 pr-2 text-right font-semibold ${row.total > 0 ? 'text-emerald-700' : row.total < 0 ? 'text-rose-700' : 'text-neutral-700'}`}>{Math.round(row.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+
+            <Card title="Bingo" className="lg:col-span-2">
+              {me ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="grid grid-cols-5 gap-1 w-full max-w-[260px]">
+                    {bingoQuestionKeys.map((key, index) => {
+                      const filled = bingoFilled[index];
+                      const hinted = !filled && bingoHintsEnabled && bingoHinted[index];
+                      return (
+                        <div
+                          key={key}
+                          className={`aspect-square rounded-sm border ${
+                            filled
+                              ? 'bg-emerald-500'
+                              : hinted
+                              ? 'bg-sky-400'
+                              : 'bg-white/50 border-indigo-600'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                  {bingoHintsEnabled && (
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-neutral-600">
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border bg-emerald-500" />
+                        Match gevonden
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border bg-sky-400" />
+                        Match mogelijk
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-600">Selecteer een student om bingo te bekijken.</p>
+              )}
+            </Card>
+
             <Card title="Nieuwste Badges" className="lg:col-span-2">
               {me ? (
                 <div className="grid grid-cols-2 gap-3">
@@ -1271,41 +1422,6 @@ export default function Student({
                 </div>
               ) : (
                 <p className="text-sm text-neutral-600">Selecteer een student om badges te bekijken.</p>
-              )}
-            </Card>
-
-            <Card title="Bingo" className="lg:col-span-2">
-              {me ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="grid grid-cols-5 gap-1 w-full max-w-[260px]">
-                    {bingoQuestionKeys.map((key, index) => {
-                      const filled = bingoFilled[index];
-                      const hinted = !filled && bingoHintsEnabled && bingoHinted[index];
-                      return (
-                        <div
-                          key={key}
-                          className={`aspect-square rounded-sm border ${
-                            filled ? 'bg-emerald-500' : hinted ? 'bg-sky-400' : 'bg-white/70'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-                  {bingoHintsEnabled && (
-                    <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-neutral-600">
-                      <div className="flex items-center gap-1">
-                        <span className="inline-block h-3 w-3 rounded-sm border bg-emerald-500" />
-                        Match gevonden
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="inline-block h-3 w-3 rounded-sm border bg-sky-400" />
-                        Match mogelijk
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-neutral-600">Selecteer een student om bingo te bekijken.</p>
               )}
             </Card>
 
@@ -1513,117 +1629,6 @@ export default function Student({
                   </Button>
                 </div>
               )}
-            </Card>
-
-            <Card title="Jouw recente activiteiten" className="lg:col-span-2 max-h-[320px] overflow-auto">
-              <ul className="space-y-2 text-sm">
-                {myAwards.length === 0 && !awardsError && <li>Geen recente items.</li>}
-                {myAwards.map((a) => {
-                  const isNewBadge = a.reason?.startsWith('Badge behaald:') && a.amount > 0;
-                  const badgeId = isNewBadge ? a.reason.replace('Badge behaald: ', '') : null;
-                  const badgeTitle = badgeId ? badgeDefs.find(b => b.id === badgeId)?.title || badgeId : null;
-                  return (
-                    <li key={a.id} className="flex flex-col gap-1">
-                      <div className="flex justify-between gap-2">
-                        <span>
-                          {new Date(a.ts).toLocaleDateString('nl-NL')} · {a.target === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
-                          {a.reason ? `— ${a.reason}` : ''}
-                        </span>
-                        <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
-                      </div>
-                      {isNewBadge && badgeTitle && (
-                        <span className="text-xs text-indigo-700">🏅 Gefeliciteerd met je nieuwe badge: {badgeTitle}!</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-
-            <Card title="Leaderboard – Individueel" className="lg:col-span-2">
-              <table className="w-full text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-1 pr-2">#</th>
-                    <th className="py-1 pr-2">Student</th>
-                    <th className="py-1 pr-2 text-right">Punten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <>
-                    {topLeaderboardRows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className={`border-b last:border-0 ${
-                          row.id === activeStudentId ? 'bg-indigo-50' : ''
-                        }`}
-                      >
-                        <td className="py-1 pr-2">{row.rank}</td>
-                        <td className="py-1 pr-2">{row.name}</td>
-                        <td
-                          className={`py-1 pr-2 text-right font-semibold ${
-                            row.points > 0
-                              ? 'text-emerald-700'
-                              : row.points < 0
-                              ? 'text-rose-700'
-                              : 'text-neutral-700'
-                          }`}
-                        >
-                          {row.points}
-                        </td>
-                      </tr>
-                    ))}
-                    {extraLeaderboardRows.length > 0 && (
-                      <>
-                        <tr className="border-b">
-                          <td colSpan="3" className="py-1"></td>
-                        </tr>
-                        {extraLeaderboardRows.map((row) => (
-                          <tr
-                            key={row.id}
-                            className={row.id === activeStudentId ? 'bg-indigo-50' : ''}
-                          >
-                            <td className="py-1 pr-2">{row.rank}</td>
-                            <td className="py-1 pr-2">{row.name}</td>
-                            <td
-                              className={`py-1 pr-2 text-right font-semibold ${
-                                row.points > 0
-                                  ? 'text-emerald-700'
-                                  : row.points < 0
-                                  ? 'text-rose-700'
-                                  : 'text-neutral-700'
-                              }`}
-                            >
-                              {row.points}
-                            </td>
-                          </tr>
-                        ))}
-                      </>
-                    )}
-                  </>
-                </tbody>
-              </table>
-            </Card>
-
-            <Card title="Leaderboard – Groepen" className="lg:col-span-2">
-              <table className="w-full text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-1 pr-2">#</th>
-                    <th className="py-1 pr-2">Groep</th>
-                    <th className="py-1 pr-2 text-right">Totaal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {groupLeaderboard.map((row) => (
-                    <tr key={row.id} className={row.id === myGroup?.id ? 'bg-indigo-50' : ''}>
-                      <td className="py-1 pr-2">{row.rank}</td>
-                      <td className="py-1 pr-2">{row.name}</td>
-                      <td className={`py-1 pr-2 text-right font-semibold ${row.total > 0 ? 'text-emerald-700' : row.total < 0 ? 'text-rose-700' : 'text-neutral-700'}`}>{Math.round(row.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </Card>
 
           </div>

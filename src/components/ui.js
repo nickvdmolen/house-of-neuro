@@ -2,7 +2,7 @@ import React from 'react';
 
 export function Card({ title, children, className = '' }) {
   return (
-    <div className={`bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 sm:p-4 ${className}`}>
+    <div className={`bg-white/75 backdrop-blur-sm rounded-lg shadow-lg p-3 sm:p-4 ${className}`}>
       {title && <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">{title}</h2>}
       {children}
     </div>
