@@ -1188,17 +1188,16 @@ export default function Student({
               {me ? (
                 <div className="text-center">
                   <div className="flex items-stretch justify-center gap-4">
-                    <div className="flex flex-col self-stretch w-10">
+                    <div className="flex flex-col items-center gap-2">
                       {Array.from({ length: freezeTotal }).map((_, index) => {
                         const used = index < freezeUsed;
                         return (
-                          <div key={`freeze-${index}`} className="flex-1 flex items-center justify-center">
-                            <img
-                              src={used ? STREAK_FREEZE_USED_SRC : STREAK_FREEZE_AVAILABLE_SRC}
-                              alt={used ? 'Streak freeze gebruikt' : 'Streak freeze beschikbaar'}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
+                          <img
+                            key={`freeze-${index}`}
+                            src={used ? STREAK_FREEZE_USED_SRC : STREAK_FREEZE_AVAILABLE_SRC}
+                            alt={used ? 'Streak freeze gebruikt' : 'Streak freeze beschikbaar'}
+                            className="h-20 w-20 object-contain"
+                          />
                         );
                       })}
                     </div>
