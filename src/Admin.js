@@ -917,9 +917,16 @@ export default function Admin({ onLogout = () => {} }) {
   ];
 
   return (
+    <div className="relative min-h-screen pl-60">
+      <div className="fixed inset-y-0 left-60 right-0 z-0 pointer-events-none">
+        <img
+          src={process.env.PUBLIC_URL + '/images/voorpagina.png'}
+          alt="Background"
+          className="w-full h-full object-cover"
+        />
+      </div>
 
-    <div className="pl-60">
-      <nav className="fixed left-0 top-0 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2">
+      <nav className="fixed left-0 top-0 z-20 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2">
 
         {menuItems.map((item) => (
           <button
@@ -932,10 +939,10 @@ export default function Admin({ onLogout = () => {} }) {
         ))}
       </nav>
 
-      <div className="space-y-4">
+      <div className="relative z-10 space-y-4">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="bg-white/90 px-2 py-1 rounded">Ingelogd als beheerder</span>
+            <span className="bg-white/80 px-2 py-1 rounded">Ingelogd als beheerder</span>
             {hasSemesters && (
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase tracking-wide text-neutral-500">

@@ -1,5 +1,14 @@
 [
   {
+    "id": "ec9ca812-fca6-4947-8550-f831ebe932a7",
+    "ts": "2026-01-22T12:43:34.133Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 20,
+    "reason": "Peer punten (Feedback) van Student1: toffe peer"
+  },
+  {
     "id": "f78deebe-7475-4a6d-9c3f-87b29b4580ad",
     "ts": "2026-01-22T08:49:23.097Z",
     "target": "student",

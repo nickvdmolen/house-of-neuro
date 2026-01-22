@@ -1,5 +1,16 @@
 [
   {
+    "id": "807a0ea6-4889-46c7-b8c6-01529b6104ec",
+    "title": "Feedback",
+    "description": "prom",
+    "budget": 20,
+    "active": true,
+    "allowOwnGroup": true,
+    "allowOtherGroups": true,
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "created_at": "2026-01-22T12:43:20.313Z"
+  },
+  {
     "id": "a769d3ba-1bba-4352-a148-f8a235028fc4",
     "title": "Peer feedback",
     "description": "om jullie te treiteren",

@@ -1,5 +1,21 @@
 [
   {
+    "id": "99166b87-908e-4642-b11b-97e46c64bf69",
+    "ts": "2026-01-22T12:43:34.133Z",
+    "from_student_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "event_id": "807a0ea6-4889-46c7-b8c6-01529b6104ec",
+    "event_title": "Feedback",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 20,
+    "total_amount": 20,
+    "reason": "toffe peer",
+    "recipients": [
+      "ae1ee1ee-b651-488f-9d02-54b85a4b9a39"
+    ]
+  },
+  {
     "id": "69c2cea0-4904-47c0-b592-22ae1956ee2d",
     "ts": "2026-01-19T09:50:04.570Z",
     "from_student_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
