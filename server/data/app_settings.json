@@ -1,6 +1,6 @@
 [
   {
     "id": "global",
-    "bingoHintsEnabled": false
+    "bingoHintsEnabled": true
   }
 ]

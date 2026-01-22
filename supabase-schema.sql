@@ -1,11 +1,18 @@
 -- Supabase schema for Neuromarketing Housepoints
 -- Create tables
 
+create table if not exists semesters (
+  id text primary key,
+  name text not null,
+  created_at timestamptz default now()
+);
+
 create table if not exists students (
   id text primary key,
   name text,
   email text unique,
   password text,
+  "semesterId" text,
   "groupId" text,
   points integer default 0,
   badges text[] default '{}',
@@ -13,7 +20,7 @@ create table if not exists students (
   bingo jsonb default '{}'::jsonb,
   "bingoMatches" jsonb default '{}'::jsonb,
   "lastWeekRewarded" text,
-  "showRankPublic" boolean default false,
+  "showRankPublic" boolean default true,
   "tempCode" text,
   "resetToken" text
 );
@@ -21,11 +28,14 @@ create table if not exists students (
 alter table students add column if not exists bingo jsonb default '{}'::jsonb;
 alter table students add column if not exists "bingoMatches" jsonb default '{}'::jsonb;
 alter table students add column if not exists "lastWeekRewarded" text;
-alter table students add column if not exists "showRankPublic" boolean default false;
+alter table students add column if not exists "showRankPublic" boolean default true;
+alter table students add column if not exists "semesterId" text;
+alter table students alter column "showRankPublic" set default true;
 
 create table if not exists groups (
   id text primary key,
   name text,
+  "semesterId" text,
   points integer default 0
 );
 
@@ -34,6 +44,7 @@ create table if not exists awards (
   ts timestamptz not null default now(),
   target text check (target in ('student','group')),
   target_id uuid not null,
+  "semesterId" text,
   amount integer,
   reason text
 );
@@ -66,6 +77,7 @@ create table if not exists meetings (
   time time,
   type text not null, -- e.g., 'lecture', 'workshop', 'seminar'
   title text not null,
+  "semesterId" text,
   created_by text references teachers(id),
   created_at timestamptz default now()
 );
@@ -87,6 +99,7 @@ create table if not exists peer_events (
   active boolean default true,
   allow_own_group boolean default false,
   allow_other_groups boolean default true,
+  "semesterId" text,
   created_at timestamptz default now()
 );
 
@@ -97,12 +110,19 @@ create table if not exists peer_awards (
   event_id text references peer_events(id) on delete set null,
   target text check (target in ('student','group','class')),
   target_id text,
+  "semesterId" text,
   amount integer,
   total_amount integer,
   reason text,
   recipients text[],
   weekKey text
 );
+
+alter table groups add column if not exists "semesterId" text;
+alter table awards add column if not exists "semesterId" text;
+alter table meetings add column if not exists "semesterId" text;
+alter table peer_events add column if not exists "semesterId" text;
+alter table peer_awards add column if not exists "semesterId" text;
 
 -- Example badge definitions (replace public URL with your project URL)
 insert into badge_defs (id, title, image, requirement) values

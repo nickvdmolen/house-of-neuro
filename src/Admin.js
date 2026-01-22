@@ -21,19 +21,18 @@ import usePersistentState from './hooks/usePersistentState';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
+import useSemesters from './hooks/useSemesters';
 
 const BADGE_POINTS = 50;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 const normalizeSortValue = (value) => (value ? String(value).trim() : '');
-const compareStudentNames = (a, b) =>
-  nameCollator.compare(normalizeSortValue(a?.name), normalizeSortValue(b?.name));
-const compareGroupNames = (a, b) =>
-  nameCollator.compare(normalizeSortValue(a?.name), normalizeSortValue(b?.name));
 const compareBadgeTitles = (a, b) =>
   nameCollator.compare(
     normalizeSortValue(a?.title || a?.id),
     normalizeSortValue(b?.title || b?.id)
   );
+const compareSemesterNames = (a, b) =>
+  nameCollator.compare(normalizeSortValue(a?.name), normalizeSortValue(b?.name));
 
 export default function Admin({ onLogout = () => {} }) {
   const [students, setStudents, { save: saveStudents }] = useStudents();
@@ -44,7 +43,11 @@ export default function Admin({ onLogout = () => {} }) {
   const [meetings, setMeetings, { save: saveMeetings }] = useMeetings();
   const [attendance, setAttendance, { save: saveAttendance }] = useAttendance();
   const [peerAwards, setPeerAwards, { save: savePeerAwards }] = usePeerAwards();
+  const [peerEvents, setPeerEvents, { save: savePeerEvents, dirty: peerEventsDirty }] = usePeerEvents();
   const [appSettings, setAppSettings, { save: saveAppSettings }] = useAppSettings();
+  const [semesters, setSemesters, { save: saveSemesters }] = useSemesters();
+  const [semesterFilter, setSemesterFilter] = useState('');
+  const [newSemesterName, setNewSemesterName] = useState('');
   const [restoreFile, setRestoreFile] = useState(null);
 
   // Meeting state
@@ -58,8 +61,73 @@ export default function Admin({ onLogout = () => {} }) {
     return attendance.filter((a) => a.meeting_id === selectedMeeting);
   }, [attendance, selectedMeeting]);
 
-  const sortedStudents = useMemo(() => [...students].sort(compareStudentNames), [students]);
-  const sortedGroups = useMemo(() => [...groups].sort(compareGroupNames), [groups]);
+  const sortedSemesters = useMemo(
+    () => [...semesters].sort(compareSemesterNames),
+    [semesters]
+  );
+  const hasSemesters = semesters.length > 0;
+  const activeSemesterId =
+    hasSemesters &&
+    semesterFilter &&
+    semesterFilter !== 'all' &&
+    semesterFilter !== 'unassigned'
+      ? semesterFilter
+      : null;
+
+  const semesterStudents = useMemo(() => {
+    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return students;
+    if (semesterFilter === 'unassigned') {
+      return students.filter((s) => !s.semesterId);
+    }
+    return students.filter(
+      (s) => String(s.semesterId || '') === String(semesterFilter)
+    );
+  }, [students, hasSemesters, semesterFilter]);
+
+  const semesterGroups = useMemo(() => {
+    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return groups;
+    if (semesterFilter === 'unassigned') {
+      return groups.filter((g) => !g.semesterId);
+    }
+    return groups.filter(
+      (g) => String(g.semesterId || '') === String(semesterFilter)
+    );
+  }, [groups, hasSemesters, semesterFilter]);
+
+  const semesterMeetings = useMemo(() => {
+    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return meetings;
+    if (semesterFilter === 'unassigned') {
+      return meetings.filter((m) => !m.semesterId);
+    }
+    return meetings.filter(
+      (m) => String(m.semesterId || '') === String(semesterFilter)
+    );
+  }, [meetings, hasSemesters, semesterFilter]);
+
+  useEffect(() => {
+    if (selectedMeeting && !semesterMeetings.find((m) => m.id === selectedMeeting)) {
+      setSelectedMeeting(null);
+    }
+  }, [selectedMeeting, semesterMeetings]);
+
+  const semesterPeerEvents = useMemo(() => {
+    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return peerEvents;
+    if (semesterFilter === 'unassigned') {
+      return peerEvents.filter((e) => !e.semesterId);
+    }
+    return peerEvents.filter(
+      (e) => String(e.semesterId || '') === String(semesterFilter)
+    );
+  }, [peerEvents, hasSemesters, semesterFilter]);
+
+  const unassignedStudentCount = useMemo(
+    () => students.filter((s) => !s.semesterId).length,
+    [students]
+  );
+  const unassignedGroupCount = useMemo(
+    () => groups.filter((g) => !g.semesterId).length,
+    [groups]
+  );
   const sortedBadgeDefs = useMemo(() => [...badgeDefs].sort(compareBadgeTitles), [badgeDefs]);
 
   const studentById = useMemo(() => {
@@ -74,11 +142,14 @@ export default function Admin({ onLogout = () => {} }) {
     return m;
   }, [groups]);
 
-  const individualLeaderboard = useMemo(() => getIndividualLeaderboard(students), [students]);
+  const individualLeaderboard = useMemo(
+    () => getIndividualLeaderboard(semesterStudents),
+    [semesterStudents]
+  );
 
   const groupLeaderboard = useMemo(
-    () => getGroupLeaderboard(groups, students),
-    [groups, students]
+    () => getGroupLeaderboard(semesterGroups, semesterStudents),
+    [semesterGroups, semesterStudents]
   );
 
   const individualStats = useMemo(() => {
@@ -94,6 +165,10 @@ export default function Admin({ onLogout = () => {} }) {
   }, [groupLeaderboard]);
 
   const addStudent = useCallback(async (name, email, password = '') => {
+    if (hasSemesters && !activeSemesterId) {
+      alert('Kies eerst een semester om een student toe te voegen.');
+      return null;
+    }
     const id = genId();
     setStudents((prev) => [
       ...prev,
@@ -102,15 +177,17 @@ export default function Admin({ onLogout = () => {} }) {
         name,
         email: email || undefined,
         password,
+        semesterId: activeSemesterId || null,
         groupId: null,
         points: 0,
         badges: [],
+        showRankPublic: true,
       }
     ]);
     const { error } = await saveStudents();
     if (error) alert('Kon student niet toevoegen: ' + error.message);
     return id;
-  }, [setStudents, saveStudents]);
+  }, [setStudents, saveStudents, hasSemesters, activeSemesterId]);
 
   const removeStudent = useCallback(async (id) => {
     setStudents((prev) => prev.filter((s) => s.id !== id));
@@ -136,12 +213,19 @@ export default function Admin({ onLogout = () => {} }) {
   );
 
   const addGroup = useCallback(async (name) => {
+    if (hasSemesters && !activeSemesterId) {
+      alert('Kies eerst een semester om een groep toe te voegen.');
+      return null;
+    }
     const id = genId();
-    setGroups((prev) => [...prev, { id, name, points: 0 }]);
+    setGroups((prev) => [
+      ...prev,
+      { id, name, semesterId: activeSemesterId || null, points: 0 },
+    ]);
     const { error } = await saveGroups();
     if (error) alert('Kon groep niet toevoegen: ' + error.message);
     return id;
-  }, [setGroups, saveGroups]);
+  }, [setGroups, saveGroups, hasSemesters, activeSemesterId]);
 
   const renameGroup = useCallback(async (id, newName) => {
     if (!newName.trim()) return;
@@ -155,13 +239,48 @@ export default function Admin({ onLogout = () => {} }) {
   const updateStudentGroup = useCallback(
     async (studentId, groupId) => {
       const nextGroupId = groupId || null;
+      const student = students.find((s) => s.id === studentId);
+      const targetGroup = groups.find((g) => g.id === nextGroupId);
+      if (
+        nextGroupId &&
+        student?.semesterId &&
+        targetGroup?.semesterId &&
+        String(student.semesterId) !== String(targetGroup.semesterId)
+      ) {
+        alert('Deze groep hoort bij een ander semester.');
+        return;
+      }
       setStudents((prev) =>
         prev.map((s) => (s.id === studentId ? { ...s, groupId: nextGroupId } : s))
       );
       const { error } = await saveStudents();
       if (error) alert('Kon student niet aan groep koppelen: ' + error.message);
     },
-    [setStudents, saveStudents]
+    [setStudents, saveStudents, students, groups]
+  );
+
+  const updateStudentSemester = useCallback(
+    async (studentId, semesterId) => {
+      const nextSemesterId = semesterId || null;
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.id !== studentId) return s;
+          const currentGroup = groups.find((g) => g.id === s.groupId);
+          const keepGroup =
+            currentGroup &&
+            (!currentGroup.semesterId ||
+              String(currentGroup.semesterId) === String(nextSemesterId));
+          return {
+            ...s,
+            semesterId: nextSemesterId,
+            groupId: keepGroup ? s.groupId : null,
+          };
+        })
+      );
+      const { error } = await saveStudents();
+      if (error) alert('Kon student niet bijwerken: ' + error.message);
+    },
+    [setStudents, saveStudents, groups]
   );
 
   const addStudentToGroup = useCallback(
@@ -195,6 +314,25 @@ export default function Admin({ onLogout = () => {} }) {
     },
     [setGroups, setStudents, saveGroups, saveStudents]
   );
+
+  const addSemester = useCallback(async (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const id = genId();
+    setSemesters((prev) => [...prev, { id, name: trimmed }]);
+    const { error } = await saveSemesters();
+    if (error) alert('Kon semester niet toevoegen: ' + error.message);
+    return id;
+  }, [setSemesters, saveSemesters]);
+
+  const renameSemester = useCallback(async (id, newName) => {
+    if (!newName.trim()) return;
+    setSemesters((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name: newName.trim() } : s))
+    );
+    const { error } = await saveSemesters();
+    if (error) alert('Kon semester niet hernoemen: ' + error.message);
+  }, [setSemesters, saveSemesters]);
 
   const toggleBingoHints = useCallback(
     async (enabled) => {
@@ -235,12 +373,14 @@ export default function Admin({ onLogout = () => {} }) {
         return;
       }
       if (delta !== 0) {
+        const student = students.find((s) => s.id === studentId);
         const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
         const award = {
           id: genId(),
           ts: new Date().toISOString(),
           target: 'student',
           target_id: studentId,
+          semesterId: student?.semesterId || null,
           amount: delta,
           reason: delta > 0 ? `Badge behaald: ${badgeTitle}` : `Badge ingetrokken: ${badgeTitle}`,
         };
@@ -249,12 +389,13 @@ export default function Admin({ onLogout = () => {} }) {
         if (error) alert('Kon award niet opslaan: ' + error.message);
       }
     },
-    [setStudents, setAwards, badgeDefs, saveStudents, saveAwards]
+    [setStudents, setAwards, badgeDefs, saveStudents, saveAwards, students]
   );
 
   const awardToStudent = useCallback(async (studentId, amount, reason) => {
     if (!studentId || !Number.isFinite(amount)) return;
     const delta = Number(amount);
+    const targetStudent = students.find((s) => s.id === studentId);
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
@@ -273,17 +414,19 @@ export default function Admin({ onLogout = () => {} }) {
       ts: new Date().toISOString(),
       target: 'student',
       target_id: studentId,
+      semesterId: targetStudent?.semesterId || null,
       amount,
       reason,
     };
     setAwards((prev) => [award, ...prev].slice(0, 500));
     const { error } = await saveAwards();
     if (error) alert('Kon award niet opslaan: ' + error.message);
-  }, [setStudents, setAwards, saveStudents, saveAwards]);
+  }, [setStudents, setAwards, saveStudents, saveAwards, students]);
 
   const awardToGroup = useCallback(async (groupId, amount, reason) => {
     if (!groupId || !Number.isFinite(amount)) return;
     const delta = Number(amount);
+    const targetGroup = groups.find((g) => g.id === groupId);
     setGroups((prev) =>
       prev.map((g) =>
         g.id === groupId
@@ -301,15 +444,15 @@ export default function Admin({ onLogout = () => {} }) {
       ts: new Date().toISOString(),
       target: 'group',
       target_id: groupId,
+      semesterId: targetGroup?.semesterId || null,
       amount: delta,
       reason,
     };
     setAwards((prev) => [award, ...prev].slice(0, 500));
     const { error } = await saveAwards();
     if (error) alert('Kon award niet opslaan: ' + error.message);
-  }, [setGroups, setAwards, saveGroups, saveAwards]);
+  }, [setGroups, setAwards, saveGroups, saveAwards, groups]);
 
-  const [peerEvents, setPeerEvents, { save: savePeerEvents, dirty: peerEventsDirty }] = usePeerEvents();
   const [peerEventTitle, setPeerEventTitle] = useState('');
   const [peerEventBudget, setPeerEventBudget] = useState('');
   const [peerEventDescription, setPeerEventDescription] = useState('');
@@ -333,6 +476,10 @@ export default function Admin({ onLogout = () => {} }) {
   }, []);
 
   const addPeerEvent = useCallback(async () => {
+    if (hasSemesters && !activeSemesterId) {
+      alert('Kies eerst een semester om een event te maken.');
+      return;
+    }
     const title = peerEventTitle.trim();
     const budget = Number(peerEventBudget);
     if (!title || !Number.isFinite(budget) || budget < 0) {
@@ -348,6 +495,7 @@ export default function Admin({ onLogout = () => {} }) {
       active: true,
       allowOwnGroup: flags.allowOwnGroup,
       allowOtherGroups: flags.allowOtherGroups,
+      semesterId: activeSemesterId || null,
       created_at: new Date().toISOString(),
     };
     setPeerEvents((prev) => [event, ...prev]);
@@ -368,6 +516,8 @@ export default function Admin({ onLogout = () => {} }) {
     scopeToFlags,
     setPeerEvents,
     savePeerEvents,
+    hasSemesters,
+    activeSemesterId,
   ]);
 
   const updatePeerEvent = useCallback(
@@ -402,19 +552,42 @@ export default function Admin({ onLogout = () => {} }) {
     [setPeerEvents, savePeerEvents]
   );
 
+  const semesterStudentIds = useMemo(
+    () => new Set(semesterStudents.map((s) => String(s.id))),
+    [semesterStudents]
+  );
+
+  const semesterGroupIds = useMemo(
+    () => new Set(semesterGroups.map((g) => String(g.id))),
+    [semesterGroups]
+  );
+
+  const semesterPeerAwards = useMemo(() => {
+    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return peerAwards;
+    if (!semesterStudentIds.size && !semesterGroupIds.size) return [];
+    return peerAwards.filter((entry) => {
+      const fromId = String(entry?.from_student_id || '');
+      const targetId = String(entry?.target_id || '');
+      if (semesterStudentIds.has(fromId)) return true;
+      if (semesterStudentIds.has(targetId) || semesterGroupIds.has(targetId)) return true;
+      const recipients = Array.isArray(entry?.recipients) ? entry.recipients : [];
+      return recipients.some((id) => semesterStudentIds.has(String(id)));
+    });
+  }, [peerAwards, hasSemesters, semesterFilter, semesterStudentIds, semesterGroupIds]);
+
   const peerAwardsSorted = useMemo(
     () =>
-      [...peerAwards].sort(
+      [...semesterPeerAwards].sort(
         (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()
       ),
-    [peerAwards]
+    [semesterPeerAwards]
   );
 
   const peerEventById = useMemo(() => {
     const map = new Map();
-    peerEvents.forEach((event) => map.set(event.id, event));
+    semesterPeerEvents.forEach((event) => map.set(event.id, event));
     return map;
-  }, [peerEvents]);
+  }, [semesterPeerEvents]);
 
 
   const [newStudent, setNewStudent] = useState('');
@@ -447,8 +620,8 @@ export default function Admin({ onLogout = () => {} }) {
   }, [setTeachers, saveTeachers]);
   const [badgeStudentId, setBadgeStudentId] = useState('');
   const [awardType, setAwardType] = useState('student');
-  const [awardStudentIds, setAwardStudentIds] = useState(students[0] ? [students[0].id] : []);
-  const [awardGroupId, setAwardGroupId] = useState(groups[0]?.id || '');
+  const [awardStudentIds, setAwardStudentIds] = useState([]);
+  const [awardGroupId, setAwardGroupId] = useState('');
   const [awardAmount, setAwardAmount] = useState(5);
   const [awardReason, setAwardReason] = useState('');
 
@@ -488,6 +661,7 @@ export default function Admin({ onLogout = () => {} }) {
     const data = {
       students,
       groups,
+      semesters,
       awards,
       badges: badgeDefs,
       teachers,
@@ -503,7 +677,7 @@ export default function Admin({ onLogout = () => {} }) {
     a.download = 'backup.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [students, groups, awards, badgeDefs, teachers, meetings, attendance, peerAwards, peerEvents]);
+  }, [students, groups, semesters, awards, badgeDefs, teachers, meetings, attendance, peerAwards, peerEvents]);
 
   const handleRestore = useCallback((file) => {
     if (!file) return;
@@ -521,6 +695,11 @@ export default function Admin({ onLogout = () => {} }) {
           setGroups(data.groups);
           const { error } = await saveGroups();
           if (error) errors.push('groepen');
+        }
+        if (Array.isArray(data.semesters)) {
+          setSemesters(data.semesters);
+          const { error } = await saveSemesters();
+          if (error) errors.push('semesters');
         }
         if (Array.isArray(data.awards)) {
           setAwards(data.awards);
@@ -585,6 +764,7 @@ export default function Admin({ onLogout = () => {} }) {
     setAttendance,
     setPeerAwards,
     setPeerEvents,
+    setSemesters,
     saveStudents,
     saveGroups,
     saveAwards,
@@ -594,16 +774,22 @@ export default function Admin({ onLogout = () => {} }) {
     saveAttendance,
     savePeerAwards,
     savePeerEvents,
+    saveSemesters,
   ]);
 
   // Meeting functions
   const addMeeting = async () => {
+    if (hasSemesters && !activeSemesterId) {
+      alert('Kies eerst een semester om een bijeenkomst toe te voegen.');
+      return;
+    }
     const newMeeting = {
       id: genId(),
       date: newMeetingDate,
       time: newMeetingTime,
       title: newMeetingTitle,
       type: newMeetingType,
+      semesterId: activeSemesterId || null,
       created_by: 'admin'
     };
     setMeetings((prev) => [...prev, newMeeting]);
@@ -671,38 +857,55 @@ export default function Admin({ onLogout = () => {} }) {
 
   const [page, setPage] = useState('points');
 
+  useEffect(() => {
+    if (!hasSemesters) {
+      if (semesterFilter) setSemesterFilter('');
+      return;
+    }
+    const isSpecial =
+      semesterFilter === 'all' || semesterFilter === 'unassigned';
+    if (semesterFilter && !isSpecial && !semesters.find((s) => s.id === semesterFilter)) {
+      setSemesterFilter('');
+      return;
+    }
+    if (!semesterFilter) {
+      setSemesterFilter(sortedSemesters[0]?.id || '');
+    }
+  }, [hasSemesters, semesterFilter, semesters, sortedSemesters]);
+
   // Preview state (gedeeld met Student-weergave)
   const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
 
   useEffect(() => {
-    if (students.length === 0) {
+    if (semesterStudents.length === 0) {
       setAwardStudentIds([]);
     } else {
       setAwardStudentIds((prev) => {
-        const valid = prev.filter((id) => students.some((s) => s.id === id));
-        return valid.length ? valid : [students[0].id];
+        const valid = prev.filter((id) => semesterStudents.some((s) => s.id === id));
+        return valid.length ? valid : [semesterStudents[0].id];
       });
     }
-  }, [students]);
+  }, [semesterStudents]);
 
   useEffect(() => {
-    if (groups.length && !groups.find((g) => g.id === awardGroupId)) {
-      setAwardGroupId(groups[0]?.id || '');
+    if (semesterGroups.length && !semesterGroups.find((g) => g.id === awardGroupId)) {
+      setAwardGroupId(semesterGroups[0]?.id || '');
     }
-  }, [groups, awardGroupId]);
+  }, [semesterGroups, awardGroupId]);
 
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
-    if (previewId && !students.find((s) => s.id === previewId)) {
-      setPreviewId(students[0]?.id || '');
+    if (previewId && !semesterStudents.find((s) => s.id === previewId)) {
+      setPreviewId(semesterStudents[0]?.id || '');
     }
-  }, [students, previewId]);
+  }, [semesterStudents, previewId]);
 
   const menuItems = [
     { value: 'scores', label: 'Scores' },
     { value: 'points', label: 'Punten invoeren' },
     { value: 'peer-points', label: 'Peer punten' },
     { value: 'badges', label: 'Badges toekennen' },
+    { value: 'manage-semesters', label: 'Semesters beheren' },
     { value: 'manage-groups', label: 'Groepen beheren' },
     { value: 'manage-students', label: 'Studenten beheren' },
     { value: 'manage-teachers', label: 'Docenten beheren' },
@@ -731,7 +934,29 @@ export default function Admin({ onLogout = () => {} }) {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4">
-          <span className="bg-white/90 px-2 py-1 rounded">Ingelogd als beheerder</span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="bg-white/90 px-2 py-1 rounded">Ingelogd als beheerder</span>
+            {hasSemesters && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">
+                  Semester
+                </span>
+                <Select
+                  value={semesterFilter}
+                  onChange={setSemesterFilter}
+                  className="w-56"
+                >
+                  <option value="all">Alle semesters</option>
+                  <option value="unassigned">Zonder semester</option>
+                  {sortedSemesters.map((semester) => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
           <Button className="bg-indigo-600 text-white" onClick={onLogout}>
             Uitloggen
           </Button>
@@ -807,6 +1032,71 @@ export default function Admin({ onLogout = () => {} }) {
         </div>
       )}
 
+      {page === 'manage-semesters' && (
+        <Card title="Semesters beheren">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex gap-2">
+              <TextInput
+                value={newSemesterName}
+                onChange={setNewSemesterName}
+                placeholder="Naam (bijv. Semester 1 - 2024)"
+              />
+              <Button
+                className="bg-indigo-600 text-white"
+                disabled={!newSemesterName.trim()}
+                onClick={() => {
+                  addSemester(newSemesterName);
+                  setNewSemesterName('');
+                }}
+              >
+                Voeg toe
+              </Button>
+            </div>
+            {sortedSemesters.length === 0 ? (
+              <p className="text-sm text-neutral-500">Nog geen semesters.</p>
+            ) : (
+              <ul className="space-y-2">
+                {sortedSemesters.map((semester) => {
+                  const studentCount = students.filter(
+                    (s) => String(s.semesterId || '') === String(semester.id)
+                  ).length;
+                  const groupCount = groups.filter(
+                    (g) => String(g.semesterId || '') === String(semester.id)
+                  ).length;
+                  return (
+                    <li key={semester.id} className="flex items-center gap-2">
+                      <span className="flex-1 font-medium">{semester.name}</span>
+                      <span className="text-xs text-neutral-500">
+                        {studentCount} studenten · {groupCount} groepen
+                      </span>
+                      <Button
+                        className="bg-gray-500 text-white text-xs px-2 py-1"
+                        onClick={() => {
+                          const newName = window.prompt(
+                            'Nieuwe semesternaam:',
+                            semester.name
+                          );
+                          if (newName && newName.trim() && newName.trim() !== semester.name) {
+                            renameSemester(semester.id, newName);
+                          }
+                        }}
+                      >
+                        ✏️
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {(unassignedStudentCount > 0 || unassignedGroupCount > 0) && (
+              <p className="text-xs text-neutral-500">
+                Zonder semester: {unassignedStudentCount} studenten · {unassignedGroupCount} groepen
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
+
       {page === 'manage-students' && (
         <Card title="Studenten beheren">
           <div className="grid grid-cols-1 gap-2">
@@ -823,7 +1113,11 @@ export default function Admin({ onLogout = () => {} }) {
             )}
             <Button
               className="bg-indigo-600 text-white"
-              disabled={!newStudent.trim() || (newStudentEmail.trim() !== '' && !emailValid(newStudentEmail))}
+              disabled={
+                !newStudent.trim() ||
+                (newStudentEmail.trim() !== '' && !emailValid(newStudentEmail)) ||
+                (hasSemesters && !activeSemesterId)
+              }
               onClick={() => {
                 const name = newStudent.trim();
                 const email = newStudentEmail.trim();
@@ -844,7 +1138,7 @@ export default function Admin({ onLogout = () => {} }) {
               <option value="group">Sorteer op groepspunten</option>
             </Select>
             <ul className="mt-4 space-y-2">
-              {students
+              {semesterStudents
                 .slice()
                 .sort((a, b) => {
                   if (studentSort === 'individual') {
@@ -858,6 +1152,10 @@ export default function Admin({ onLogout = () => {} }) {
                 .map((s) => {
                   const ind = individualStats.get(s.id);
                   const grp = groupStats.get(s.groupId);
+                  const groupsForStudent = semesterGroups.filter((g) => {
+                    if (!s.semesterId) return !g.semesterId;
+                    return String(g.semesterId || '') === String(s.semesterId);
+                  });
                   return (
                     <li key={s.id} className="flex items-center gap-2">
                       <span className="flex-1">{s.name}</span>
@@ -868,12 +1166,24 @@ export default function Admin({ onLogout = () => {} }) {
                         {grp ? `${Math.round(grp.total)} (${grp.rank})` : '—'}
                       </span>
                       <Select
+                        value={s.semesterId || ''}
+                        onChange={(val) => updateStudentSemester(s.id, val)}
+                        className="w-48"
+                      >
+                        <option value="">Geen semester</option>
+                        {sortedSemesters.map((semester) => (
+                          <option key={semester.id} value={semester.id}>
+                            {semester.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <Select
                         value={s.groupId || ''}
                         onChange={(val) => updateStudentGroup(s.id, val)}
                         className="w-40"
                       >
                         <option value="">Geen</option>
-                        {groups.map((g) => (
+                        {groupsForStudent.map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.name}
                           </option>
@@ -914,7 +1224,7 @@ export default function Admin({ onLogout = () => {} }) {
               />
               <Button
                 className="bg-indigo-600 text-white"
-                disabled={!newGroup.trim()}
+                disabled={!newGroup.trim() || (hasSemesters && !activeSemesterId)}
                 onClick={() => {
                   addGroup(newGroup.trim());
                   setNewGroup('');
@@ -924,8 +1234,13 @@ export default function Admin({ onLogout = () => {} }) {
               </Button>
             </div>
             <ul className="space-y-4">
-              {groups.map((g) => {
-                const members = students.filter((s) => s.groupId === g.id);
+              {semesterGroups.map((g) => {
+                const members = semesterStudents.filter((s) => s.groupId === g.id);
+                const eligibleStudents = semesterStudents.filter((s) => {
+                  if (s.groupId === g.id) return false;
+                  if (!g.semesterId) return !s.semesterId;
+                  return String(s.semesterId || '') === String(g.semesterId);
+                });
                 return (
                   <li key={g.id} className="border rounded p-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -978,13 +1293,11 @@ export default function Admin({ onLogout = () => {} }) {
                       className="mt-2"
                     >
                       <option value="">Voeg student toe…</option>
-                      {students
-                        .filter((s) => s.groupId !== g.id)
-                        .map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
+                      {eligibleStudents.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
                     </Select>
                   </li>
                 );
@@ -999,7 +1312,7 @@ export default function Admin({ onLogout = () => {} }) {
           <div className="grid grid-cols-1 gap-2">
             <Select value={badgeStudentId} onChange={setBadgeStudentId} className="max-w-xs">
               <option value="">Kies student…</option>
-              {students.map((s) => (
+              {semesterStudents.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -1237,7 +1550,7 @@ export default function Admin({ onLogout = () => {} }) {
               <label className="text-sm">Doel</label>
               {awardType === 'student' ? (
                 <Select multiple value={awardStudentIds} onChange={setAwardStudentIds} className="h-32">
-                  {students.map((s) => (
+                  {semesterStudents.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -1245,7 +1558,7 @@ export default function Admin({ onLogout = () => {} }) {
                 </Select>
               ) : (
                 <Select value={awardGroupId} onChange={setAwardGroupId}>
-                  {groups.map((g) => (
+                  {semesterGroups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}
                     </option>
@@ -1316,7 +1629,11 @@ export default function Admin({ onLogout = () => {} }) {
                 </p>
               </div>
               <div className="flex gap-2 md:col-span-3">
-                <Button className="bg-indigo-600 text-white" onClick={addPeerEvent}>
+                <Button
+                  className="bg-indigo-600 text-white"
+                  onClick={addPeerEvent}
+                  disabled={hasSemesters && !activeSemesterId}
+                >
                   Event aanmaken
                 </Button>
                 <Button
@@ -1334,7 +1651,7 @@ export default function Admin({ onLogout = () => {} }) {
 
             <div>
               <h3 className="text-sm font-semibold mb-2">Events</h3>
-              {peerEvents.length === 0 ? (
+              {semesterPeerEvents.length === 0 ? (
                 <p className="text-sm text-neutral-500">Nog geen events.</p>
               ) : (
                 <table className="w-full text-sm">
@@ -1349,7 +1666,7 @@ export default function Admin({ onLogout = () => {} }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {peerEvents.map((event) => (
+                    {semesterPeerEvents.map((event) => (
                       <tr key={event.id} className="border-b last:border-0">
                         <td className="py-1 pr-2">
                           <input
@@ -1527,12 +1844,12 @@ export default function Admin({ onLogout = () => {} }) {
             <Button
               className="bg-indigo-600 text-white"
               onClick={addMeeting}
-              disabled={!newMeetingDate || !newMeetingTitle}
+              disabled={!newMeetingDate || !newMeetingTitle || (hasSemesters && !activeSemesterId)}
             >
               Bijeenkomst toevoegen
             </Button>
             <div className="space-y-2">
-              {meetings.map((m) => (
+              {semesterMeetings.map((m) => (
                 <div key={m.id} className="border rounded p-4">
                   <div className="flex justify-between items-center">
                     <div>
@@ -1548,7 +1865,7 @@ export default function Admin({ onLogout = () => {} }) {
                     <div className="mt-4">
                       <h4 className="font-semibold">Aanwezigheid voor {m.title}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                        {students.map((s) => {
+                        {semesterStudents.map((s) => {
                           const att = attendanceForMeeting.find((a) => a.student_id === s.id);
                           return (
                             <label key={s.id} className="flex items-center gap-2">
@@ -1605,7 +1922,7 @@ export default function Admin({ onLogout = () => {} }) {
               <label className="text-sm">Student</label>
               <Select value={previewId} onChange={setPreviewId}>
                 <option value="">— Kies student —</option>
-                {students.map((s) => (
+                {semesterStudents.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} ({s.email || s.id})
                   </option>

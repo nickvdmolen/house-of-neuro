@@ -124,6 +124,7 @@ const COLLECTIONS = [
   'peer_awards',
   'peer_events',
   'peer_moments',
+  'semesters',
   'students',
   'teachers',
 ];

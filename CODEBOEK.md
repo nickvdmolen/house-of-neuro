@@ -60,6 +60,7 @@ Laatst bijgewerkt: 10 januari 2026
   name: string,         // Naam
   email: string,        // @student.nhlstenden.com
   password: string,     // bcrypt hash
+  semesterId?: string,  // Referentie naar semester.id
   groupId: string|null, // Referentie naar group.id
   points: number,       // Individuele punten
   badges: string[],     // Array van badge IDs
@@ -78,7 +79,7 @@ Laatst bijgewerkt: 10 januari 2026
   resetToken?: string,  // Optioneel: voor wachtwoord reset
   tempCode?: string,    // Optioneel: tijdelijke login code
   lastWeekRewarded?: string,   // Laatste week (YYYY-W##) waarvoor streak bonus is gegeven
-  showRankPublic?: boolean     // Toon positie op leaderboard voor anderen
+  showRankPublic?: boolean     // Toon positie op leaderboard voor anderen (opt-out)
 }
 ```
 
@@ -87,7 +88,16 @@ Laatst bijgewerkt: 10 januari 2026
 {
   id: string,      // UUID
   name: string,    // Groepsnaam
+  semesterId?: string, // Referentie naar semester.id
   points: number   // Groepsbonus punten
+}
+```
+
+### Semester
+```javascript
+{
+  id: string,   // UUID
+  name: string  // Naam (bijv. Semester 1 - 2024)
 }
 ```
 
@@ -98,6 +108,7 @@ Laatst bijgewerkt: 10 januari 2026
   ts: string,       // ISO timestamp
   target: string,   // 'student' of 'group'
   target_id: string,// ID van student of group
+  semesterId?: string, // Referentie naar semester.id
   amount: number,   // Punten (+/-)
   reason: string    // Reden
 }
@@ -121,6 +132,7 @@ Laatst bijgewerkt: 10 januari 2026
   time: string,        // HH:MM (optioneel)
   type: string,        // 'lecture', 'workshop', 'seminar', etc.
   title: string,       // Titel van de bijeenkomst
+  semesterId?: string, // Referentie naar semester.id
   created_by: string,  // Teacher ID die het aanmaakte
   created_at: string   // ISO timestamp
 }
@@ -147,6 +159,7 @@ Laatst bijgewerkt: 10 januari 2026
   event_title?: string,  // Event titel bij toekenning
   target: string,        // 'student', 'group' of 'class'
   target_id: string,     // Student ID, group ID of 'class'
+  semesterId?: string,   // Referentie naar semester.id
   amount: number,        // Punten per student
   total_amount: number,  // Totaal vergeven punten (amount × recipients)
   reason: string,        // Reden
@@ -164,6 +177,7 @@ Laatst bijgewerkt: 10 januari 2026
   active: boolean,    // Actief/inactief
   allowOwnGroup: boolean,   // Eigen groep toegestaan
   allowOtherGroups: boolean,// Andere groepen toegestaan
+  semesterId?: string, // Referentie naar semester.id
   created_at: string  // ISO timestamp
 }
 ```
@@ -213,7 +227,7 @@ Gedefinieerd in `src/bingoData.js`:
 | PUT | `/api/:collection` | Teacher* | Update data |
 | POST | `/api/send-reset` | - | Verstuur reset email |
 
-Collections: `awards`, `attendance`, `badge_defs`, `groups`, `meetings`, `peer_awards`, `peer_events`, `students`, `teachers`
+Collections: `awards`, `attendance`, `badge_defs`, `groups`, `meetings`, `peer_awards`, `peer_events`, `semesters`, `students`, `teachers`
 
 *Studenten mogen `students` POST/PUT gebruiken voor eigen registratie.*
 
@@ -264,7 +278,7 @@ SERVER_PORT=3001
 - **Groepen**: `avgIndiv + bonus`
   - `avgIndiv` = gemiddelde punten van groepsleden
   - `bonus` = `group.points`
-- **Privacy**: Iedereen ziet top 3 + eigen positie; studenten met `showRankPublic` verschijnen ook in de lijst van anderen.
+- **Privacy**: Iedereen ziet top 3 + eigen positie; studenten zijn zichtbaar tenzij `showRankPublic` uit staat.
 
 ---
 
@@ -426,7 +440,7 @@ Toegevoegd op: 8 januari 2026
 ---
 
 ## 🧯 Backup & Herstel
-- Backup bevat `students`, `groups`, `awards`, `badges`, `teachers`, `meetings`, `attendance`, `peerAwards` en `peerEvents`
+- Backup bevat `students`, `groups`, `semesters`, `awards`, `badges`, `teachers`, `meetings`, `attendance`, `peerAwards` en `peerEvents`
 - Herstel zet deze datasets terug en meldt welke onderdelen zijn mislukt
 
 ---

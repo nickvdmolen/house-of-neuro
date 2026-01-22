@@ -11,7 +11,7 @@ const toDate = (value) => {
 
 const MAX_STREAK_FREEZES = 2;
 
-export default function useStreaks(studentId) {
+export default function useStreaks(studentId, semesterId) {
   const [meetings, , { refetch: refetchMeetings }] = useMeetings();
   const [attendance, , { refetch: refetchAttendance }] = useAttendance();
 
@@ -26,7 +26,10 @@ export default function useStreaks(studentId) {
   );
 
   const streaks = useMemo(() => {
-    if (!studentId || !meetings.length) {
+    const scopedMeetings = semesterId
+      ? meetings.filter((m) => String(m?.semesterId || '') === String(semesterId))
+      : meetings;
+    if (!studentId || !scopedMeetings.length) {
       return {
         current: 0,
         longest: 0,
@@ -46,7 +49,7 @@ export default function useStreaks(studentId) {
 
     // Sort meetings by date
     const now = new Date();
-    const sortedMeetings = [...meetings]
+    const sortedMeetings = [...scopedMeetings]
       .map((m) => ({ ...m, __date: m?.date ? toDate(m.date) : null }))
       .filter((m) => m.__date && m.__date <= now)
       .sort((a, b) => a.__date - b.__date);
@@ -134,7 +137,7 @@ export default function useStreaks(studentId) {
       freezeUsed: frozenAbsenceIds.size,
       freezeRemaining: Math.max(MAX_STREAK_FREEZES - frozenAbsenceIds.size, 0),
     };
-  }, [studentId, meetings, studentAttendance]);
+  }, [studentId, meetings, studentAttendance, semesterId]);
 
   return { ...streaks, refresh };
 }

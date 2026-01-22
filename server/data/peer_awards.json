@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "id": "69c2cea0-4904-47c0-b592-22ae1956ee2d",
+    "ts": "2026-01-19T09:50:04.570Z",
+    "from_student_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "event_id": "a769d3ba-1bba-4352-a148-f8a235028fc4",
+    "event_title": "Peer feedback",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "amount": 20,
+    "total_amount": 20,
+    "reason": "toffe peer",
+    "recipients": [
+      "ae1ee1ee-b651-488f-9d02-54b85a4b9a39"
+    ]
+  }
+]

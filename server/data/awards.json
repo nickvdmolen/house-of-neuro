@@ -1,5 +1,37 @@
 [
   {
+    "id": "d890fd61-6121-49b4-9959-0e9559f39b9a",
+    "ts": "2026-01-19T09:50:04.570Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "amount": 20,
+    "reason": "Peer punten (Peer feedback) van Student1: toffe peer"
+  },
+  {
+    "id": "b35a8697-ce08-4d7a-9c8a-fcb4c19778f5",
+    "ts": "2026-01-19T09:45:08.980Z",
+    "target": "student",
+    "target_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "amount": 50,
+    "reason": "Badge behaald: Namen badge"
+  },
+  {
+    "id": "3d01d411-d65a-4d26-8429-9d4089a9f059",
+    "ts": "2026-01-19T09:45:08.332Z",
+    "target": "student",
+    "target_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "amount": 50,
+    "reason": "Badge behaald: Meeting with commissioner"
+  },
+  {
+    "id": "c57fb496-7e2d-424c-921f-8b0b02a5fe3d",
+    "ts": "2026-01-19T09:45:07.261Z",
+    "target": "student",
+    "target_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "amount": 50,
+    "reason": "Badge behaald: Facereader"
+  },
+  {
     "id": "72eee6e4-d6ce-4ed9-be8c-2bb396375b6e",
     "ts": "2026-01-16T09:02:25.387Z",
     "target": "student",

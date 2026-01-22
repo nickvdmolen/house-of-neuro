@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "a769d3ba-1bba-4352-a148-f8a235028fc4",
+    "title": "Peer feedback",
+    "description": "om jullie te treiteren",
+    "budget": 20,
+    "active": true,
+    "allowOwnGroup": true,
+    "allowOtherGroups": true,
+    "created_at": "2026-01-19T09:48:19.505Z"
+  }
+]

@@ -59,7 +59,7 @@ async function migrateTable(tableName) {
 async function main() {
   console.log('🚀 Starting migration from local JSON to Supabase...\n');
 
-  const tables = ['students', 'groups', 'awards', 'badge_defs', 'teachers'];
+  const tables = ['students', 'groups', 'semesters', 'awards', 'badge_defs', 'teachers'];
 
   for (const table of tables) {
     await migrateTable(table);

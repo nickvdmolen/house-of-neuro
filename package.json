@@ -25,7 +25,7 @@
   "scripts": {
     "build": "react-app-rewired build",
     "prestart": "pkill node || true && lsof -ti:3000,3001 | xargs kill -9 || true",
-    "start": "ESLINT_NO_DEV_ERRORS=true DISABLE_ESLINT_PLUGIN=true concurrently \"react-app-rewired start\" \"node server.js\"",
+    "start": "ESLINT_NO_DEV_ERRORS=true DISABLE_ESLINT_PLUGIN=true DANGEROUSLY_DISABLE_HOST_CHECK=true concurrently \"react-app-rewired start\" \"node server.js\"",
     "server": "node server.js"
   },
   "browserslist": {

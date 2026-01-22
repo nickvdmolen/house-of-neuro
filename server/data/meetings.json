@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "id": "b780bd47-09ee-432f-9142-e42bd20c8f23",
+    "date": "2026-01-19",
+    "time": "09:00",
+    "title": "Theorie Basis",
+    "type": "lecture",
+    "created_by": "admin"
+  }
+]

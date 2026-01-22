@@ -25,13 +25,14 @@ REACT_APP_API_BASE=/api
 ```
 
 ## Database setup
-Use the SQL in [`supabase-schema.sql`](./supabase-schema.sql) in the Supabase SQL editor to create the required tables and seed badge definitions. The tables store all students, groups, awards, teachers and badges. Authentication for both students and teachers is performed against these tables.
+Use the SQL in [`supabase-schema.sql`](./supabase-schema.sql) in the Supabase SQL editor to create the required tables and seed badge definitions. The tables store all students, groups, semesters, awards, teachers and badges. Authentication for both students and teachers is performed against these tables.
 
 The `students` table must include:
 - `bingo` (jsonb)
 - `bingoMatches` (jsonb)
 - `lastWeekRewarded` (text)
-- `showRankPublic` (boolean)
+- `showRankPublic` (boolean, default true)
+- `semesterId` (text)
 
 If you already have a Supabase project, run the `ALTER TABLE` lines at the bottom of `supabase-schema.sql` to add these columns.
 

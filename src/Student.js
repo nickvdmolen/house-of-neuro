@@ -19,6 +19,7 @@ import useStreaks from './hooks/useStreaks';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
+import useSemesters from './hooks/useSemesters';
 
 const WEEKLY_STREAK_POINTS = 50;
 const DATA_POLL_MS = 5000;
@@ -92,12 +93,27 @@ export default function Student({
   ] = usePeerAwards();
   const [peerEvents, , { refetch: refetchPeerEvents }] = usePeerEvents();
   const [appSettings, , { refetch: refetchAppSettings }] = useAppSettings();
+  const [semesters] = useSemesters();
 
   const inPreview = previewStudentId !== undefined;
   const activeStudentId = inPreview ? previewStudentId : selectedStudentId;
   const bgPosClass = inPreview ? 'absolute' : 'fixed';
 
-  const myStreaks = useStreaks(activeStudentId);
+  const sortedSemesters = useMemo(
+    () => [...semesters].sort((a, b) => nameCollator.compare(a?.name || '', b?.name || '')),
+    [semesters]
+  );
+  const hasSemesters = sortedSemesters.length > 0;
+  const semesterById = useMemo(() => {
+    const m = new Map();
+    sortedSemesters.forEach((semester) => m.set(semester.id, semester));
+    return m;
+  }, [sortedSemesters]);
+
+  const me = students.find((s) => s.id === activeStudentId) || null;
+  const activeSemesterId = hasSemesters ? me?.semesterId || null : null;
+
+  const myStreaks = useStreaks(activeStudentId, activeSemesterId);
   const [attendanceRefresh, setAttendanceRefresh] = useState(0);
   const weekPercent = useMemo(() => {
     if (!myStreaks.weekTotal) return 0;
@@ -154,20 +170,37 @@ export default function Student({
     peerAwardsDirty,
   ]);
 
+  const semesterStudents = useMemo(() => {
+    if (!hasSemesters || !activeSemesterId) return students;
+    return students.filter(
+      (s) => String(s.semesterId || '') === String(activeSemesterId)
+    );
+  }, [students, hasSemesters, activeSemesterId]);
+
+  const semesterGroups = useMemo(() => {
+    if (!hasSemesters || !activeSemesterId) return groups;
+    return groups.filter(
+      (g) => String(g.semesterId || '') === String(activeSemesterId)
+    );
+  }, [groups, hasSemesters, activeSemesterId]);
+
   const groupById = useMemo(() => {
     const m = new Map();
-    for (const g of groups) m.set(g.id, g);
+    for (const g of semesterGroups) m.set(g.id, g);
     return m;
-  }, [groups]);
+  }, [semesterGroups]);
 
-  const individualLeaderboard = useMemo(() => getIndividualLeaderboard(students), [students]);
-
-  const groupLeaderboard = useMemo(
-    () => getGroupLeaderboard(groups, students),
-    [groups, students]
+  const individualLeaderboard = useMemo(
+    () => getIndividualLeaderboard(semesterStudents),
+    [semesterStudents]
   );
 
-  const addStudent = useCallback(async (name, email, password = '') => {
+  const groupLeaderboard = useMemo(
+    () => getGroupLeaderboard(semesterGroups, semesterStudents),
+    [semesterGroups, semesterStudents]
+  );
+
+  const addStudent = useCallback(async (name, email, password = '', semesterId = null) => {
     const id = genId();
     const hashedPassword = password ? hashPassword(password) : '';
     setStudents((prev) => [
@@ -177,12 +210,13 @@ export default function Student({
         name,
         email: email || undefined,
         password: hashedPassword,
+        semesterId: semesterId || null,
         groupId: null,
         points: 0,
         badges: [],
         photo: '',
         bingoMatches: {},
-        showRankPublic: false,
+        showRankPublic: true,
       }
     ]);
     const { error } = await saveStudents();
@@ -204,7 +238,6 @@ export default function Student({
     }
   }, [students, selectedStudentId, setSelectedStudentId, inPreview, studentsLoaded]);
 
-  const me = students.find((s) => s.id === activeStudentId) || null;
   const myGroup = me && me.groupId ? groupById.get(me.groupId) || null : null;
   const myBadges = me?.badges || [];
   const bingoHintsEnabled = Boolean(appSettings?.bingoHintsEnabled);
@@ -219,6 +252,7 @@ export default function Student({
       ts: new Date().toISOString(),
       target: 'student',
       target_id: activeStudentId,
+      semesterId: activeSemesterId || null,
       amount: WEEKLY_STREAK_POINTS,
       reason: `Aanwezigheidsstreak ${myStreaks.prevWeekKey}`,
     };
@@ -310,7 +344,10 @@ export default function Student({
   }, [recentBadges]);
 
   const bingoMatches = me?.bingoMatches || null;
-  const bingoAnswerIndex = useMemo(() => buildBingoAnswerIndex(students), [students]);
+  const bingoAnswerIndex = useMemo(
+    () => buildBingoAnswerIndex(semesterStudents),
+    [semesterStudents]
+  );
 
   const bingoFilled = useMemo(() => {
     if (!bingoMatches) return bingoQuestionKeys.map(() => false);
@@ -350,7 +387,7 @@ export default function Student({
   const { topLeaderboardRows, extraLeaderboardRows } = useMemo(() => {
     const topRows = individualLeaderboard.slice(0, 3);
     const extraRows = individualLeaderboard.filter(
-      (row) => row.rank > 3 && (row.id === activeStudentId || row.showRankPublic)
+      (row) => row.rank > 3 && (row.id === activeStudentId || row.showRankPublic !== false)
     );
     return { topLeaderboardRows: topRows, extraLeaderboardRows: extraRows };
   }, [individualLeaderboard, activeStudentId]);
@@ -361,7 +398,7 @@ export default function Student({
   const [profilePassword, setProfilePassword] = useState('');
   const [profilePassword2, setProfilePassword2] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
-  const [profileShowRank, setProfileShowRank] = useState(false);
+  const [profileShowRank, setProfileShowRank] = useState(true);
 
   const [lastSeenBadgeCount, setLastSeenBadgeCount] = useState(0);
 
@@ -391,7 +428,7 @@ export default function Student({
       setProfilePassword('');
       setProfilePassword2('');
       setProfilePhoto(me.photo || '');
-      setProfileShowRank(Boolean(me.showRankPublic));
+      setProfileShowRank(me.showRankPublic !== false);
     }
   }, [showProfile, me]);
 
@@ -437,12 +474,17 @@ export default function Student({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [loginSemesterId, setLoginSemesterId] = useState('');
   const [resetStudent, setResetStudent] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [newPassword2, setNewPassword2] = useState('');
 
   const handleLogin = async () => {
     if (!emailValid(loginEmail)) return;
+    if (hasSemesters && !loginSemesterId) {
+      setLoginError('Kies je semester.');
+      return;
+    }
     const normEmail = loginEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
@@ -466,10 +508,33 @@ export default function Student({
           }
         }
         if (ok) {
-        setSelectedStudentId(existing.id);
-        setLoginEmail('');
-        setLoginPassword('');
-        setLoginError('');
+          if (hasSemesters && loginSemesterId) {
+            if (
+              existing.semesterId &&
+              String(existing.semesterId) !== String(loginSemesterId)
+            ) {
+              const accountSemester =
+                semesterById.get(existing.semesterId)?.name || 'het juiste semester';
+              setLoginError(`Je account hoort bij ${accountSemester}.`);
+              return;
+            }
+            if (!existing.semesterId) {
+              setStudents((prev) =>
+                prev.map((s) =>
+                  s.id === existing.id ? { ...s, semesterId: loginSemesterId } : s
+                )
+              );
+              const { error } = await saveStudents();
+              if (error) {
+                setLoginError('Kon semester niet opslaan.');
+                return;
+              }
+            }
+          }
+          setSelectedStudentId(existing.id);
+          setLoginEmail('');
+          setLoginPassword('');
+          setLoginError('');
         } else {
           setLoginError('Onjuist wachtwoord of code.');
         }
@@ -484,6 +549,14 @@ export default function Student({
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPassword2, setSignupPassword2] = useState('');
   const [signupError, setSignupError] = useState('');
+  const [signupSemesterId, setSignupSemesterId] = useState('');
+
+  useEffect(() => {
+    if (sortedSemesters.length !== 1) return;
+    const onlyId = sortedSemesters[0].id;
+    if (!loginSemesterId) setLoginSemesterId(onlyId);
+    if (!signupSemesterId) setSignupSemesterId(onlyId);
+  }, [sortedSemesters, loginSemesterId, signupSemesterId]);
 
   const [peerEventId, setPeerEventId] = useState('');
   const [peerAllocations, setPeerAllocations] = useState({});
@@ -499,13 +572,20 @@ export default function Student({
     return new Set(ids);
   }, [peerAwards, activeStudentId]);
 
+  const semesterPeerEvents = useMemo(() => {
+    if (!hasSemesters || !activeSemesterId) return peerEvents;
+    return peerEvents.filter(
+      (event) => String(event.semesterId || '') === String(activeSemesterId)
+    );
+  }, [peerEvents, hasSemesters, activeSemesterId]);
+
   const activePeerEvents = useMemo(
     () =>
-      peerEvents.filter(
+      semesterPeerEvents.filter(
         (event) =>
           event?.active !== false && !completedPeerEventIds.has(String(event.id))
       ),
-    [peerEvents, completedPeerEventIds]
+    [semesterPeerEvents, completedPeerEventIds]
   );
 
   useEffect(() => {
@@ -554,7 +634,7 @@ export default function Student({
   const eligibleStudents = useMemo(() => {
     if (!recipientScope) return [];
     const myGroupId = me?.groupId ?? null;
-    return students
+    return semesterStudents
       .filter((s) => {
         if (s.id === activeStudentId) return false;
         if (recipientScope === 'all') return true;
@@ -565,25 +645,25 @@ export default function Student({
         return recipientScope === 'own_group' ? isOwn : !isOwn;
       })
       .sort((a, b) => nameCollator.compare(a.name || '', b.name || ''));
-  }, [students, me?.groupId, activeStudentId, recipientScope]);
+  }, [semesterStudents, me?.groupId, activeStudentId, recipientScope]);
 
   const eligibleAwardGroups = useMemo(() => {
     if (recipientScope !== 'other_groups') return [];
     const myGroupId = me?.groupId ?? null;
-    return groups
+    return semesterGroups
       .filter((g) => g.id !== myGroupId)
       .sort((a, b) => nameCollator.compare(a.name || '', b.name || ''));
-  }, [groups, me?.groupId, recipientScope]);
+  }, [semesterGroups, me?.groupId, recipientScope]);
 
   const groupMemberCounts = useMemo(() => {
     const counts = new Map();
-    students.forEach((s) => {
+    semesterStudents.forEach((s) => {
       if (s.groupId) {
         counts.set(s.groupId, (counts.get(s.groupId) || 0) + 1);
       }
     });
     return counts;
-  }, [students]);
+  }, [semesterStudents]);
 
   const eligibleAwardGroupsWithMembers = useMemo(
     () =>
@@ -662,6 +742,16 @@ export default function Student({
       ),
     [allocationItems, peerAllocations]
   );
+  const hasMissingReasons = useMemo(
+    () =>
+      allocationItems.some((item) => {
+        const entry = peerAllocations[item.id] || {};
+        const amount = Number(entry.amount) || 0;
+        if (!Number.isFinite(amount) || amount <= 0) return false;
+        return !(entry.reason || '').trim();
+      }),
+    [allocationItems, peerAllocations]
+  );
 
   const updateAllocationAmount = useCallback((id, rawValue) => {
     const parsed = Math.floor(Number(rawValue) || 0);
@@ -706,6 +796,11 @@ export default function Student({
     )
       return;
 
+    if (hasSemesters && !signupSemesterId) {
+      setSignupError('Kies je semester.');
+      return;
+    }
+
     if (signupPassword !== signupPassword2) {
       setSignupError('Wachtwoorden komen niet overeen.');
       return;
@@ -716,7 +811,12 @@ export default function Student({
     if (existing) {
       setSignupError('E-mailadres bestaat al.');
     } else {
-      const newId = await addStudent(signupName.trim(), normEmail, signupPassword);
+      const newId = await addStudent(
+        signupName.trim(),
+        normEmail,
+        signupPassword,
+        signupSemesterId || null
+      );
       if (!newId) return;
       setSelectedStudentId(newId);
       setSignupEmail('');
@@ -791,11 +891,12 @@ export default function Student({
           ts,
           target: 'group',
           target_id: item.id,
+          semesterId: activeSemesterId || null,
           amount: item.totalAmount,
           reason: awardReason,
         });
         groupBonus.set(item.id, (groupBonus.get(item.id) || 0) + item.totalAmount);
-        const recipients = students
+        const recipients = semesterStudents
           .filter((s) => s.groupId === item.id)
           .map((s) => s.id);
         peerAwardEntries.push({
@@ -806,6 +907,7 @@ export default function Student({
           event_title: selectedPeerEvent.title,
           target: 'group',
           target_id: item.id,
+          semesterId: activeSemesterId || null,
           amount: item.amount,
           total_amount: item.totalAmount,
           reason: item.reason,
@@ -828,6 +930,7 @@ export default function Student({
           ts,
           target: 'student',
           target_id: item.id,
+          semesterId: activeSemesterId || null,
           amount: item.amount,
           reason: awardReason,
         });
@@ -840,6 +943,7 @@ export default function Student({
           event_title: selectedPeerEvent.title,
           target: 'student',
           target_id: item.id,
+          semesterId: activeSemesterId || null,
           amount: item.amount,
           total_amount: item.amount,
           reason: item.reason,
@@ -1020,6 +1124,19 @@ export default function Student({
                 <Card title="Log in">
                   <div className="grid grid-cols-1 gap-4">
                     <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
+                    {hasSemesters && (
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Semester</label>
+                        <Select value={loginSemesterId} onChange={setLoginSemesterId}>
+                          <option value="">Kies semester...</option>
+                          {sortedSemesters.map((semester) => (
+                            <option key={semester.id} value={semester.id}>
+                              {semester.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    )}
                     <TextInput
                       type="password"
                       value={loginPassword}
@@ -1033,7 +1150,12 @@ export default function Student({
                     {loginError && <div className="text-sm text-rose-600">{loginError}</div>}
                     <Button
                       className="bg-indigo-600 text-white"
-                      disabled={!loginEmail.trim() || !emailValid(loginEmail) || !loginPassword.trim()}
+                      disabled={
+                        !loginEmail.trim() ||
+                        !emailValid(loginEmail) ||
+                        !loginPassword.trim() ||
+                        (hasSemesters && !loginSemesterId)
+                      }
                       onClick={handleLogin}
                     >
                       Log in
@@ -1064,6 +1186,19 @@ export default function Student({
                       }}
                       placeholder="E-mail (@student.nhlstenden.com)"
                     />
+                    {hasSemesters && (
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Semester</label>
+                        <Select value={signupSemesterId} onChange={setSignupSemesterId}>
+                          <option value="">Kies semester...</option>
+                          {sortedSemesters.map((semester) => (
+                            <option key={semester.id} value={semester.id}>
+                              {semester.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    )}
                     {signupEmail && !emailValid(signupEmail) && (
                       <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
                     )}
@@ -1088,7 +1223,8 @@ export default function Student({
                         !signupName.trim() ||
                         !emailValid(signupEmail) ||
                         !signupPassword.trim() ||
-                        signupPassword !== signupPassword2
+                        signupPassword !== signupPassword2 ||
+                        (hasSemesters && !signupSemesterId)
                       }
                       onClick={handleSignup}
                     >
@@ -1153,7 +1289,7 @@ export default function Student({
                       checked={profileShowRank}
                       onChange={(e) => setProfileShowRank(e.target.checked)}
                     />
-                    <span>Ik vind het prima dat anderen mijn positie zien op het leaderboard.</span>
+                    <span>Toon mijn positie op het leaderboard.</span>
                   </label>
                   <div className="flex gap-2">
                     <Button

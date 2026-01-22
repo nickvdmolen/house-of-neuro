@@ -96,20 +96,28 @@ const hasAllAnswersFilled = (studentData) => {
 export default function Bingo({ selectedStudentId, previewMode = false }) {
   const [students, setStudents, { save: saveStudents }] = useStudents();
 
-  const studentAnswers = useMemo(() => {
-    const map = {};
-    const emptyBingo = createEmptyMatches();
-    for (const s of students) {
-      const bingo = s.bingo || emptyBingo;
-      map[s.id] = { name: s.name, ...bingo };
-    }
-    return map;
-  }, [students]);
-
   const activeStudentRecord = useMemo(
     () => students.find((s) => s.id === selectedStudentId) || null,
     [students, selectedStudentId]
   );
+  const activeSemesterId = activeStudentRecord?.semesterId || null;
+
+  const semesterStudents = useMemo(() => {
+    if (!activeSemesterId) return students;
+    return students.filter(
+      (s) => String(s.semesterId || '') === String(activeSemesterId)
+    );
+  }, [students, activeSemesterId]);
+
+  const studentAnswers = useMemo(() => {
+    const map = {};
+    const emptyBingo = createEmptyMatches();
+    for (const s of semesterStudents) {
+      const bingo = s.bingo || emptyBingo;
+      map[s.id] = { name: s.name, ...bingo };
+    }
+    return map;
+  }, [semesterStudents]);
 
   const studentIds = useMemo(() => Object.keys(studentAnswers), [studentAnswers]);
 
