@@ -1,5 +1,77 @@
 [
   {
+    "id": "f78deebe-7475-4a6d-9c3f-87b29b4580ad",
+    "ts": "2026-01-22T08:49:23.097Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Project"
+  },
+  {
+    "id": "c1c5c797-89ae-4e4d-9799-200230a2ed47",
+    "ts": "2026-01-22T08:49:22.586Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Namen badge"
+  },
+  {
+    "id": "49a49a9b-7b9f-4054-9715-8822ff87fc05",
+    "ts": "2026-01-22T08:49:21.530Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Meeting with commissioner"
+  },
+  {
+    "id": "83f66d99-bf44-422a-b53a-07ea5970408f",
+    "ts": "2026-01-22T08:49:17.650Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Homework"
+  },
+  {
+    "id": "3d27704b-6a03-42d1-8154-bc7c16a6a7c2",
+    "ts": "2026-01-22T08:49:16.652Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Lunch"
+  },
+  {
+    "id": "93e0a3e5-1756-443f-8cd5-5edf7395a9a4",
+    "ts": "2026-01-22T08:49:15.979Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Kennistoets"
+  },
+  {
+    "id": "499c95f8-ee0f-4fcb-b6d4-bae35ed22014",
+    "ts": "2026-01-22T08:49:15.394Z",
+    "target": "student",
+    "target_id": "ae1ee1ee-b651-488f-9d02-54b85a4b9a39",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "amount": 50,
+    "reason": "Badge behaald: Groepsnaam & mascotte"
+  },
+  {
+    "id": "a4f8355a-fd37-4361-a242-3812971557ee",
+    "ts": "2026-01-22T08:49:01.706Z",
+    "target": "student",
+    "target_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "semesterId": null,
+    "amount": 50,
+    "reason": "Badge behaald: Experiment"
+  },
+  {
     "id": "d890fd61-6121-49b4-9959-0e9559f39b9a",
     "ts": "2026-01-19T09:50:04.570Z",
     "target": "student",

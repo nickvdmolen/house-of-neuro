@@ -5,12 +5,13 @@
     "email": "student1@student.nhlstenden.com",
     "password": "$2a$10$6PuqtQYV3xN/p2qX7lrtAeY8t9AmO/Q.UxELbvN6wl3iLF5ZcstSq",
     "groupId": null,
-    "points": 205,
+    "points": 255,
     "badges": [
       "eeg",
       "facereader",
       "meeting",
-      "namen"
+      "namen",
+      "experiment"
     ],
     "bingo": {
       "Q1": [
@@ -84,10 +85,17 @@
     "email": "student2@student.nhlstenden.com",
     "password": "$2a$10$TBGF/0tyg3DWEuWTA9Ng5ObPJUdwdrHNZIvYzi4JT/y..wSymCiPO",
     "groupId": null,
-    "points": 120,
+    "points": 470,
     "badges": [
       "experiment",
-      "facereader"
+      "facereader",
+      "groupname",
+      "kennistoets",
+      "lunch",
+      "homework",
+      "meeting",
+      "namen",
+      "project"
     ],
     "bingo": {
       "Q1": [
