@@ -15,6 +15,7 @@ create table if not exists students (
   "semesterId" text,
   "groupId" text,
   points integer default 0,
+  "streakFreezeTotal" integer default 2,
   badges text[] default '{}',
   photo text,
   bingo jsonb default '{}'::jsonb,
@@ -30,6 +31,7 @@ alter table students add column if not exists "bingoMatches" jsonb default '{}':
 alter table students add column if not exists "lastWeekRewarded" text;
 alter table students add column if not exists "showRankPublic" boolean default true;
 alter table students add column if not exists "semesterId" text;
+alter table students add column if not exists "streakFreezeTotal" integer default 2;
 alter table students alter column "showRankPublic" set default true;
 
 create table if not exists groups (
@@ -87,6 +89,7 @@ create table if not exists attendance (
   meeting_id uuid references meetings(id) on delete cascade,
   student_id text references students(id) on delete cascade,
   present boolean default false,
+  streak_freeze boolean default false,
   marked_at timestamptz default now(),
   unique(meeting_id, student_id)
 );
@@ -123,6 +126,7 @@ alter table awards add column if not exists "semesterId" text;
 alter table meetings add column if not exists "semesterId" text;
 alter table peer_events add column if not exists "semesterId" text;
 alter table peer_awards add column if not exists "semesterId" text;
+alter table attendance add column if not exists streak_freeze boolean default false;
 
 -- Example badge definitions (replace public URL with your project URL)
 insert into badge_defs (id, title, image, requirement) values

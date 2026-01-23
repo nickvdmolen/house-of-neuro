@@ -10,7 +10,7 @@ import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
 import useSemesters from './hooks/useSemesters';
-import { nameFromEmail, genId } from './utils';
+import { nameFromEmail, genId, DEFAULT_STREAK_FREEZES } from './utils';
 import { apiUrl } from './config';
 import { checkPassword, hashPassword, verifyPassword } from './auth';
 
@@ -479,6 +479,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           semesterId: signupSemesterId || null,
           groupId: null,
           points: 0,
+          streakFreezeTotal: DEFAULT_STREAK_FREEZES,
           badges: [],
           showRankPublic: true,
           bingo: {},

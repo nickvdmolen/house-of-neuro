@@ -1,7 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import useMeetings from './useMeetings';
-import useAttendance from './useAttendance';
-import { getWeekKey } from '../utils';
+import { getWeekKey, DEFAULT_STREAK_FREEZES } from '../utils';
 
 const toDate = (value) => {
   const d = new Date(value);
@@ -9,26 +7,36 @@ const toDate = (value) => {
   return d;
 };
 
-const MAX_STREAK_FREEZES = 2;
-
-export default function useStreaks(studentId, semesterId) {
-  const [meetings, , { refetch: refetchMeetings }] = useMeetings();
-  const [attendance, , { refetch: refetchAttendance }] = useAttendance();
-
+export default function useStreaks(
+  studentId,
+  semesterId,
+  freezeTotalOverride,
+  meetings = [],
+  attendance = [],
+  { refetchMeetings, refetchAttendance } = {}
+) {
   const refresh = useCallback(() => {
-    refetchMeetings();
-    refetchAttendance();
+    if (refetchMeetings) refetchMeetings();
+    if (refetchAttendance) refetchAttendance();
   }, [refetchMeetings, refetchAttendance]);
 
+  const freezeTotal = Number.isFinite(freezeTotalOverride)
+    ? Math.max(Math.floor(freezeTotalOverride), 0)
+    : DEFAULT_STREAK_FREEZES;
+
   const studentAttendance = useMemo(
-    () => (studentId ? attendance.filter((a) => a.student_id === studentId) : []),
+    () =>
+      studentId && Array.isArray(attendance)
+        ? attendance.filter((a) => a.student_id === studentId)
+        : [],
     [attendance, studentId]
   );
 
   const streaks = useMemo(() => {
+    const meetingList = Array.isArray(meetings) ? meetings : [];
     const scopedMeetings = semesterId
-      ? meetings.filter((m) => String(m?.semesterId || '') === String(semesterId))
-      : meetings;
+      ? meetingList.filter((m) => String(m?.semesterId || '') === String(semesterId))
+      : meetingList;
     if (!studentId || !scopedMeetings.length) {
       return {
         current: 0,
@@ -41,9 +49,9 @@ export default function useStreaks(studentId, semesterId) {
         prevWeekPresent: 0,
         prevWeekTotal: 0,
         prevWeekComplete: false,
-        freezeTotal: MAX_STREAK_FREEZES,
+        freezeTotal,
         freezeUsed: 0,
-        freezeRemaining: MAX_STREAK_FREEZES,
+        freezeRemaining: freezeTotal,
       };
     }
 
@@ -55,7 +63,12 @@ export default function useStreaks(studentId, semesterId) {
       .sort((a, b) => a.__date - b.__date);
 
     // Get attendance map
-    const attendanceMap = new Map(studentAttendance.map(a => [a.meeting_id, a.present]));
+    const attendanceMap = new Map(
+      studentAttendance.map((a) => [a.meeting_id, a.present === true])
+    );
+    const freezeMap = new Map(
+      studentAttendance.map((a) => [a.meeting_id, a.streak_freeze === true])
+    );
 
     let currentStreak = 0;
     let longestStreak = 0;
@@ -68,14 +81,23 @@ export default function useStreaks(studentId, semesterId) {
     const meetingPresence = sortedMeetings.map((meeting) => ({
       meeting,
       present: attendanceMap.get(meeting.id) === true,
+      frozen: freezeMap.get(meeting.id) === true,
     }));
 
     const frozenAbsenceIds = new Set();
-    for (const entry of meetingPresence) {
-      if (!entry.present && frozenAbsenceIds.size < MAX_STREAK_FREEZES) {
+    for (let i = meetingPresence.length - 1; i >= 0; i -= 1) {
+      const entry = meetingPresence[i];
+      if (!entry.present && entry.frozen && frozenAbsenceIds.size < freezeTotal) {
         frozenAbsenceIds.add(entry.meeting.id);
       }
     }
+
+    const frozenAbsenceCount = meetingPresence.reduce((count, entry) => {
+      if (entry.frozen && !entry.present) return count + 1;
+      return count;
+    }, 0);
+    const freezeUsed = Math.min(frozenAbsenceCount, freezeTotal);
+    const freezeRemaining = Math.max(freezeTotal - freezeUsed, 0);
 
     const isEffectivelyPresent = (meetingId, present) =>
       present || frozenAbsenceIds.has(meetingId);
@@ -133,11 +155,11 @@ export default function useStreaks(studentId, semesterId) {
       prevWeekPresent,
       prevWeekTotal,
       prevWeekComplete: prevWeekTotal > 0 && prevWeekPresent === prevWeekTotal,
-      freezeTotal: MAX_STREAK_FREEZES,
-      freezeUsed: frozenAbsenceIds.size,
-      freezeRemaining: Math.max(MAX_STREAK_FREEZES - frozenAbsenceIds.size, 0),
+      freezeTotal,
+      freezeUsed,
+      freezeRemaining,
     };
-  }, [studentId, meetings, studentAttendance, semesterId]);
+  }, [studentId, meetings, studentAttendance, semesterId, freezeTotal]);
 
   return { ...streaks, refresh };
 }

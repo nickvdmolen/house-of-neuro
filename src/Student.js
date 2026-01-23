@@ -12,10 +12,13 @@ import {
   getIndividualLeaderboard,
   getGroupLeaderboard,
   nameFromEmail,
+  DEFAULT_STREAK_FREEZES,
 } from './utils';
 import useBadges from './hooks/useBadges';
 import { getImageUrl, uploadImage } from './supabase';
 import useStreaks from './hooks/useStreaks';
+import useMeetings from './hooks/useMeetings';
+import useAttendance from './hooks/useAttendance';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
@@ -23,11 +26,17 @@ import useSemesters from './hooks/useSemesters';
 
 const WEEKLY_STREAK_POINTS = 50;
 const DATA_POLL_MS = 5000;
+const ABSENCE_PREVIEW_LIMIT = 5;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 const STREAK_FREEZE_AVAILABLE_SRC = `${process.env.PUBLIC_URL}/images/streak-freeze.png`;
 const STREAK_FREEZE_USED_SRC = `${process.env.PUBLIC_URL}/images/streak-freeze-used.png`;
 const bingoQuestionKeys = Object.keys(bingoQuestions);
 const normalizeBingoAnswer = (value) => (value || '').trim().toLowerCase();
+const toDate = (value) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+};
 
 const buildBingoAnswerIndex = (students) => {
   const index = {};
@@ -94,6 +103,9 @@ export default function Student({
   const [peerEvents, , { refetch: refetchPeerEvents }] = usePeerEvents();
   const [appSettings, , { refetch: refetchAppSettings }] = useAppSettings();
   const [semesters] = useSemesters();
+  const [meetings, , { refetch: refetchMeetings }] = useMeetings();
+  const [attendance, setAttendance, { save: saveAttendance, refetch: refetchAttendance }] =
+    useAttendance();
 
   const inPreview = previewStudentId !== undefined;
   const activeStudentId = inPreview ? previewStudentId : selectedStudentId;
@@ -113,14 +125,52 @@ export default function Student({
   const me = students.find((s) => s.id === activeStudentId) || null;
   const activeSemesterId = hasSemesters ? me?.semesterId || null : null;
 
-  const myStreaks = useStreaks(activeStudentId, activeSemesterId);
+  const freezeTotalSetting = Number.isFinite(me?.streakFreezeTotal)
+    ? Math.max(Math.floor(me.streakFreezeTotal), 0)
+    : DEFAULT_STREAK_FREEZES;
+  const myStreaks = useStreaks(
+    activeStudentId,
+    activeSemesterId,
+    freezeTotalSetting,
+    meetings,
+    attendance,
+    { refetchMeetings, refetchAttendance }
+  );
   const [attendanceRefresh, setAttendanceRefresh] = useState(0);
   const weekPercent = useMemo(() => {
     if (!myStreaks.weekTotal) return 0;
     return Math.round((myStreaks.weekPresent / myStreaks.weekTotal) * 100);
   }, [myStreaks.weekPresent, myStreaks.weekTotal]);
-  const freezeTotal = myStreaks.freezeTotal ?? 2;
+  const freezeTotal = myStreaks.freezeTotal ?? DEFAULT_STREAK_FREEZES;
   const freezeUsed = Math.min(myStreaks.freezeUsed ?? 0, freezeTotal);
+  const freezeRemaining = Math.max(freezeTotal - freezeUsed, 0);
+  const studentAttendance = useMemo(
+    () => (activeStudentId ? attendance.filter((a) => a.student_id === activeStudentId) : []),
+    [attendance, activeStudentId]
+  );
+  const absenceEntries = useMemo(() => {
+    if (!activeStudentId) return [];
+    const attendanceByMeeting = new Map(studentAttendance.map((a) => [a.meeting_id, a]));
+    const scopedMeetings = activeSemesterId
+      ? meetings.filter((m) => String(m?.semesterId || '') === String(activeSemesterId))
+      : meetings;
+    const now = new Date();
+    return scopedMeetings
+      .map((meeting) => {
+        const date = toDate(meeting?.date);
+        if (!date || date > now) return null;
+        const record = attendanceByMeeting.get(meeting.id);
+        const present = record?.present === true;
+        if (present) return null;
+        return {
+          meeting,
+          date,
+          frozen: record?.streak_freeze === true,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.date - a.date);
+  }, [activeStudentId, meetings, studentAttendance, activeSemesterId]);
 
   // Listen to global attendance refresh counter
   useEffect(() => {
@@ -213,6 +263,7 @@ export default function Student({
         semesterId: semesterId || null,
         groupId: null,
         points: 0,
+        streakFreezeTotal: DEFAULT_STREAK_FREEZES,
         badges: [],
         photo: '',
         bingoMatches: {},
@@ -292,6 +343,56 @@ export default function Student({
     setAwards,
     setStudents,
   ]);
+
+  const toggleStreakFreeze = useCallback(
+    async (meetingId, currentlyFrozen) => {
+      if (!activeStudentId) return;
+      if (inPreview) return;
+      if (!currentlyFrozen && freezeRemaining <= 0) {
+        alert('Je hebt geen streak freezes meer beschikbaar.');
+        return;
+      }
+      const timestamp = new Date().toISOString();
+      setAttendance((prev) => {
+        const next = [...prev];
+        const index = next.findIndex(
+          (a) => a.meeting_id === meetingId && a.student_id === activeStudentId
+        );
+        const streakFreeze = !currentlyFrozen;
+        if (index >= 0) {
+          const existing = next[index];
+          if (existing.present === true) return next;
+          next[index] = {
+            ...existing,
+            id: existing.id || genId(),
+            present: existing.present === true,
+            streak_freeze: streakFreeze,
+            marked_at: timestamp,
+          };
+        } else {
+          next.push({
+            id: genId(),
+            meeting_id: meetingId,
+            student_id: activeStudentId,
+            present: false,
+            streak_freeze: streakFreeze,
+            marked_at: timestamp,
+          });
+        }
+        return next;
+      });
+      const { error } = await saveAttendance();
+      if (error) {
+        alert('Kon streak freeze niet bijwerken: ' + error.message);
+        return;
+      }
+      if (window.attendanceRefreshCounter) {
+        window.attendanceRefreshCounter.value += 1;
+      }
+      myStreaks.refresh();
+    },
+    [activeStudentId, inPreview, freezeRemaining, setAttendance, saveAttendance, myStreaks]
+  );
 
   const myAwards = useMemo(() => {
     return awards
@@ -1325,17 +1426,25 @@ export default function Student({
                 <div className="text-center">
                   <div className="flex items-stretch justify-center gap-4">
                     <div className="flex flex-col items-center gap-2">
-                      {Array.from({ length: freezeTotal }).map((_, index) => {
-                        const used = index < freezeUsed;
-                        return (
-                          <img
-                            key={`freeze-${index}`}
-                            src={used ? STREAK_FREEZE_USED_SRC : STREAK_FREEZE_AVAILABLE_SRC}
-                            alt={used ? 'Streak freeze gebruikt' : 'Streak freeze beschikbaar'}
-                            className="h-20 w-20 object-contain"
-                          />
-                        );
-                      })}
+                      <div className="relative">
+                        <img
+                          src={STREAK_FREEZE_AVAILABLE_SRC}
+                          alt="Streak freeze beschikbaar"
+                          className="h-20 w-20 object-contain"
+                        />
+                        <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center">
+                          {freezeRemaining}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <img
+                          src={STREAK_FREEZE_USED_SRC}
+                          alt="Streak freeze gebruikt"
+                          className="h-4 w-4 object-contain"
+                        />
+                        <span>{freezeUsed} gebruikt</span>
+                      </div>
+                      <div className="text-xs text-gray-500">{freezeTotal} totaal</div>
                     </div>
                     <div className="flex flex-col items-center justify-between">
                       <div>
@@ -1380,6 +1489,64 @@ export default function Student({
                       </div>
                     </div>
                   )}
+                  <div className="mt-4 border-t pt-3 text-left">
+                    <div className="text-sm font-semibold text-neutral-700">
+                      Streak freeze inzetten
+                    </div>
+                    <p className="text-xs text-neutral-500 mb-2">
+                      Kies een afwezigheid om je streak te behouden.
+                    </p>
+                    {absenceEntries.length > 0 ? (
+                      <>
+                        <ul className="space-y-2">
+                          {absenceEntries.slice(0, ABSENCE_PREVIEW_LIMIT).map((entry) => {
+                            const dateLabel = entry.date.toLocaleDateString('nl-NL');
+                            const timeLabel = entry.meeting?.time
+                              ? ` · ${String(entry.meeting.time).slice(0, 5)}`
+                              : '';
+                            return (
+                              <li
+                                key={entry.meeting.id}
+                                className="flex items-center justify-between gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium truncate">
+                                    {entry.meeting.title || 'Bijeenkomst'}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {dateLabel}
+                                    {timeLabel}
+                                  </div>
+                                </div>
+                                <Button
+                                  className={`${
+                                    entry.frozen
+                                      ? 'bg-gray-500 text-white'
+                                      : 'bg-indigo-600 text-white'
+                                  }`}
+                                  onClick={() => toggleStreakFreeze(entry.meeting.id, entry.frozen)}
+                                  disabled={inPreview || (!entry.frozen && freezeRemaining <= 0)}
+                                >
+                                  {entry.frozen
+                                    ? 'Streak freeze verwijderen'
+                                    : 'Gebruik streak freeze'}
+                                </Button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        {absenceEntries.length > ABSENCE_PREVIEW_LIMIT && (
+                          <div className="text-xs text-neutral-500 mt-2">
+                            Toont laatste {ABSENCE_PREVIEW_LIMIT} afwezigheden.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-xs text-neutral-500">
+                        Geen afwezigheden om een streak freeze op toe te passen.
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-neutral-600">Selecteer een student om streak te bekijken.</p>

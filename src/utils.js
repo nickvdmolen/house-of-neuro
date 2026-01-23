@@ -3,6 +3,8 @@ export function genId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+export const DEFAULT_STREAK_FREEZES = 2;
+
 const EMAIL_RE = /@student\.nhlstenden\.com$/i;
 export const emailValid = (email) => EMAIL_RE.test((email || '').trim());
 

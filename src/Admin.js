@@ -10,6 +10,7 @@ import {
   getIndividualLeaderboard,
   getGroupLeaderboard,
   teacherEmailValid,
+  DEFAULT_STREAK_FREEZES,
 } from './utils';
 import Student from './Student';
 import useBadges from './hooks/useBadges';
@@ -180,6 +181,7 @@ export default function Admin({ onLogout = () => {} }) {
         semesterId: activeSemesterId || null,
         groupId: null,
         points: 0,
+        streakFreezeTotal: DEFAULT_STREAK_FREEZES,
         badges: [],
         showRankPublic: true,
       }
@@ -210,6 +212,43 @@ export default function Admin({ onLogout = () => {} }) {
       if (error) alert('Kon wachtwoord niet resetten: ' + error.message);
     },
     [setStudents, saveStudents]
+  );
+
+  const updateStudentStreakFreezes = useCallback(
+    async (studentId, nextTotal) => {
+      const total = Number.isFinite(nextTotal)
+        ? Math.max(Math.floor(nextTotal), 0)
+        : DEFAULT_STREAK_FREEZES;
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === studentId ? { ...s, streakFreezeTotal: total } : s
+        )
+      );
+      const { error } = await saveStudents();
+      if (error) alert('Kon streak freezes niet bijwerken: ' + error.message);
+    },
+    [setStudents, saveStudents]
+  );
+
+  const promptStudentStreakFreezes = useCallback(
+    async (student) => {
+      if (!student?.id) return;
+      const current = Number.isFinite(student.streakFreezeTotal)
+        ? Math.max(Math.floor(student.streakFreezeTotal), 0)
+        : DEFAULT_STREAK_FREEZES;
+      const raw = window.prompt(
+        `Totaal aantal streak freezes voor ${student.name || 'student'}:`,
+        String(current)
+      );
+      if (raw === null) return;
+      const next = Number.parseInt(raw, 10);
+      if (!Number.isFinite(next) || next < 0) {
+        alert('Voer een geldig geheel getal in (0 of hoger).');
+        return;
+      }
+      await updateStudentStreakFreezes(student.id, next);
+    },
+    [updateStudentStreakFreezes]
   );
 
   const addGroup = useCallback(async (name) => {
@@ -832,6 +871,7 @@ export default function Admin({ onLogout = () => {} }) {
           ...existing,
           id: existing.id || genId(),
           present,
+          streak_freeze: present ? false : existing.streak_freeze === true,
           marked_at: timestamp,
         };
       } else {
@@ -840,6 +880,7 @@ export default function Admin({ onLogout = () => {} }) {
           meeting_id: meetingId,
           student_id: studentId,
           present,
+          streak_freeze: false,
           marked_at: timestamp,
         });
       }
@@ -1159,6 +1200,9 @@ export default function Admin({ onLogout = () => {} }) {
                 .map((s) => {
                   const ind = individualStats.get(s.id);
                   const grp = groupStats.get(s.groupId);
+                  const freezeTotalValue = Number.isFinite(s.streakFreezeTotal)
+                    ? Math.max(Math.floor(s.streakFreezeTotal), 0)
+                    : DEFAULT_STREAK_FREEZES;
                   const groupsForStudent = semesterGroups.filter((g) => {
                     if (!s.semesterId) return !g.semesterId;
                     return String(g.semesterId || '') === String(s.semesterId);
@@ -1196,6 +1240,12 @@ export default function Admin({ onLogout = () => {} }) {
                           </option>
                         ))}
                       </Select>
+                      <Button
+                        className="border"
+                        onClick={() => promptStudentStreakFreezes(s)}
+                      >
+                        Streak freezes: {freezeTotalValue}
+                      </Button>
                       <Button
                         className="bg-indigo-600 text-white"
                         onClick={() => resetStudentPassword(s.id)}
