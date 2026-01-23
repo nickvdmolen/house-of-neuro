@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "8b97fef7-88e9-4ee8-8081-6295f269d4ff",
+    "meeting_id": "2b2e8a17-db4a-4f09-ab32-ea2eeac4ff66",
+    "student_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "present": false,
+    "streak_freeze": true,
+    "marked_at": "2026-01-23T21:12:44.332Z"
+  },
+  {
+    "id": "4e019a03-1e2a-45f3-b025-f4978278463b",
+    "meeting_id": "cda842e0-395c-4ea6-bae1-f8400fb4aba8",
+    "student_id": "3222328a-a0cc-4ed3-87f1-0a15f0ff38a2",
+    "present": false,
+    "streak_freeze": true,
+    "marked_at": "2026-01-23T21:12:51.403Z"
+  }
+]

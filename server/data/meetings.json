@@ -6,5 +6,23 @@
     "title": "Theorie Basis",
     "type": "lecture",
     "created_by": "admin"
+  },
+  {
+    "id": "2b2e8a17-db4a-4f09-ab32-ea2eeac4ff66",
+    "date": "2026-01-23",
+    "time": "09:00",
+    "title": "Emoties",
+    "type": "lecture",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "created_by": "admin"
+  },
+  {
+    "id": "cda842e0-395c-4ea6-bae1-f8400fb4aba8",
+    "date": "2026-01-20",
+    "time": "09:00",
+    "title": "Sensatie",
+    "type": "lecture",
+    "semesterId": "b0536c0a-7589-43dd-aa55-65fc4432fd5c",
+    "created_by": "admin"
   }
 ]
