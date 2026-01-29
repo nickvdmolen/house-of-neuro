@@ -8,7 +8,7 @@ import { getIndividualLeaderboard } from './utils';
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 
 export default function AdminRoster() {
-  const [students] = useStudents();
+  const [students, , { refetch: refetchStudents }] = useStudents();
   const [groups] = useGroups();
   const [semesters] = useSemesters();
   const [semesterFilter, setSemesterFilter] = useState('');
@@ -33,6 +33,13 @@ export default function AdminRoster() {
       setSemesterFilter(sortedSemesters[0]?.id || '');
     }
   }, [hasSemesters, semesterFilter, semesters, sortedSemesters]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchStudents();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refetchStudents]);
 
   const filteredStudents = useMemo(() => {
     if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return students;
