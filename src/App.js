@@ -222,6 +222,16 @@ function AdminPreview() {
       [s?.firstName, s?.lastName].filter(Boolean).join(' ').trim();
     return String(name || id);
   };
+  const previewOptions = useMemo(() => {
+    return students
+      .map((s, i) => {
+        const id = toId(s, i);
+        const name = toName(s, id);
+        const email = typeof s === 'string' ? '' : s?.email;
+        return { id, name, email };
+      })
+      .sort((a, b) => previewCollator.compare(a.name, b.name));
+  }, [students]);
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -235,16 +245,11 @@ function AdminPreview() {
               className="w-full rounded-2xl border border-slate-300 px-3 py-2 bg-white"
             >
               <option value="">— Geen selectie —</option>
-              {students.map((s, i) => {
-                const id = toId(s, i);
-                const name = toName(s, id);
-                const email = typeof s === 'string' ? '' : s?.email;
-                return (
-                  <option key={id} value={id}>
-                    {name} ({email || id})
-                  </option>
-                );
-              })}
+              {previewOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name} ({option.email || option.id})
+                </option>
+              ))}
             </select>
             <p className="text-xs text-neutral-500 mt-2">
               Tip: Laat leeg om te zien wat een student zonder selectie ziet.

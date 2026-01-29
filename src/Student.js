@@ -290,7 +290,12 @@ export default function Student({
   }, [students, selectedStudentId, setSelectedStudentId, inPreview, studentsLoaded]);
 
   const myGroup = me && me.groupId ? groupById.get(me.groupId) || null : null;
-  const myBadges = me?.badges || [];
+  const myBadges = useMemo(() => {
+    if (!me?.badges) return [];
+    const available = new Set(badgeDefs.map((b) => b.id));
+    return me.badges.filter((id) => available.has(id));
+  }, [me, badgeDefs]);
+  const myBadgeSet = useMemo(() => new Set(myBadges), [myBadges]);
   const bingoHintsEnabled = Boolean(appSettings?.bingoHintsEnabled);
 
   useEffect(() => {
@@ -426,6 +431,7 @@ export default function Student({
         badgeDefs.find((b) => b.id === rawName) ||
         badgeDefs.find((b) => b.title === rawName);
       const id = def?.id || rawName;
+      if (!myBadgeSet.has(id)) continue;
       if (seen.has(id)) continue;
       seen.add(id);
       result.push({
@@ -436,7 +442,7 @@ export default function Student({
       if (result.length >= 2) break;
     }
     return result;
-  }, [awards, activeStudentId, badgeDefs]);
+  }, [awards, activeStudentId, badgeDefs, myBadgeSet]);
 
   const badgeSlots = useMemo(() => {
     const slots = [...recentBadges];
@@ -1383,14 +1389,14 @@ export default function Student({
                       />
                     )}
                   </div>
-                  <label className="flex items-start gap-2 text-sm text-neutral-700">
+                  <label className="flex items-start gap-2 text-sm text-neutral-700 flex-wrap">
                     <input
                       type="checkbox"
                       className="mt-1"
                       checked={profileShowRank}
                       onChange={(e) => setProfileShowRank(e.target.checked)}
                     />
-                    <span>Toon mijn positie op het leaderboard.</span>
+                    <span className="min-w-0 leading-snug">Toon mijn positie op het leaderboard.</span>
                   </label>
                   <div className="flex gap-2">
                     <Button
