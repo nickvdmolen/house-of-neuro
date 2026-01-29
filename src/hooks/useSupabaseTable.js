@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, ensureSession } from '../supabase';
 
-export default function useSupabaseTable(table, { autoSave = true } = {}) {
+export default function useSupabaseTable(
+  table,
+  { autoSave = true, fromDb = (row) => row, toDb = (row) => row } = {}
+) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
@@ -18,15 +21,15 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
     let ignore = false;
     async function fetchData() {
       await ensureSession();
-      const { data: rows, error: fetchErr } = await supabase
-        .from(table)
-        .select('*');
+      const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
       if (!ignore) {
         if (fetchErr) {
           console.error('Error fetching', table, fetchErr);
           setError(fetchErr);
         } else {
-          const safeRows = Array.isArray(rows) ? rows : [];
+          const safeRows = Array.isArray(rows)
+            ? rows.map((row) => fromDb(row))
+            : [];
           dataRef.current = safeRows;
           setData(safeRows);
           prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
@@ -41,7 +44,7 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
     return () => {
       ignore = true;
     };
-  }, [table]);
+  }, [table, fromDb]);
 
   const update = useCallback((updater) => {
     setDirty(true);
@@ -70,7 +73,8 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
       }
     }
     if (snapshot.length > 0) {
-      const { error: upsertErr } = await supabase.from(table).upsert(snapshot);
+      const payload = snapshot.map((row) => toDb(row));
+      const { error: upsertErr } = await supabase.from(table).upsert(payload);
       if (upsertErr) {
         console.error('Error saving', table, upsertErr);
         if (!err) err = upsertErr;
@@ -82,18 +86,18 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
       dirtyRef.current = false;
     }
     return { error: err };
-  }, [table, loaded]);
+  }, [table, loaded, toDb]);
 
   const refetch = useCallback(async () => {
     await ensureSession();
-    const { data: rows, error: fetchErr } = await supabase
-      .from(table)
-      .select('*');
+    const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
     if (fetchErr) {
       console.error('Error refetching', table, fetchErr);
       setError(fetchErr);
     } else {
-      const safeRows = Array.isArray(rows) ? rows : [];
+      const safeRows = Array.isArray(rows)
+        ? rows.map((row) => fromDb(row))
+        : [];
       dataRef.current = safeRows;
       setData(safeRows);
       prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
@@ -101,7 +105,7 @@ export default function useSupabaseTable(table, { autoSave = true } = {}) {
       setDirty(false);
       dirtyRef.current = false;
     }
-  }, [table]);
+  }, [table, fromDb]);
 
   useEffect(() => {
     if (!autoSave || !dirty) return;

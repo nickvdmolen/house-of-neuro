@@ -36,7 +36,7 @@ const compareSemesterNames = (a, b) =>
   nameCollator.compare(normalizeSortValue(a?.name), normalizeSortValue(b?.name));
 
 export default function Admin({ onLogout = () => {} }) {
-  const [students, setStudents, { save: saveStudents }] = useStudents();
+  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
   const [groups, setGroups, { save: saveGroups }] = useGroups();
   const [awards, setAwards, { save: saveAwards }] = useAwards();
   const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty }] = useBadges();
@@ -62,10 +62,6 @@ export default function Admin({ onLogout = () => {} }) {
     return attendance.filter((a) => a.meeting_id === selectedMeeting);
   }, [attendance, selectedMeeting]);
 
-  const sortedSemesters = useMemo(
-    () => [...semesters].sort(compareSemesterNames),
-    [semesters]
-  );
   const hasSemesters = semesters.length > 0;
   const activeSemesterId =
     hasSemesters &&
@@ -74,6 +70,18 @@ export default function Admin({ onLogout = () => {} }) {
     semesterFilter !== 'unassigned'
       ? semesterFilter
       : null;
+  const sortedSemesters = useMemo(
+    () => [...semesters].sort(compareSemesterNames),
+    [semesters]
+  );
+  const semesterById = useMemo(() => {
+    const map = new Map();
+    semesters.forEach((semester) => map.set(semester.id, semester));
+    return map;
+  }, [semesters]);
+  const activeSemester = activeSemesterId
+    ? semesterById.get(activeSemesterId) || null
+    : null;
 
   const semesterStudents = useMemo(() => {
     if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return students;
@@ -628,6 +636,11 @@ export default function Admin({ onLogout = () => {} }) {
     return map;
   }, [semesterPeerEvents]);
 
+  const previewStudents = useMemo(
+    () => [...semesterStudents].sort((a, b) => nameCollator.compare(a?.name || '', b?.name || '')),
+    [semesterStudents]
+  );
+
 
   const [newStudent, setNewStudent] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
@@ -690,7 +703,20 @@ export default function Admin({ onLogout = () => {} }) {
     setNewBadgeTitle('');
     setNewBadgeImage('');
     setNewBadgeRequirement('');
+    return id;
   }, [newBadgeTitle, newBadgeImage, newBadgeRequirement, setBadgeDefs]);
+
+  const handleAddBadge = useCallback(async () => {
+    const createdId = addBadge();
+    if (!createdId) return;
+    const { error } = await saveBadges();
+    if (error) {
+      alert('Kon badges niet opslaan: ' + error.message);
+      return;
+    }
+    setBadgesSaveMessage('Opgeslagen!');
+    setTimeout(() => setBadgesSaveMessage(''), 2000);
+  }, [addBadge, saveBadges]);
 
   const removeBadge = useCallback((badgeId) => {
     setBadgeDefs((prev) => prev.filter((b) => b.id !== badgeId));
@@ -829,7 +855,7 @@ export default function Admin({ onLogout = () => {} }) {
       title: newMeetingTitle,
       type: newMeetingType,
       semesterId: activeSemesterId || null,
-      created_by: 'admin'
+      created_by: null,
     };
     setMeetings((prev) => [...prev, newMeeting]);
     const { error } = await saveMeetings();
@@ -934,12 +960,19 @@ export default function Admin({ onLogout = () => {} }) {
     }
   }, [semesterGroups, awardGroupId]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchStudents();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refetchStudents]);
+
   // Houd preview-selectie geldig als de lijst verandert
   useEffect(() => {
-    if (previewId && !semesterStudents.find((s) => s.id === previewId)) {
-      setPreviewId(semesterStudents[0]?.id || '');
+    if (previewId && !previewStudents.find((s) => s.id === previewId)) {
+      setPreviewId(previewStudents[0]?.id || '');
     }
-  }, [semesterStudents, previewId]);
+  }, [previewStudents, previewId]);
 
   const menuItems = [
     { value: 'scores', label: 'Scores' },
@@ -956,6 +989,14 @@ export default function Admin({ onLogout = () => {} }) {
     { value: 'backup', label: 'Backup & herstel' },
     { value: 'preview', label: 'Preview student' }
   ];
+  const showSemesterPicker = hasSemesters && page !== 'manage-teachers';
+  const semesterStatusLabel = activeSemester
+    ? `Actief: ${activeSemester.name}`
+    : semesterFilter === 'all'
+    ? 'Filter: alle semesters'
+    : semesterFilter === 'unassigned'
+    ? 'Filter: zonder semester'
+    : '';
 
   return (
     <div className="relative min-h-screen pl-60">
@@ -984,8 +1025,8 @@ export default function Admin({ onLogout = () => {} }) {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="bg-white/80 px-2 py-1 rounded">Ingelogd als beheerder</span>
-            {hasSemesters && (
-              <div className="flex items-center gap-2">
+            {showSemesterPicker && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs uppercase tracking-wide text-neutral-500">
                   Semester
                 </span>
@@ -1002,6 +1043,9 @@ export default function Admin({ onLogout = () => {} }) {
                     </option>
                   ))}
                 </Select>
+                {semesterStatusLabel && (
+                  <span className="text-xs text-neutral-500">{semesterStatusLabel}</span>
+                )}
               </div>
             )}
           </div>
@@ -1407,6 +1451,17 @@ export default function Admin({ onLogout = () => {} }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 p-4">
               {sortedBadgeDefs.map((b) => (
                 <div key={b.id} className="flex flex-col text-sm min-h-[120px] border rounded-lg p-4">
+                  <div className="flex items-center justify-center mb-3">
+                    {b.image ? (
+                      <img
+                        src={b.image}
+                        alt={b.title}
+                        className="w-16 h-16 rounded-full object-cover border"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full border bg-neutral-100" />
+                    )}
+                  </div>
                   <div className="flex justify-between items-start mb-2">
                     <span className="font-semibold">{b.title}</span>
                     <div className="flex gap-2">
@@ -1495,7 +1550,7 @@ export default function Admin({ onLogout = () => {} }) {
               <Button
                 className="bg-indigo-600 text-white"
                 disabled={!newBadgeTitle.trim() || !newBadgeImage}
-                onClick={addBadge}
+                onClick={handleAddBadge}
               >
                 Maak badge
               </Button>
@@ -1979,7 +2034,7 @@ export default function Admin({ onLogout = () => {} }) {
               <label className="text-sm">Student</label>
               <Select value={previewId} onChange={setPreviewId}>
                 <option value="">— Kies student —</option>
-                {semesterStudents.map((s) => (
+                {previewStudents.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} ({s.email || s.id})
                   </option>

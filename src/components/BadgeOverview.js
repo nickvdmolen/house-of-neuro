@@ -15,12 +15,16 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
           const fontSize = Math.max(8, 14 - text.length / 5);
           return (
             <div key={b.id} className="badge-box relative z-0 hover:z-10">
-              {earned && b.image ? (
+              {b.image ? (
                 <img
                   src={b.image}
                   alt={b.title}
-                  className="w-full h-full rounded-full border object-cover cursor-pointer"
-                  onClick={() => setExpanded(b.id)}
+                  className={`w-full h-full rounded-full border object-cover ${
+                    earned ? 'cursor-pointer' : 'opacity-40'
+                  }`}
+                  onClick={() => {
+                    if (earned) setExpanded(b.id);
+                  }}
                 />
               ) : (
                 <div
