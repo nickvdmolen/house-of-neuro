@@ -11,6 +11,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useTeachers() {
-  return useSupabaseTable('teachers', { autoSave: false, toDb });
+export default function useTeachers(options = {}) {
+  return useSupabaseTable('teachers', { autoSave: false, toDb, ...options });
 }

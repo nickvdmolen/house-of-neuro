@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { questions } from './bingoData';
 import useStudents from './hooks/useStudents';
-import useSemesters from './hooks/useSemesters';
 import { Button, TextInput, Card } from './components/ui';
 import { getImageUrl } from './supabase';
 
@@ -21,43 +20,11 @@ const createEmptyAnswers = () => {
 
 export default function BingoAdmin() {
   const [students, setStudents, { save: saveStudents }] = useStudents();
-  const [semesters] = useSemesters();
-  const [semesterFilter, setSemesterFilter] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [answers, setAnswers] = useState(createEmptyAnswers);
   const [saved, setSaved] = useState(false);
-
-  const sortedSemesters = useMemo(
-    () => [...semesters].sort((a, b) => nameCollator.compare(a.name || '', b.name || '')),
-    [semesters]
-  );
-  const hasSemesters = sortedSemesters.length > 0;
-
-  useEffect(() => {
-    if (!hasSemesters) {
-      if (semesterFilter) setSemesterFilter('');
-      return;
-    }
-    const isSpecial = semesterFilter === 'all' || semesterFilter === 'unassigned';
-    if (semesterFilter && !isSpecial && !semesters.find((s) => s.id === semesterFilter)) {
-      setSemesterFilter('');
-      return;
-    }
-    if (!semesterFilter) {
-      setSemesterFilter(sortedSemesters[0]?.id || '');
-    }
-  }, [hasSemesters, semesterFilter, semesters, sortedSemesters]);
-
-  const filteredStudents = useMemo(() => {
-    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return students;
-    if (semesterFilter === 'unassigned') {
-      return students.filter((s) => !s.semesterId);
-    }
-    return students.filter(
-      (s) => String(s.semesterId || '') === String(semesterFilter)
-    );
-  }, [students, hasSemesters, semesterFilter]);
+  const filteredStudents = useMemo(() => students, [students]);
 
   const sortedStudents = useMemo(() => 
     [...filteredStudents].sort((a, b) => nameCollator.compare(a.name || '', b.name || '')),
@@ -184,25 +151,6 @@ export default function BingoAdmin() {
         </div>
 
         <div className="p-4 max-w-4xl mx-auto">
-          {hasSemesters && (
-            <div className="mb-4 flex items-center gap-2">
-              <label className="text-sm text-neutral-700">Semester</label>
-              <select
-                value={semesterFilter}
-                onChange={(e) => setSemesterFilter(e.target.value)}
-                className="border p-2 rounded"
-              >
-                <option value="all">Alle semesters</option>
-                <option value="unassigned">Zonder semester</option>
-                {sortedSemesters.map((semester) => (
-                  <option key={semester.id} value={semester.id}>
-                    {semester.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <Card className="mb-6">
             <p className="text-sm text-gray-600">
               Hier kun je de bingo-antwoorden van studenten bekijken en aanpassen.

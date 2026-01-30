@@ -22,6 +22,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useStudents() {
-  return useSupabaseTable('students', { toDb });
+export default function useStudents(options = {}) {
+  return useSupabaseTable('students', { toDb, ...options });
 }

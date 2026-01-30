@@ -10,6 +10,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useBadges() {
-  return useSupabaseTable('badge_defs', { autoSave: false, toDb });
+export default function useBadges(options = {}) {
+  return useSupabaseTable('badge_defs', { autoSave: false, toDb, ...options });
 }

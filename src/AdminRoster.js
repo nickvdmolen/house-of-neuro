@@ -1,65 +1,14 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Card, Select } from './components/ui';
+import React, { useMemo } from 'react';
+import { Card } from './components/ui';
 import useStudents from './hooks/useStudents';
 import useGroups from './hooks/useGroups';
-import useSemesters from './hooks/useSemesters';
 import { getIndividualLeaderboard } from './utils';
 
-const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
-
 export default function AdminRoster() {
-  const [students, , { refetch: refetchStudents }] = useStudents();
+  const [students] = useStudents();
   const [groups] = useGroups();
-  const [semesters] = useSemesters();
-  const [semesterFilter, setSemesterFilter] = useState('');
-
-  const sortedSemesters = useMemo(
-    () => [...semesters].sort((a, b) => nameCollator.compare(a?.name || '', b?.name || '')),
-    [semesters]
-  );
-  const hasSemesters = sortedSemesters.length > 0;
-
-  useEffect(() => {
-    if (!hasSemesters) {
-      if (semesterFilter) setSemesterFilter('');
-      return;
-    }
-    const isSpecial = semesterFilter === 'all' || semesterFilter === 'unassigned';
-    if (semesterFilter && !isSpecial && !semesters.find((s) => s.id === semesterFilter)) {
-      setSemesterFilter('');
-      return;
-    }
-    if (!semesterFilter) {
-      setSemesterFilter(sortedSemesters[0]?.id || '');
-    }
-  }, [hasSemesters, semesterFilter, semesters, sortedSemesters]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refetchStudents();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [refetchStudents]);
-
-  const filteredStudents = useMemo(() => {
-    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return students;
-    if (semesterFilter === 'unassigned') {
-      return students.filter((s) => !s.semesterId);
-    }
-    return students.filter(
-      (s) => String(s.semesterId || '') === String(semesterFilter)
-    );
-  }, [students, hasSemesters, semesterFilter]);
-
-  const filteredGroups = useMemo(() => {
-    if (!hasSemesters || !semesterFilter || semesterFilter === 'all') return groups;
-    if (semesterFilter === 'unassigned') {
-      return groups.filter((g) => !g.semesterId);
-    }
-    return groups.filter(
-      (g) => String(g.semesterId || '') === String(semesterFilter)
-    );
-  }, [groups, hasSemesters, semesterFilter]);
+  const filteredStudents = useMemo(() => students, [students]);
+  const filteredGroups = useMemo(() => groups, [groups]);
 
   const groupById = useMemo(() => {
     const m = new Map();
@@ -73,19 +22,6 @@ export default function AdminRoster() {
 
   return (
     <div className="space-y-4">
-      {hasSemesters && (
-        <Card title="Semester">
-          <Select value={semesterFilter} onChange={setSemesterFilter} className="w-72">
-            <option value="all">Alle semesters</option>
-            <option value="unassigned">Zonder semester</option>
-            {sortedSemesters.map((semester) => (
-              <option key={semester.id} value={semester.id}>
-                {semester.name}
-              </option>
-            ))}
-          </Select>
-        </Card>
-      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card title="Scores – Studenten" className="md:col-span-2">
           <table className="w-full text-sm whitespace-nowrap">

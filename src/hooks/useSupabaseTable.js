@@ -5,7 +5,7 @@ const identity = (row) => row;
 
 export default function useSupabaseTable(
   table,
-  { autoSave = true, fromDb = identity, toDb = identity } = {}
+  { autoSave = true, fromDb = identity, toDb = identity, enabled = true } = {}
 ) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -16,9 +16,11 @@ export default function useSupabaseTable(
   const dirtyRef = useRef(false);
   const fromDbRef = useRef(fromDb);
   const toDbRef = useRef(toDb);
+  const enabledRef = useRef(enabled);
 
   fromDbRef.current = fromDb;
   toDbRef.current = toDb;
+  enabledRef.current = enabled;
 
   useEffect(() => {
     dataRef.current = data;
@@ -26,6 +28,18 @@ export default function useSupabaseTable(
 
   useEffect(() => {
     let ignore = false;
+    if (!enabled) {
+      dataRef.current = [];
+      setData([]);
+      prevIds.current = new Set();
+      setError(null);
+      setDirty(false);
+      dirtyRef.current = false;
+      setLoaded(false);
+      return () => {
+        ignore = true;
+      };
+    }
     async function fetchData() {
       try {
         await ensureSession();
@@ -59,7 +73,7 @@ export default function useSupabaseTable(
     return () => {
       ignore = true;
     };
-  }, [table]);
+  }, [table, enabled]);
 
   const update = useCallback((updater) => {
     setDirty(true);
@@ -71,7 +85,7 @@ export default function useSupabaseTable(
   }, []);
 
   const save = useCallback(async () => {
-    if (!loaded || !dirtyRef.current) return { error: null };
+    if (!enabledRef.current || !loaded || !dirtyRef.current) return { error: null };
     try {
       await ensureSession();
     } catch (err) {
@@ -109,6 +123,7 @@ export default function useSupabaseTable(
   }, [table, loaded]);
 
   const refetch = useCallback(async () => {
+    if (!enabledRef.current) return { error: null };
     try {
       await ensureSession();
       const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
@@ -133,9 +148,9 @@ export default function useSupabaseTable(
   }, [table]);
 
   useEffect(() => {
-    if (!autoSave || !dirty) return;
+    if (!enabled || !autoSave || !dirty) return;
     save();
-  }, [save, autoSave, dirty]);
+  }, [save, enabled, autoSave, dirty]);
 
   return [data, update, { save, dirty, error, refetch, loaded }];
 }

@@ -12,6 +12,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useAttendance() {
-  return useSupabaseTable('attendance', { autoSave: false, toDb });
+export default function useAttendance(options = {}) {
+  return useSupabaseTable('attendance', { autoSave: false, toDb, ...options });
 }
