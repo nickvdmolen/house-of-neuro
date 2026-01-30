@@ -43,6 +43,7 @@ export default function App() {
   }, []);
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentTeacherId, setCurrentTeacherId] = useState(null);
   const allowAdmin = () => setIsAdmin(true);
   const denyAdmin = () => setIsAdmin(false);
 
@@ -50,6 +51,7 @@ export default function App() {
 
   const logoutAdmin = () => {
     denyAdmin();
+    setCurrentTeacherId(null);
     window.location.hash = '/';
   };
 
@@ -62,11 +64,12 @@ export default function App() {
 
           {route === '/admin' ? (
             isAdmin ? (
-              <Admin onLogout={logoutAdmin} />
+              <Admin onLogout={logoutAdmin} currentTeacherId={currentTeacherId} />
             ) : (
             <Auth
-              onAdminLogin={() => {
+              onAdminLogin={(teacherId) => {
                 allowAdmin();
+                setCurrentTeacherId(teacherId);
                 window.location.hash = '/admin';
               }}
               onStudentLogin={(id) => {
@@ -84,8 +87,9 @@ export default function App() {
               />
             ) : (
               <Auth
-                onAdminLogin={() => {
+                onAdminLogin={(teacherId) => {
                   allowAdmin();
+                  setCurrentTeacherId(teacherId);
                   window.location.hash = '/admin';
                 }}
                 onStudentLogin={(id) => {
@@ -99,8 +103,9 @@ export default function App() {
             <AdminRoster />
           ) : (
             <Auth
-              onAdminLogin={() => {
+              onAdminLogin={(teacherId) => {
                 allowAdmin();
+                setCurrentTeacherId(teacherId);
                 window.location.hash = '/admin';
               }}
               onStudentLogin={(id) => {
@@ -114,8 +119,9 @@ export default function App() {
               <AdminPreview />
             ) : (
               <Auth
-                onAdminLogin={() => {
+                onAdminLogin={(teacherId) => {
                   allowAdmin();
+                  setCurrentTeacherId(teacherId);
                   window.location.hash = '/admin';
                 }}
                 onStudentLogin={(id) => {
@@ -129,8 +135,9 @@ export default function App() {
               <Bingo selectedStudentId={selectedStudentId} />
             ) : (
               <Auth
-                onAdminLogin={() => {
+                onAdminLogin={(teacherId) => {
                   allowAdmin();
+                  setCurrentTeacherId(teacherId);
                   window.location.hash = '/admin';
                 }}
                 onStudentLogin={(id) => {
@@ -144,8 +151,9 @@ export default function App() {
               <BingoEdit selectedStudentId={selectedStudentId} />
             ) : (
               <Auth
-                onAdminLogin={() => {
+                onAdminLogin={(teacherId) => {
                   allowAdmin();
+                  setCurrentTeacherId(teacherId);
                   window.location.hash = '/admin';
                 }}
                 onStudentLogin={(id) => {
@@ -159,8 +167,9 @@ export default function App() {
               <BingoAdmin />
             ) : (
               <Auth
-                onAdminLogin={() => {
+                onAdminLogin={(teacherId) => {
                   allowAdmin();
+                  setCurrentTeacherId(teacherId);
                   window.location.hash = '/admin/bingo';
                 }}
                 onStudentLogin={(id) => {
@@ -172,8 +181,9 @@ export default function App() {
           ) : route.startsWith('/reset/') ? (
             <Auth
               resetToken={route.slice('/reset/'.length)}
-              onAdminLogin={() => {
+              onAdminLogin={(teacherId) => {
                 allowAdmin();
+                setCurrentTeacherId(teacherId);
                 window.location.hash = '/admin';
               }}
               onStudentLogin={(id) => {
@@ -183,8 +193,9 @@ export default function App() {
             />
           ) : (
             <Auth
-              onAdminLogin={() => {
+              onAdminLogin={(teacherId) => {
                 allowAdmin();
+                setCurrentTeacherId(teacherId);
                 window.location.hash = '/admin';
               }}
               onStudentLogin={(id) => {
@@ -387,8 +398,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       norm === SUPER_ADMIN_EMAIL &&
       pass === SUPER_ADMIN_PASSWORD
     ) {
+      const superAdminTeacher = teachers.find(
+        (te) => te.email.toLowerCase() === norm
+      );
       setLoginError('');
-      onAdminLogin();
+      onAdminLogin(superAdminTeacher ? superAdminTeacher.id : null);
     } else if (norm.endsWith('@student.nhlstenden.com')) {
       if (hasSemesters && !loginSemesterId) {
         setLoginError('Kies je semester.');
@@ -456,7 +470,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
         setLoginError('Account nog niet goedgekeurd.');
       } else if (verifyPassword(pass, t.passwordHash)) {
         setLoginError('');
-        onAdminLogin();
+        onAdminLogin(t.id);
       } else {
         setLoginError('Onjuiste e-mail of wachtwoord.');
       }
@@ -650,7 +664,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       setResetUser(null);
       setNewPassword('');
       setNewPassword2('');
-      onAdminLogin();
+      onAdminLogin(id);
     }
   };
 
