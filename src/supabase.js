@@ -211,7 +211,7 @@ if (USE_LOCAL_SERVER) {
 
     const uid = userData.user.id;
     const ext = file.name.split('.').pop() || 'jpg';
-    const filePath = `${uid}/badges/${Date.now()}.${ext}`;
+    const filePath = `images/${uid}/badges/${Date.now()}.${ext}`;
 
     const { error } = await supabaseClient.storage
       .from(supabaseBucket)
@@ -226,7 +226,10 @@ if (USE_LOCAL_SERVER) {
       return null;
     }
 
-    return getImageUrlFn(filePath);
+    const { data: urlData } = supabaseClient.storage
+      .from(supabaseBucket)
+      .getPublicUrl(filePath);
+    return urlData?.publicUrl || `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${filePath}`;
   };
 }
 

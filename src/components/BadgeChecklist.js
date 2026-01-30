@@ -47,13 +47,22 @@ export default function BadgeChecklist({ badgeDefs, studentBadges, onToggle }) {
       {columns.map((col, idx) => (
         <div key={idx} className="flex flex-col gap-2 flex-1">
           {col.map((b) => (
-            <label key={b.id} className="grid grid-cols-[16px_1fr] items-start gap-2 text-sm">
+            <label key={b.id} className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                className="mt-0.5"
+                className="shrink-0"
                 checked={studentBadges.includes(b.id)}
                 onChange={(e) => onToggle(b.id, e.target.checked)}
               />
+              {b.image ? (
+                <img
+                  src={b.image}
+                  alt={b.title}
+                  className="w-8 h-8 rounded-full object-cover border shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full border bg-neutral-100 shrink-0" />
+              )}
               <span>{b.title}</span>
             </label>
           ))}
