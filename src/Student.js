@@ -15,7 +15,7 @@ import {
   DEFAULT_STREAK_FREEZES,
 } from './utils';
 import useBadges from './hooks/useBadges';
-import { getImageUrl, uploadImage } from './supabase';
+import { getImageUrl, uploadImage, supabase, ensureSession } from './supabase';
 import useStreaks from './hooks/useStreaks';
 import useMeetings from './hooks/useMeetings';
 import useAttendance from './hooks/useAttendance';
@@ -93,11 +93,7 @@ export default function Student({
     },
   ] = useAwards({ enabled: dataEnabled });
   const [badgeDefs] = useBadges({ enabled: dataEnabled });
-  const [
-    peerAwards,
-    setPeerAwards,
-    { save: savePeerAwards },
-  ] = usePeerAwards({ enabled: dataEnabled });
+  const [peerAwards, setPeerAwards] = usePeerAwards({ enabled: dataEnabled });
   const [peerEvents] = usePeerEvents({ enabled: dataEnabled });
   const [appSettings] = useAppSettings({ enabled: dataEnabled });
   const [meetings, , { refetch: refetchMeetings }] = useMeetings({ enabled: dataEnabled });
@@ -859,6 +855,12 @@ export default function Student({
       : ' (puntenevent)';
     const peerAwardEntries = [];
     const newAwards = [];
+    const savePeerEntries = async (entries) => {
+      if (!entries.length) return { error: null };
+      await ensureSession();
+      const payload = entries.map(({ event_title, eventTitle, ...row }) => row);
+      return supabase.from('peer_awards').insert(payload);
+    };
 
     if (peerTarget === 'group') {
       const groupBonus = new Map();
@@ -958,13 +960,14 @@ export default function Student({
       setPeerFeedback('Opslaan awards mislukt.');
       return;
     }
-    const { error: peerError } = await savePeerAwards();
+    const { error: peerError } = await savePeerEntries(peerAwardEntries);
     if (peerError) {
+      console.warn('[peer awards] Save failed', peerError);
       setPeerFeedback('Opslaan peer-actie mislukt.');
       return;
     }
 
-    setPeerFeedback('Punten toegekend! Dit event is nu vergrendeld.');
+    setPeerFeedback('Punten toegekend! Peer-actie opgeslagen. Dit event is nu vergrendeld.');
   };
 
   const handleSetNewPassword = async () => {

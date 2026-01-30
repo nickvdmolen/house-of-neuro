@@ -5,7 +5,13 @@ const identity = (row) => row;
 
 export default function useSupabaseTable(
   table,
-  { autoSave = true, fromDb = identity, toDb = identity, enabled = true } = {}
+  {
+    autoSave = true,
+    fromDb = identity,
+    toDb = identity,
+    enabled = true,
+    allowDeletes = true,
+  } = {}
 ) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -96,7 +102,7 @@ export default function useSupabaseTable(
     const ids = new Set(snapshot.map((r) => r?.id).filter(Boolean));
     const toDelete = [...prevIds.current].filter((id) => !ids.has(id));
     let err = null;
-    if (toDelete.length) {
+    if (allowDeletes && toDelete.length) {
       const { error: delErr } = await supabase
         .from(table)
         .delete()
