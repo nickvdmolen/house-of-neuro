@@ -19,5 +19,5 @@ const toDb = (row) => {
 };
 
 export default function usePeerAwards(options = {}) {
-  return useSupabaseTable('peer_awards', { autoSave: false, toDb, ...options });
+  return useSupabaseTable('peer_awards', { autoSave: false, toDb, allowDeletes: false, ...options });
 }

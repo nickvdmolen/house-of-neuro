@@ -14,5 +14,5 @@ const toDb = (row) => {
 };
 
 export default function useAwards(options = {}) {
-  return useSupabaseTable('awards', { autoSave: false, toDb, ...options });
+  return useSupabaseTable('awards', { autoSave: false, toDb, allowDeletes: false, ...options });
 }
