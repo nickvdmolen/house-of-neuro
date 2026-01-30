@@ -38,7 +38,7 @@ const compareBadgeTitles = (a, b) =>
 const compareSemesterNames = (a, b) =>
   nameCollator.compare(normalizeSortValue(a?.name), normalizeSortValue(b?.name));
 
-export default function Admin({ onLogout = () => {} }) {
+export default function Admin({ onLogout = () => {}, currentTeacherId = null }) {
   const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
   const [groups, setGroups, { save: saveGroups }] = useGroups();
   const [awards, setAwards, { save: saveAwards }] = useAwards();
@@ -884,7 +884,7 @@ export default function Admin({ onLogout = () => {} }) {
       title: newMeetingTitle,
       type: newMeetingType,
       semesterId: activeSemesterId || null,
-      created_by: null,
+      created_by: currentTeacherId || null,
     };
     setMeetings((prev) => [...prev, newMeeting]);
     const { error } = await saveMeetings();
