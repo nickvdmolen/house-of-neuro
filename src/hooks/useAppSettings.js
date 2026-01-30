@@ -6,8 +6,16 @@ const DEFAULT_SETTINGS = {
   bingoHintsEnabled: false,
 };
 
+const toDb = (row) => {
+  if (!row) return row;
+  return {
+    id: row.id,
+    bingoHintsEnabled: row.bingoHintsEnabled ?? false,
+  };
+};
+
 export default function useAppSettings() {
-  const [rows, setRows, meta] = useSupabaseTable('app_settings', { autoSave: false });
+  const [rows, setRows, meta] = useSupabaseTable('app_settings', { autoSave: false, toDb });
 
   const settings = useMemo(() => {
     const row = rows.find((r) => r?.id === DEFAULT_SETTINGS.id);
