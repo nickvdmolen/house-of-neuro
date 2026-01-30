@@ -58,3 +58,50 @@ export function getGroupLeaderboard(groups, students) {
     .sort((a, b) => b.total - a.total)
     .map((g, i) => ({ rank: i + 1, ...g }));
 }
+
+const parseSemesterDate = (value, isEnd = false) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (isEnd) {
+    date.setHours(23, 59, 59, 999);
+  } else {
+    date.setHours(0, 0, 0, 0);
+  }
+  return date;
+};
+
+export function getActiveSemesterId(semesters, now = new Date()) {
+  if (!Array.isArray(semesters) || semesters.length === 0) return null;
+  const nowTime = now.getTime();
+  const candidates = semesters
+    .map((semester) => {
+      const start = parseSemesterDate(semester?.startDate);
+      const end = parseSemesterDate(semester?.endDate, true);
+      if (!start && !end) return null;
+      if (start && nowTime < start.getTime()) return null;
+      if (end && nowTime > end.getTime()) return null;
+      return {
+        id: semester.id,
+        startTime: start ? start.getTime() : Number.NEGATIVE_INFINITY,
+        endTime: end ? end.getTime() : Number.POSITIVE_INFINITY,
+      };
+    })
+    .filter(Boolean);
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => {
+    if (a.startTime !== b.startTime) return b.startTime - a.startTime;
+    return a.endTime - b.endTime;
+  });
+  return candidates[0].id;
+}
+
+export function formatSemesterRange(semester) {
+  if (!semester) return '';
+  const start = semester.startDate || '';
+  const end = semester.endDate || '';
+  if (start && end) return `${start} t/m ${end}`;
+  if (start) return `Vanaf ${start}`;
+  if (end) return `Tot ${end}`;
+  return '';
+}

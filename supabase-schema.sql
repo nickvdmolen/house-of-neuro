@@ -4,6 +4,8 @@
 create table if not exists semesters (
   id text primary key,
   name text not null,
+  start_date date,
+  end_date date,
   created_at timestamptz default now()
 );
 
@@ -122,6 +124,8 @@ create table if not exists peer_awards (
 );
 
 alter table groups add column if not exists "semesterId" text;
+alter table semesters add column if not exists start_date date;
+alter table semesters add column if not exists end_date date;
 alter table awards add column if not exists "semesterId" text;
 alter table meetings add column if not exists "semesterId" text;
 alter table peer_events add column if not exists "semesterId" text;

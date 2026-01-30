@@ -12,6 +12,7 @@ import {
   getIndividualLeaderboard,
   getGroupLeaderboard,
   nameFromEmail,
+  getActiveSemesterId,
   DEFAULT_STREAK_FREEZES,
 } from './utils';
 import useBadges from './hooks/useBadges';
@@ -115,12 +116,19 @@ export default function Student({
     () => [...semesters].sort((a, b) => nameCollator.compare(a?.name || '', b?.name || '')),
     [semesters]
   );
+  const activeSemesterIdByDate = useMemo(
+    () => getActiveSemesterId(sortedSemesters),
+    [sortedSemesters]
+  );
   const hasSemesters = sortedSemesters.length > 0;
   const semesterById = useMemo(() => {
     const m = new Map();
     sortedSemesters.forEach((semester) => m.set(semester.id, semester));
     return m;
   }, [sortedSemesters]);
+  const activeSemesterLabel = activeSemesterIdByDate
+    ? semesterById.get(activeSemesterIdByDate)?.name || ''
+    : '';
 
   const me = students.find((s) => s.id === activeStudentId) || null;
   const activeSemesterId = hasSemesters ? me?.semesterId || null : null;
@@ -664,6 +672,12 @@ export default function Student({
     if (!loginSemesterId) setLoginSemesterId(onlyId);
     if (!signupSemesterId) setSignupSemesterId(onlyId);
   }, [sortedSemesters, loginSemesterId, signupSemesterId]);
+
+  useEffect(() => {
+    if (!hasSemesters || !activeSemesterIdByDate) return;
+    if (!loginSemesterId) setLoginSemesterId(activeSemesterIdByDate);
+    if (!signupSemesterId) setSignupSemesterId(activeSemesterIdByDate);
+  }, [hasSemesters, activeSemesterIdByDate, loginSemesterId, signupSemesterId]);
 
   const [peerEventId, setPeerEventId] = useState('');
   const [peerAllocations, setPeerAllocations] = useState({});
@@ -1242,6 +1256,11 @@ export default function Student({
                             </option>
                           ))}
                         </Select>
+                        {activeSemesterLabel && (
+                          <div className="text-xs text-neutral-500 mt-1">
+                            Actief semester: {activeSemesterLabel}
+                          </div>
+                        )}
                       </div>
                     )}
                     <TextInput
@@ -1304,6 +1323,11 @@ export default function Student({
                             </option>
                           ))}
                         </Select>
+                        {activeSemesterLabel && (
+                          <div className="text-xs text-neutral-500 mt-1">
+                            Actief semester: {activeSemesterLabel}
+                          </div>
+                        )}
                       </div>
                     )}
                     {signupEmail && !emailValid(signupEmail) && (

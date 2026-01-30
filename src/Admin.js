@@ -10,6 +10,8 @@ import {
   getIndividualLeaderboard,
   getGroupLeaderboard,
   teacherEmailValid,
+  getActiveSemesterId,
+  formatSemesterRange,
   DEFAULT_STREAK_FREEZES,
 } from './utils';
 import Student from './Student';
@@ -18,6 +20,7 @@ import useTeachers from './hooks/useTeachers';
 import useMeetings from './hooks/useMeetings';
 import useAttendance from './hooks/useAttendance';
 import { hashPassword } from './auth';
+import { uploadImage } from './supabase';
 import usePersistentState from './hooks/usePersistentState';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
@@ -49,6 +52,8 @@ export default function Admin({ onLogout = () => {} }) {
   const [semesters, setSemesters, { save: saveSemesters }] = useSemesters();
   const [semesterFilter, setSemesterFilter] = useState('');
   const [newSemesterName, setNewSemesterName] = useState('');
+  const [newSemesterStart, setNewSemesterStart] = useState('');
+  const [newSemesterEnd, setNewSemesterEnd] = useState('');
   const [restoreFile, setRestoreFile] = useState(null);
 
   // Meeting state
@@ -74,6 +79,10 @@ export default function Admin({ onLogout = () => {} }) {
     () => [...semesters].sort(compareSemesterNames),
     [semesters]
   );
+  const activeSemesterIdByDate = useMemo(
+    () => getActiveSemesterId(sortedSemesters),
+    [sortedSemesters]
+  );
   const semesterById = useMemo(() => {
     const map = new Map();
     semesters.forEach((semester) => map.set(semester.id, semester));
@@ -81,6 +90,9 @@ export default function Admin({ onLogout = () => {} }) {
   }, [semesters]);
   const activeSemester = activeSemesterId
     ? semesterById.get(activeSemesterId) || null
+    : null;
+  const dateActiveSemester = activeSemesterIdByDate
+    ? semesterById.get(activeSemesterIdByDate) || null
     : null;
 
   const semesterStudents = useMemo(() => {
@@ -362,11 +374,14 @@ export default function Admin({ onLogout = () => {} }) {
     [setGroups, setStudents, saveGroups, saveStudents]
   );
 
-  const addSemester = useCallback(async (name) => {
+  const addSemester = useCallback(async (name, startDate = '', endDate = '') => {
     const trimmed = name.trim();
     if (!trimmed) return null;
     const id = genId();
-    setSemesters((prev) => [...prev, { id, name: trimmed }]);
+    setSemesters((prev) => [
+      ...prev,
+      { id, name: trimmed, startDate: startDate || null, endDate: endDate || null },
+    ]);
     const { error } = await saveSemesters();
     if (error) alert('Kon semester niet toevoegen: ' + error.message);
     return id;
@@ -380,6 +395,17 @@ export default function Admin({ onLogout = () => {} }) {
     const { error } = await saveSemesters();
     if (error) alert('Kon semester niet hernoemen: ' + error.message);
   }, [setSemesters, saveSemesters]);
+
+  const updateSemesterDates = useCallback(
+    async (id, changes) => {
+      setSemesters((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...changes } : s))
+      );
+      const { error } = await saveSemesters();
+      if (error) alert('Kon semesterdata niet opslaan: ' + error.message);
+    },
+    [setSemesters, saveSemesters]
+  );
 
   const toggleBingoHints = useCallback(
     async (enabled) => {
@@ -679,6 +705,8 @@ export default function Admin({ onLogout = () => {} }) {
 
   const [newBadgeTitle, setNewBadgeTitle] = useState('');
   const [newBadgeImage, setNewBadgeImage] = useState('');
+  const [newBadgeImagePreview, setNewBadgeImagePreview] = useState('');
+  const [badgeImagePreviews, setBadgeImagePreviews] = useState({});
   const [newBadgeRequirement, setNewBadgeRequirement] = useState('');
   const [badgesSaveMessage, setBadgesSaveMessage] = useState('');
 
@@ -702,6 +730,7 @@ export default function Admin({ onLogout = () => {} }) {
     ]);
     setNewBadgeTitle('');
     setNewBadgeImage('');
+    setNewBadgeImagePreview('');
     setNewBadgeRequirement('');
     return id;
   }, [newBadgeTitle, newBadgeImage, newBadgeRequirement, setBadgeDefs]);
@@ -936,9 +965,9 @@ export default function Admin({ onLogout = () => {} }) {
       return;
     }
     if (!semesterFilter) {
-      setSemesterFilter(sortedSemesters[0]?.id || '');
+      setSemesterFilter(activeSemesterIdByDate || sortedSemesters[0]?.id || '');
     }
-  }, [hasSemesters, semesterFilter, semesters, sortedSemesters]);
+  }, [hasSemesters, semesterFilter, semesters, sortedSemesters, activeSemesterIdByDate]);
 
   // Preview state (gedeeld met Student-weergave)
   const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
@@ -991,12 +1020,16 @@ export default function Admin({ onLogout = () => {} }) {
   ];
   const showSemesterPicker = hasSemesters && page !== 'manage-teachers';
   const semesterStatusLabel = activeSemester
-    ? `Actief: ${activeSemester.name}`
+    ? `Actief filter: ${activeSemester.name}`
     : semesterFilter === 'all'
     ? 'Filter: alle semesters'
     : semesterFilter === 'unassigned'
     ? 'Filter: zonder semester'
     : '';
+  const dateActiveLabel = dateActiveSemester
+    ? `Actief volgens datum: ${dateActiveSemester.name}`
+    : '';
+  const dateActiveRange = dateActiveSemester ? formatSemesterRange(dateActiveSemester) : '';
 
   return (
     <div className="relative min-h-screen pl-60">
@@ -1045,6 +1078,12 @@ export default function Admin({ onLogout = () => {} }) {
                 </Select>
                 {semesterStatusLabel && (
                   <span className="text-xs text-neutral-500">{semesterStatusLabel}</span>
+                )}
+                {dateActiveLabel && (
+                  <span className="text-xs text-neutral-500">
+                    {dateActiveLabel}
+                    {dateActiveRange ? ` (${dateActiveRange})` : ''}
+                  </span>
                 )}
               </div>
             )}
@@ -1127,18 +1166,34 @@ export default function Admin({ onLogout = () => {} }) {
       {page === 'manage-semesters' && (
         <Card title="Semesters beheren">
           <div className="grid grid-cols-1 gap-4">
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <TextInput
                 value={newSemesterName}
                 onChange={setNewSemesterName}
                 placeholder="Naam (bijv. Semester 1 - 2024)"
               />
+              <TextInput
+                type="date"
+                value={newSemesterStart}
+                onChange={setNewSemesterStart}
+                placeholder="Startdatum"
+              />
+              <TextInput
+                type="date"
+                value={newSemesterEnd}
+                onChange={setNewSemesterEnd}
+                placeholder="Einddatum"
+              />
+            </div>
+            <div className="flex gap-2">
               <Button
                 className="bg-indigo-600 text-white"
                 disabled={!newSemesterName.trim()}
                 onClick={() => {
-                  addSemester(newSemesterName);
+                  addSemester(newSemesterName, newSemesterStart, newSemesterEnd);
                   setNewSemesterName('');
+                  setNewSemesterStart('');
+                  setNewSemesterEnd('');
                 }}
               >
                 Voeg toe
@@ -1155,12 +1210,38 @@ export default function Admin({ onLogout = () => {} }) {
                   const groupCount = groups.filter(
                     (g) => String(g.semesterId || '') === String(semester.id)
                   ).length;
+                  const rangeLabel = formatSemesterRange(semester);
                   return (
-                    <li key={semester.id} className="flex items-center gap-2">
-                      <span className="flex-1 font-medium">{semester.name}</span>
-                      <span className="text-xs text-neutral-500">
-                        {studentCount} studenten · {groupCount} groepen
-                      </span>
+                    <li key={semester.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <div className="flex-1">
+                        <div className="font-medium">{semester.name}</div>
+                        <div className="text-xs text-neutral-500">
+                          {studentCount} studenten · {groupCount} groepen
+                          {rangeLabel ? ` · ${rangeLabel}` : ''}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <TextInput
+                          type="date"
+                          value={semester.startDate || ''}
+                          onChange={(val) =>
+                            updateSemesterDates(semester.id, {
+                              startDate: val || null,
+                            })
+                          }
+                          placeholder="Startdatum"
+                        />
+                        <TextInput
+                          type="date"
+                          value={semester.endDate || ''}
+                          onChange={(val) =>
+                            updateSemesterDates(semester.id, {
+                              endDate: val || null,
+                            })
+                          }
+                          placeholder="Einddatum"
+                        />
+                      </div>
                       <Button
                         className="bg-gray-500 text-white text-xs px-2 py-1"
                         onClick={() => {
@@ -1449,12 +1530,15 @@ export default function Admin({ onLogout = () => {} }) {
               )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 p-4">
-              {sortedBadgeDefs.map((b) => (
+              {sortedBadgeDefs.map((b) => {
+                const previewImage = badgeImagePreviews[b.id];
+                const displayImage = previewImage || b.image;
+                return (
                 <div key={b.id} className="flex flex-col text-sm min-h-[120px] border rounded-lg p-4">
                   <div className="flex items-center justify-center mb-3">
-                    {b.image ? (
+                    {displayImage ? (
                       <img
-                        src={b.image}
+                        src={displayImage}
                         alt={b.title}
                         className="w-16 h-16 rounded-full object-cover border"
                       />
@@ -1504,23 +1588,32 @@ export default function Admin({ onLogout = () => {} }) {
                     accept="image/*"
                     id={`edit-badge-image-${b.id}`}
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                    onChange={async (e) => {
+                      const input = e.target;
+                      const file = input.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
+                      const previewUrl = URL.createObjectURL(file);
+                      setBadgeImagePreviews((prev) => ({ ...prev, [b.id]: previewUrl }));
+                      const uploadedUrl = await uploadImage(file);
+                      if (uploadedUrl) {
                         setBadgeDefs((prev) =>
                           prev.map((bd) =>
-                            bd.id === b.id ? { ...bd, image: ev.target.result } : bd
+                            bd.id === b.id ? { ...bd, image: uploadedUrl } : bd
                           )
                         );
-                      };
-                      reader.readAsDataURL(file);
-                      e.target.value = '';
+                      }
+                      setBadgeImagePreviews((prev) => {
+                        const next = { ...prev };
+                        delete next[b.id];
+                        return next;
+                      });
+                      URL.revokeObjectURL(previewUrl);
+                      input.value = '';
                     }}
                   />
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div className="grid grid-cols-1 gap-2">
               <TextInput value={newBadgeTitle} onChange={setNewBadgeTitle} placeholder="Titel" />
@@ -1532,17 +1625,25 @@ export default function Admin({ onLogout = () => {} }) {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
+                onChange={async (e) => {
+                  const input = e.target;
+                  const file = input.files?.[0];
                   if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = (ev) => setNewBadgeImage(ev.target.result);
-                  reader.readAsDataURL(file);
+                  const previewUrl = URL.createObjectURL(file);
+                  setNewBadgeImage('');
+                  setNewBadgeImagePreview(previewUrl);
+                  const uploadedUrl = await uploadImage(file);
+                  if (uploadedUrl) {
+                    setNewBadgeImage(uploadedUrl);
+                    setNewBadgeImagePreview('');
+                    URL.revokeObjectURL(previewUrl);
+                  }
+                  input.value = '';
                 }}
               />
-              {newBadgeImage && (
+              {(newBadgeImagePreview || newBadgeImage) && (
                 <img
-                  src={newBadgeImage}
+                  src={newBadgeImagePreview || newBadgeImage}
                   alt="Preview"
                   className="badge-box rounded-full border object-cover"
                 />

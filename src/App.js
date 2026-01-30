@@ -10,7 +10,7 @@ import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
 import useSemesters from './hooks/useSemesters';
-import { nameFromEmail, genId, DEFAULT_STREAK_FREEZES } from './utils';
+import { nameFromEmail, genId, DEFAULT_STREAK_FREEZES, getActiveSemesterId } from './utils';
 import { apiUrl } from './config';
 import { checkPassword, hashPassword, verifyPassword } from './auth';
 
@@ -309,12 +309,19 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     () => [...semesters].sort((a, b) => previewCollator.compare(a?.name || '', b?.name || '')),
     [semesters]
   );
+  const activeSemesterIdByDate = useMemo(
+    () => getActiveSemesterId(sortedSemesters),
+    [sortedSemesters]
+  );
   const hasSemesters = sortedSemesters.length > 0;
   const semesterById = useMemo(() => {
     const map = new Map();
     sortedSemesters.forEach((semester) => map.set(semester.id, semester));
     return map;
   }, [sortedSemesters]);
+  const activeSemesterLabel = activeSemesterIdByDate
+    ? semesterById.get(activeSemesterIdByDate)?.name || ''
+    : '';
 
   useEffect(() => {
     if (sortedSemesters.length !== 1) return;
@@ -322,6 +329,12 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     if (!loginSemesterId) setLoginSemesterId(onlyId);
     if (!signupSemesterId) setSignupSemesterId(onlyId);
   }, [sortedSemesters, loginSemesterId, signupSemesterId]);
+
+  useEffect(() => {
+    if (!hasSemesters || !activeSemesterIdByDate) return;
+    if (!loginSemesterId) setLoginSemesterId(activeSemesterIdByDate);
+    if (!signupSemesterId) setSignupSemesterId(activeSemesterIdByDate);
+  }, [hasSemesters, activeSemesterIdByDate, loginSemesterId, signupSemesterId]);
 
   const sendResetEmail = async (email, token) => {
     const link = `${window.location.origin}/#/reset/${token}`;
@@ -702,6 +715,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                       </option>
                     ))}
                   </Select>
+                  {activeSemesterLabel && (
+                    <div className="text-xs text-neutral-500 mt-1">
+                      Actief semester: {activeSemesterLabel}
+                    </div>
+                  )}
                 </div>
               )}
                 <TextInput
@@ -774,6 +792,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                       </option>
                     ))}
                   </Select>
+                  {activeSemesterLabel && (
+                    <div className="text-xs text-neutral-500 mt-1">
+                      Actief semester: {activeSemesterLabel}
+                    </div>
+                  )}
                 </div>
               )}
               <TextInput
