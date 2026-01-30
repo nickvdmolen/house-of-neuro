@@ -183,13 +183,23 @@ if (USE_LOCAL_SERVER) {
     },
   });
 
-  ensureSessionFn = async () => {
-    const { data } = await supabaseClient.auth.getSession();
-    if (data.session) return data.session;
+  let sessionPromise = null;
+  ensureSessionFn = () => {
+    if (sessionPromise) return sessionPromise;
+    sessionPromise = (async () => {
+      try {
+        const { data } = await supabaseClient.auth.getSession();
+        if (data.session) return data.session;
 
-    const { data: anon, error } = await supabaseClient.auth.signInAnonymously();
-    if (error) throw new Error(`Anonymous sign-in failed: ${error.message}`);
-    return anon.session;
+        const { data: anon, error } = await supabaseClient.auth.signInAnonymously();
+        if (error) throw new Error(`Anonymous sign-in failed: ${error.message}`);
+        return anon.session;
+      } catch (err) {
+        sessionPromise = null;
+        throw err;
+      }
+    })();
+    return sessionPromise;
   };
 
   getImageUrlFn = (path) =>

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, ensureSession } from '../supabase';
 
+const identity = (row) => row;
+
 export default function useSupabaseTable(
   table,
-  { autoSave = true, fromDb = (row) => row, toDb = (row) => row } = {}
+  { autoSave = true, fromDb = identity, toDb = identity } = {}
 ) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -12,6 +14,11 @@ export default function useSupabaseTable(
   const prevIds = useRef(new Set());
   const dataRef = useRef([]);
   const dirtyRef = useRef(false);
+  const fromDbRef = useRef(fromDb);
+  const toDbRef = useRef(toDb);
+
+  fromDbRef.current = fromDb;
+  toDbRef.current = toDb;
 
   useEffect(() => {
     dataRef.current = data;
@@ -20,31 +27,39 @@ export default function useSupabaseTable(
   useEffect(() => {
     let ignore = false;
     async function fetchData() {
-      await ensureSession();
-      const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
-      if (!ignore) {
-        if (fetchErr) {
-          console.error('Error fetching', table, fetchErr);
-          setError(fetchErr);
-        } else {
-          const safeRows = Array.isArray(rows)
-            ? rows.map((row) => fromDb(row))
-            : [];
-          dataRef.current = safeRows;
-          setData(safeRows);
-          prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
-          setError(null);
-          setDirty(false);
-          dirtyRef.current = false;
+      try {
+        await ensureSession();
+        const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
+        if (!ignore) {
+          if (fetchErr) {
+            console.error('Error fetching', table, fetchErr);
+            setError(fetchErr);
+          } else {
+            const safeRows = Array.isArray(rows)
+              ? rows.map((row) => fromDbRef.current(row))
+              : [];
+            dataRef.current = safeRows;
+            setData(safeRows);
+            prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
+            setError(null);
+            setDirty(false);
+            dirtyRef.current = false;
+          }
+          setLoaded(true);
         }
-        setLoaded(true);
+      } catch (err) {
+        console.error('Error loading', table, err);
+        if (!ignore) {
+          setError(err);
+          setLoaded(true);
+        }
       }
     }
     fetchData();
     return () => {
       ignore = true;
     };
-  }, [table, fromDb]);
+  }, [table]);
 
   const update = useCallback((updater) => {
     setDirty(true);
@@ -57,7 +72,12 @@ export default function useSupabaseTable(
 
   const save = useCallback(async () => {
     if (!loaded || !dirtyRef.current) return { error: null };
-    await ensureSession();
+    try {
+      await ensureSession();
+    } catch (err) {
+      console.error('Session error saving', table, err);
+      return { error: err };
+    }
     const snapshot = Array.isArray(dataRef.current) ? dataRef.current : [];
     const ids = new Set(snapshot.map((r) => r?.id).filter(Boolean));
     const toDelete = [...prevIds.current].filter((id) => !ids.has(id));
@@ -73,7 +93,7 @@ export default function useSupabaseTable(
       }
     }
     if (snapshot.length > 0) {
-      const payload = snapshot.map((row) => toDb(row));
+      const payload = snapshot.map((row) => toDbRef.current(row));
       const { error: upsertErr } = await supabase.from(table).upsert(payload);
       if (upsertErr) {
         console.error('Error saving', table, upsertErr);
@@ -86,26 +106,31 @@ export default function useSupabaseTable(
       dirtyRef.current = false;
     }
     return { error: err };
-  }, [table, loaded, toDb]);
+  }, [table, loaded]);
 
   const refetch = useCallback(async () => {
-    await ensureSession();
-    const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
-    if (fetchErr) {
-      console.error('Error refetching', table, fetchErr);
-      setError(fetchErr);
-    } else {
-      const safeRows = Array.isArray(rows)
-        ? rows.map((row) => fromDb(row))
-        : [];
-      dataRef.current = safeRows;
-      setData(safeRows);
-      prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
-      setError(null);
-      setDirty(false);
-      dirtyRef.current = false;
+    try {
+      await ensureSession();
+      const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
+      if (fetchErr) {
+        console.error('Error refetching', table, fetchErr);
+        setError(fetchErr);
+      } else {
+        const safeRows = Array.isArray(rows)
+          ? rows.map((row) => fromDbRef.current(row))
+          : [];
+        dataRef.current = safeRows;
+        setData(safeRows);
+        prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
+        setError(null);
+        setDirty(false);
+        dirtyRef.current = false;
+      }
+    } catch (err) {
+      console.error('Error refetching', table, err);
+      setError(err);
     }
-  }, [table, fromDb]);
+  }, [table]);
 
   useEffect(() => {
     if (!autoSave || !dirty) return;
