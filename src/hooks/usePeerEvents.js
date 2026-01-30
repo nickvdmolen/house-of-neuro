@@ -25,6 +25,6 @@ const toDb = (row) => {
   };
 };
 
-export default function usePeerEvents() {
-  return useSupabaseTable('peer_events', { autoSave: false, fromDb, toDb });
+export default function usePeerEvents(options = {}) {
+  return useSupabaseTable('peer_events', { autoSave: false, fromDb, toDb, ...options });
 }

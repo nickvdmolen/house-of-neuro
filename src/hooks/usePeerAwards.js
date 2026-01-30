@@ -18,6 +18,6 @@ const toDb = (row) => {
   };
 };
 
-export default function usePeerAwards() {
-  return useSupabaseTable('peer_awards', { autoSave: false, toDb });
+export default function usePeerAwards(options = {}) {
+  return useSupabaseTable('peer_awards', { autoSave: false, toDb, ...options });
 }

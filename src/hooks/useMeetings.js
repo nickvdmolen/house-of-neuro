@@ -14,6 +14,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useMeetings() {
-  return useSupabaseTable('meetings', { autoSave: false, toDb });
+export default function useMeetings(options = {}) {
+  return useSupabaseTable('meetings', { autoSave: false, toDb, ...options });
 }

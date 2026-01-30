@@ -10,6 +10,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useGroups() {
-  return useSupabaseTable('groups', { toDb });
+export default function useGroups(options = {}) {
+  return useSupabaseTable('groups', { toDb, ...options });
 }

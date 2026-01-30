@@ -14,8 +14,8 @@ const toDb = (row) => {
   };
 };
 
-export default function useAppSettings() {
-  const [rows, setRows, meta] = useSupabaseTable('app_settings', { autoSave: false, toDb });
+export default function useAppSettings(options = {}) {
+  const [rows, setRows, meta] = useSupabaseTable('app_settings', { autoSave: false, toDb, ...options });
 
   const settings = useMemo(() => {
     const row = rows.find((r) => r?.id === DEFAULT_SETTINGS.id);

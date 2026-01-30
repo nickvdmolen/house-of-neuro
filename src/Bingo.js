@@ -100,14 +100,7 @@ export default function Bingo({ selectedStudentId, previewMode = false }) {
     () => students.find((s) => s.id === selectedStudentId) || null,
     [students, selectedStudentId]
   );
-  const activeSemesterId = activeStudentRecord?.semesterId || null;
-
-  const semesterStudents = useMemo(() => {
-    if (!activeSemesterId) return students;
-    return students.filter(
-      (s) => String(s.semesterId || '') === String(activeSemesterId)
-    );
-  }, [students, activeSemesterId]);
+  const semesterStudents = useMemo(() => students, [students]);
 
   const studentAnswers = useMemo(() => {
     const map = {};

@@ -12,7 +12,6 @@ import {
   getIndividualLeaderboard,
   getGroupLeaderboard,
   nameFromEmail,
-  getActiveSemesterId,
   DEFAULT_STREAK_FREEZES,
 } from './utils';
 import useBadges from './hooks/useBadges';
@@ -23,10 +22,7 @@ import useAttendance from './hooks/useAttendance';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
-import useSemesters from './hooks/useSemesters';
-
 const WEEKLY_STREAK_POINTS = 50;
-const DATA_POLL_MS = 30000;
 const ABSENCE_PREVIEW_LIMIT = 5;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 const STREAK_FREEZE_AVAILABLE_SRC = `${process.env.PUBLIC_URL}/images/streak-freeze.png`;
@@ -74,64 +70,42 @@ export default function Student({
   previewStudentId,
   route = '/student',
 }) {
+  const inPreview = previewStudentId !== undefined;
+  const activeStudentId = inPreview ? previewStudentId : selectedStudentId;
+  const dataEnabled = Boolean(activeStudentId);
+  const bgPosClass = inPreview ? 'absolute' : 'fixed';
+
   const [
     students,
     setStudents,
     {
       save: saveStudents,
       loaded: studentsLoaded,
-      refetch: refetchStudents,
-      dirty: studentsDirty,
     },
   ] = useStudents();
-  const [groups, setGroups, { save: saveGroups }] = useGroups();
+  const [groups, setGroups, { save: saveGroups }] = useGroups({ enabled: dataEnabled });
   const [
     awards,
     setAwards,
     {
       save: saveAwards,
       error: awardsError,
-      refetch: refetchAwards,
-      dirty: awardsDirty,
     },
-  ] = useAwards();
-  const [badgeDefs, , { refetch: refetchBadges }] = useBadges();
+  ] = useAwards({ enabled: dataEnabled });
+  const [badgeDefs] = useBadges({ enabled: dataEnabled });
   const [
     peerAwards,
     setPeerAwards,
-    { save: savePeerAwards, refetch: refetchPeerAwards, dirty: peerAwardsDirty },
-  ] = usePeerAwards();
-  const [peerEvents, , { refetch: refetchPeerEvents }] = usePeerEvents();
-  const [appSettings, , { refetch: refetchAppSettings }] = useAppSettings();
-  const [semesters] = useSemesters();
-  const [meetings, , { refetch: refetchMeetings }] = useMeetings();
+    { save: savePeerAwards },
+  ] = usePeerAwards({ enabled: dataEnabled });
+  const [peerEvents] = usePeerEvents({ enabled: dataEnabled });
+  const [appSettings] = useAppSettings({ enabled: dataEnabled });
+  const [meetings, , { refetch: refetchMeetings }] = useMeetings({ enabled: dataEnabled });
   const [attendance, setAttendance, { save: saveAttendance, refetch: refetchAttendance }] =
-    useAttendance();
-
-  const inPreview = previewStudentId !== undefined;
-  const activeStudentId = inPreview ? previewStudentId : selectedStudentId;
-  const bgPosClass = inPreview ? 'absolute' : 'fixed';
-
-  const sortedSemesters = useMemo(
-    () => [...semesters].sort((a, b) => nameCollator.compare(a?.name || '', b?.name || '')),
-    [semesters]
-  );
-  const activeSemesterIdByDate = useMemo(
-    () => getActiveSemesterId(sortedSemesters),
-    [sortedSemesters]
-  );
-  const hasSemesters = sortedSemesters.length > 0;
-  const semesterById = useMemo(() => {
-    const m = new Map();
-    sortedSemesters.forEach((semester) => m.set(semester.id, semester));
-    return m;
-  }, [sortedSemesters]);
-  const activeSemesterLabel = activeSemesterIdByDate
-    ? semesterById.get(activeSemesterIdByDate)?.name || ''
-    : '';
+    useAttendance({ enabled: dataEnabled });
 
   const me = students.find((s) => s.id === activeStudentId) || null;
-  const activeSemesterId = hasSemesters ? me?.semesterId || null : null;
+  const activeSemesterId = null;
 
   const freezeTotalSetting = Number.isFinite(me?.streakFreezeTotal)
     ? Math.max(Math.floor(me.streakFreezeTotal), 0)
@@ -144,7 +118,6 @@ export default function Student({
     attendance,
     { refetchMeetings, refetchAttendance }
   );
-  const [attendanceRefresh, setAttendanceRefresh] = useState(0);
   const weekPercent = useMemo(() => {
     if (!myStreaks.weekTotal) return 0;
     return Math.round((myStreaks.weekPresent / myStreaks.weekTotal) * 100);
@@ -159,9 +132,7 @@ export default function Student({
   const absenceEntries = useMemo(() => {
     if (!activeStudentId) return [];
     const attendanceByMeeting = new Map(studentAttendance.map((a) => [a.meeting_id, a]));
-    const scopedMeetings = activeSemesterId
-      ? meetings.filter((m) => String(m?.semesterId || '') === String(activeSemesterId))
-      : meetings;
+    const scopedMeetings = meetings;
     const now = new Date();
     return scopedMeetings
       .map((meeting) => {
@@ -178,65 +149,11 @@ export default function Student({
       })
       .filter(Boolean)
       .sort((a, b) => b.date - a.date);
-  }, [activeStudentId, meetings, studentAttendance, activeSemesterId]);
+  }, [activeStudentId, meetings, studentAttendance]);
 
-  // Listen to global attendance refresh counter (event-driven, only fires when teacher marks attendance)
-  useEffect(() => {
-    const checkRefresh = () => {
-      if (window.attendanceRefreshCounter && window.attendanceRefreshCounter.value !== attendanceRefresh) {
-        setAttendanceRefresh(window.attendanceRefreshCounter.value);
-        myStreaks.refresh();
-      }
-    };
+  const semesterStudents = useMemo(() => students, [students]);
 
-    const interval = setInterval(checkRefresh, 500);
-    return () => clearInterval(interval);
-  }, [attendanceRefresh, myStreaks]);
-
-  // Background data poll — refreshes all tables periodically
-  useEffect(() => {
-    if (!activeStudentId || inPreview) return;
-    const refresh = () => {
-      if (!studentsDirty) refetchStudents();
-      if (!awardsDirty) refetchAwards();
-      refetchBadges();
-      if (!peerAwardsDirty) refetchPeerAwards();
-      refetchPeerEvents();
-      refetchAppSettings();
-      refetchMeetings();
-      refetchAttendance();
-    };
-    const interval = setInterval(refresh, DATA_POLL_MS);
-    return () => clearInterval(interval);
-  }, [
-    activeStudentId,
-    inPreview,
-    refetchStudents,
-    refetchAwards,
-    refetchBadges,
-    refetchPeerAwards,
-    refetchPeerEvents,
-    refetchAppSettings,
-    refetchMeetings,
-    refetchAttendance,
-    studentsDirty,
-    awardsDirty,
-    peerAwardsDirty,
-  ]);
-
-  const semesterStudents = useMemo(() => {
-    if (!hasSemesters || !activeSemesterId) return students;
-    return students.filter(
-      (s) => String(s.semesterId || '') === String(activeSemesterId)
-    );
-  }, [students, hasSemesters, activeSemesterId]);
-
-  const semesterGroups = useMemo(() => {
-    if (!hasSemesters || !activeSemesterId) return groups;
-    return groups.filter(
-      (g) => String(g.semesterId || '') === String(activeSemesterId)
-    );
-  }, [groups, hasSemesters, activeSemesterId]);
+  const semesterGroups = useMemo(() => groups, [groups]);
 
   const groupById = useMemo(() => {
     const m = new Map();
@@ -254,7 +171,7 @@ export default function Student({
     [semesterGroups, semesterStudents]
   );
 
-  const addStudent = useCallback(async (name, email, password = '', semesterId = null) => {
+  const addStudent = useCallback(async (name, email, password = '') => {
     const id = genId();
     const hashedPassword = password ? hashPassword(password) : '';
     setStudents((prev) => [
@@ -264,7 +181,7 @@ export default function Student({
         name,
         email: email || undefined,
         password: hashedPassword,
-        semesterId: semesterId || null,
+        semesterId: null,
         groupId: null,
         points: 0,
         streakFreezeTotal: DEFAULT_STREAK_FREEZES,
@@ -312,7 +229,7 @@ export default function Student({
       ts: new Date().toISOString(),
       target: 'student',
       target_id: activeStudentId,
-      semesterId: activeSemesterId || null,
+      semesterId: null,
       amount: WEEKLY_STREAK_POINTS,
       reason: `Aanwezigheidsstreak ${myStreaks.prevWeekKey}`,
     };
@@ -394,9 +311,6 @@ export default function Student({
       if (error) {
         alert('Kon streak freeze niet bijwerken: ' + error.message);
         return;
-      }
-      if (window.attendanceRefreshCounter) {
-        window.attendanceRefreshCounter.value += 1;
       }
       myStreaks.refresh();
     },
@@ -585,17 +499,12 @@ export default function Student({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [loginSemesterId, setLoginSemesterId] = useState('');
   const [resetStudent, setResetStudent] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [newPassword2, setNewPassword2] = useState('');
 
   const handleLogin = async () => {
     if (!emailValid(loginEmail)) return;
-    if (hasSemesters && !loginSemesterId) {
-      setLoginError('Kies je semester.');
-      return;
-    }
     const normEmail = loginEmail.trim().toLowerCase();
     const existing = students.find((s) => (s.email || '').toLowerCase() === normEmail);
     if (existing) {
@@ -619,29 +528,6 @@ export default function Student({
           }
         }
         if (ok) {
-          if (hasSemesters && loginSemesterId) {
-            if (
-              existing.semesterId &&
-              String(existing.semesterId) !== String(loginSemesterId)
-            ) {
-              const accountSemester =
-                semesterById.get(existing.semesterId)?.name || 'het juiste semester';
-              setLoginError(`Je account hoort bij ${accountSemester}.`);
-              return;
-            }
-            if (!existing.semesterId) {
-              setStudents((prev) =>
-                prev.map((s) =>
-                  s.id === existing.id ? { ...s, semesterId: loginSemesterId } : s
-                )
-              );
-              const { error } = await saveStudents();
-              if (error) {
-                setLoginError('Kon semester niet opslaan.');
-                return;
-              }
-            }
-          }
           setSelectedStudentId(existing.id);
           setLoginEmail('');
           setLoginPassword('');
@@ -660,20 +546,6 @@ export default function Student({
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPassword2, setSignupPassword2] = useState('');
   const [signupError, setSignupError] = useState('');
-  const [signupSemesterId, setSignupSemesterId] = useState('');
-
-  useEffect(() => {
-    if (sortedSemesters.length !== 1) return;
-    const onlyId = sortedSemesters[0].id;
-    if (!loginSemesterId) setLoginSemesterId(onlyId);
-    if (!signupSemesterId) setSignupSemesterId(onlyId);
-  }, [sortedSemesters, loginSemesterId, signupSemesterId]);
-
-  useEffect(() => {
-    if (!hasSemesters || !activeSemesterIdByDate) return;
-    if (!loginSemesterId) setLoginSemesterId(activeSemesterIdByDate);
-    if (!signupSemesterId) setSignupSemesterId(activeSemesterIdByDate);
-  }, [hasSemesters, activeSemesterIdByDate, loginSemesterId, signupSemesterId]);
 
   const [peerEventId, setPeerEventId] = useState('');
   const [peerAllocations, setPeerAllocations] = useState({});
@@ -689,12 +561,7 @@ export default function Student({
     return new Set(ids);
   }, [peerAwards, activeStudentId]);
 
-  const semesterPeerEvents = useMemo(() => {
-    if (!hasSemesters || !activeSemesterId) return peerEvents;
-    return peerEvents.filter(
-      (event) => String(event.semesterId || '') === String(activeSemesterId)
-    );
-  }, [peerEvents, hasSemesters, activeSemesterId]);
+  const semesterPeerEvents = useMemo(() => peerEvents, [peerEvents]);
 
   const activePeerEvents = useMemo(
     () =>
@@ -913,11 +780,6 @@ export default function Student({
     )
       return;
 
-    if (hasSemesters && !signupSemesterId) {
-      setSignupError('Kies je semester.');
-      return;
-    }
-
     if (signupPassword !== signupPassword2) {
       setSignupError('Wachtwoorden komen niet overeen.');
       return;
@@ -931,8 +793,7 @@ export default function Student({
       const newId = await addStudent(
         signupName.trim(),
         normEmail,
-        signupPassword,
-        signupSemesterId || null
+        signupPassword
       );
       if (!newId) return;
       setSelectedStudentId(newId);
@@ -1008,7 +869,7 @@ export default function Student({
           ts,
           target: 'group',
           target_id: item.id,
-          semesterId: activeSemesterId || null,
+          semesterId: null,
           amount: item.totalAmount,
           reason: awardReason,
         });
@@ -1024,7 +885,7 @@ export default function Student({
           event_title: selectedPeerEvent.title,
           target: 'group',
           target_id: item.id,
-          semesterId: activeSemesterId || null,
+          semesterId: null,
           amount: item.amount,
           total_amount: item.totalAmount,
           reason: item.reason,
@@ -1047,7 +908,7 @@ export default function Student({
           ts,
           target: 'student',
           target_id: item.id,
-          semesterId: activeSemesterId || null,
+          semesterId: null,
           amount: item.amount,
           reason: awardReason,
         });
@@ -1060,7 +921,7 @@ export default function Student({
           event_title: selectedPeerEvent.title,
           target: 'student',
           target_id: item.id,
-          semesterId: activeSemesterId || null,
+          semesterId: null,
           amount: item.amount,
           total_amount: item.amount,
           reason: item.reason,
@@ -1241,24 +1102,6 @@ export default function Student({
                 <Card title="Log in">
                   <div className="grid grid-cols-1 gap-4">
                     <TextInput value={loginEmail} onChange={setLoginEmail} placeholder="E-mail (@student.nhlstenden.com)" />
-                    {hasSemesters && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Semester</label>
-                        <Select value={loginSemesterId} onChange={setLoginSemesterId}>
-                          <option value="">Kies semester...</option>
-                          {sortedSemesters.map((semester) => (
-                            <option key={semester.id} value={semester.id}>
-                              {semester.name}
-                            </option>
-                          ))}
-                        </Select>
-                        {activeSemesterLabel && (
-                          <div className="text-xs text-neutral-500 mt-1">
-                            Actief semester: {activeSemesterLabel}
-                          </div>
-                        )}
-                      </div>
-                    )}
                     <TextInput
                       type="password"
                       value={loginPassword}
@@ -1275,8 +1118,7 @@ export default function Student({
                       disabled={
                         !loginEmail.trim() ||
                         !emailValid(loginEmail) ||
-                        !loginPassword.trim() ||
-                        (hasSemesters && !loginSemesterId)
+                        !loginPassword.trim()
                       }
                       onClick={handleLogin}
                     >
@@ -1308,24 +1150,6 @@ export default function Student({
                       }}
                       placeholder="E-mail (@student.nhlstenden.com)"
                     />
-                    {hasSemesters && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Semester</label>
-                        <Select value={signupSemesterId} onChange={setSignupSemesterId}>
-                          <option value="">Kies semester...</option>
-                          {sortedSemesters.map((semester) => (
-                            <option key={semester.id} value={semester.id}>
-                              {semester.name}
-                            </option>
-                          ))}
-                        </Select>
-                        {activeSemesterLabel && (
-                          <div className="text-xs text-neutral-500 mt-1">
-                            Actief semester: {activeSemesterLabel}
-                          </div>
-                        )}
-                      </div>
-                    )}
                     {signupEmail && !emailValid(signupEmail) && (
                       <div className="text-sm text-rose-600">Alleen adressen eindigend op @student.nhlstenden.com zijn toegestaan.</div>
                     )}
@@ -1350,8 +1174,7 @@ export default function Student({
                         !signupName.trim() ||
                         !emailValid(signupEmail) ||
                         !signupPassword.trim() ||
-                        signupPassword !== signupPassword2 ||
-                        (hasSemesters && !signupSemesterId)
+                        signupPassword !== signupPassword2
                       }
                       onClick={handleSignup}
                     >

@@ -1,0 +1,14 @@
+services:
+  house-of-neuro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # platform: linux/arm64   # haal commentaar weg als je op Pi draait
+    environment:
+      - NODE_ENV=production
+      - TZ=Europe/Amsterdam
+      # Voeg hier je runtime variabelen toe
+      # - API_BASE_URL=https://jouw.api
+    ports:
+      - "1234:3000"
+    restart: unless-stopped

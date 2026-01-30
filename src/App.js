@@ -5,19 +5,13 @@ import AdminRoster from './AdminRoster';
 import Bingo from './Bingo';
 import BingoEdit from './BingoEdit';
 import BingoAdmin from './BingoAdmin';
-import { Card, Button, TextInput, Select } from './components/ui';
+import { Card, Button, TextInput } from './components/ui';
 import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
-import useSemesters from './hooks/useSemesters';
-import { nameFromEmail, genId, DEFAULT_STREAK_FREEZES, getActiveSemesterId } from './utils';
+import { nameFromEmail, genId, DEFAULT_STREAK_FREEZES } from './utils';
 import { apiUrl } from './config';
 import { checkPassword, hashPassword, verifyPassword } from './auth';
-
-// Global refresh counter for real-time attendance updates
-if (!window.attendanceRefreshCounter) {
-  window.attendanceRefreshCounter = { value: 0 };
-}
 
 const previewCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 
@@ -285,7 +279,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [loginSemesterId, setLoginSemesterId] = useState('');
   const [resetUser, setResetUser] = useState(null); // { type: 'student'|'teacher', id }
   const [newPassword, setNewPassword] = useState('');
   const [newPassword2, setNewPassword2] = useState('');
@@ -293,18 +286,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPassword2, setSignupPassword2] = useState('');
   const [signupError, setSignupError] = useState('');
-  const [signupSemesterId, setSignupSemesterId] = useState('');
-  const [
-    students,
-    setStudents,
-    { save: saveStudents, loaded: studentsLoaded, error: studentsError },
-  ] = useStudents();
-  const [
-    teachers,
-    setTeachers,
-    { save: saveTeachers, loaded: teachersLoaded, error: teachersError },
-  ] = useTeachers();
-  const [semesters] = useSemesters();
 
   const SUPER_ADMIN_EMAIL = (process.env.REACT_APP_SUPERADMIN_EMAIL || '').toLowerCase();
   const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
@@ -315,37 +296,24 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const signupDomain = signupEmail.trim().toLowerCase();
   const signupNeedsStudents = signupDomain.endsWith('@student.nhlstenden.com');
   const signupNeedsTeachers = signupDomain.endsWith('@nhlstenden.com');
-  const dataLoadError = studentsError || teachersError;
-  const sortedSemesters = useMemo(
-    () => [...semesters].sort((a, b) => previewCollator.compare(a?.name || '', b?.name || '')),
-    [semesters]
-  );
-  const activeSemesterIdByDate = useMemo(
-    () => getActiveSemesterId(sortedSemesters),
-    [sortedSemesters]
-  );
-  const hasSemesters = sortedSemesters.length > 0;
-  const semesterById = useMemo(() => {
-    const map = new Map();
-    sortedSemesters.forEach((semester) => map.set(semester.id, semester));
-    return map;
-  }, [sortedSemesters]);
-  const activeSemesterLabel = activeSemesterIdByDate
-    ? semesterById.get(activeSemesterIdByDate)?.name || ''
-    : '';
-
-  useEffect(() => {
-    if (sortedSemesters.length !== 1) return;
-    const onlyId = sortedSemesters[0].id;
-    if (!loginSemesterId) setLoginSemesterId(onlyId);
-    if (!signupSemesterId) setSignupSemesterId(onlyId);
-  }, [sortedSemesters, loginSemesterId, signupSemesterId]);
-
-  useEffect(() => {
-    if (!hasSemesters || !activeSemesterIdByDate) return;
-    if (!loginSemesterId) setLoginSemesterId(activeSemesterIdByDate);
-    if (!signupSemesterId) setSignupSemesterId(activeSemesterIdByDate);
-  }, [hasSemesters, activeSemesterIdByDate, loginSemesterId, signupSemesterId]);
+  const studentsEnabled = loginNeedsStudents || signupNeedsStudents || Boolean(resetToken);
+  const teachersEnabled =
+    loginNeedsTeachers || signupNeedsTeachers || loginIsSuperAdmin || Boolean(resetToken);
+  const [
+    students,
+    setStudents,
+    { save: saveStudents, loaded: studentsLoaded, error: studentsError },
+  ] = useStudents({ enabled: studentsEnabled });
+  const [
+    teachers,
+    setTeachers,
+    { save: saveTeachers, loaded: teachersLoaded, error: teachersError },
+  ] = useTeachers({ enabled: teachersEnabled });
+  const dataLoadError =
+    (studentsEnabled && studentsError) || (teachersEnabled && teachersError);
+  const isLoading =
+    !dataLoadError &&
+    ((studentsEnabled && !studentsLoaded) || (teachersEnabled && !teachersLoaded));
 
   const sendResetEmail = async (email, token) => {
     const link = `${window.location.origin}/#/reset/${token}`;
@@ -404,10 +372,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       setLoginError('');
       onAdminLogin(superAdminTeacher ? superAdminTeacher.id : null);
     } else if (norm.endsWith('@student.nhlstenden.com')) {
-      if (hasSemesters && !loginSemesterId) {
-        setLoginError('Kies je semester.');
-        return;
-      }
       if (!studentsLoaded) {
         setLoginError('Studenten worden nog geladen. Probeer opnieuw.');
         return;
@@ -427,29 +391,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           }
         }
         if (ok) {
-          if (hasSemesters && loginSemesterId) {
-            if (
-              s.semesterId &&
-              String(s.semesterId) !== String(loginSemesterId)
-            ) {
-              const accountSemester =
-                semesterById.get(s.semesterId)?.name || 'het juiste semester';
-              setLoginError(`Je account hoort bij ${accountSemester}.`);
-              return;
-            }
-            if (!s.semesterId) {
-              setStudents((prev) =>
-                prev.map((st) =>
-                  st.id === s.id ? { ...st, semesterId: loginSemesterId } : st
-                )
-              );
-              const { error } = await saveStudents();
-              if (error) {
-                setLoginError('Kon semester niet opslaan.');
-                return;
-              }
-            }
-          }
           setLoginError('');
           onStudentLogin(s.id);
         } else {
@@ -486,10 +427,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       return;
     }
     if (norm.endsWith('@student.nhlstenden.com')) {
-      if (hasSemesters && !signupSemesterId) {
-        setSignupError('Kies je semester.');
-        return;
-      }
       if (!studentsLoaded) {
         setSignupError('Studenten worden nog geladen. Probeer opnieuw.');
         return;
@@ -508,7 +445,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
           name: nameFromEmail(norm),
           email: norm,
           password: hash,
-          semesterId: signupSemesterId || null,
+          semesterId: null,
           groupId: null,
           points: 0,
           streakFreezeTotal: DEFAULT_STREAK_FREEZES,
@@ -702,7 +639,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
         <Card title={mode === 'login' ? 'Inloggen' : 'Account aanmaken'}>
           {mode === 'login' ? (
             <>
-              {!dataLoadError && (!studentsLoaded || !teachersLoaded) && (
+              {isLoading && (
                 <div className="text-xs text-neutral-500 mb-2">
                   Gegevens worden geladen...
                 </div>
@@ -718,24 +655,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                 placeholder="E-mail"
                 className="mb-2"
               />
-              {loginNeedsStudents && hasSemesters && (
-                <div className="mb-2">
-                  <label className="block text-xs text-neutral-500 mb-1">Semester</label>
-                  <Select value={loginSemesterId} onChange={setLoginSemesterId}>
-                    <option value="">Kies semester...</option>
-                    {sortedSemesters.map((semester) => (
-                      <option key={semester.id} value={semester.id}>
-                        {semester.name}
-                      </option>
-                    ))}
-                  </Select>
-                  {activeSemesterLabel && (
-                    <div className="text-xs text-neutral-500 mt-1">
-                      Actief semester: {activeSemesterLabel}
-                    </div>
-                  )}
-                </div>
-              )}
                 <TextInput
                   type="password"
                   value={loginPassword}
@@ -754,8 +673,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                   !loginEmail.trim() ||
                   !loginPassword.trim() ||
                   (loginNeedsStudents && !studentsLoaded) ||
-                  (loginNeedsTeachers && !teachersLoaded) ||
-                  (loginNeedsStudents && hasSemesters && !loginSemesterId)
+                  ((loginNeedsTeachers || loginIsSuperAdmin) && !teachersLoaded)
                 }
               >
                 Inloggen
@@ -780,7 +698,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
             </>
           ) : (
             <>
-              {!dataLoadError && (!studentsLoaded || !teachersLoaded) && (
+              {isLoading && (
                 <div className="text-xs text-neutral-500 mb-2">
                   Gegevens worden geladen...
                 </div>
@@ -795,24 +713,6 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                 onChange={setSignupEmail}
                 placeholder="E-mail"
               />
-              {signupNeedsStudents && hasSemesters && (
-                <div className="mb-2">
-                  <label className="block text-xs text-neutral-500 mb-1">Semester</label>
-                  <Select value={signupSemesterId} onChange={setSignupSemesterId}>
-                    <option value="">Kies semester...</option>
-                    {sortedSemesters.map((semester) => (
-                      <option key={semester.id} value={semester.id}>
-                        {semester.name}
-                      </option>
-                    ))}
-                  </Select>
-                  {activeSemesterLabel && (
-                    <div className="text-xs text-neutral-500 mt-1">
-                      Actief semester: {activeSemesterLabel}
-                    </div>
-                  )}
-                </div>
-              )}
               <TextInput
                 type="password"
                 value={signupPassword}
@@ -837,8 +737,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
                   !signupPassword.trim() ||
                   !signupPassword2.trim() ||
                   (signupNeedsStudents && !studentsLoaded) ||
-                  (signupNeedsTeachers && !teachersLoaded) ||
-                  (signupNeedsStudents && hasSemesters && !signupSemesterId)
+                  (signupNeedsTeachers && !teachersLoaded)
                 }
               >
                 Account aanmaken

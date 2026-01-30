@@ -13,6 +13,6 @@ const toDb = (row) => {
   };
 };
 
-export default function useAwards() {
-  return useSupabaseTable('awards', { autoSave: false, toDb });
+export default function useAwards(options = {}) {
+  return useSupabaseTable('awards', { autoSave: false, toDb, ...options });
 }

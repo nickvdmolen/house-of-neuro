@@ -1,0 +1,12 @@
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465         # SSL
+SMTP_USER=minorneuro@gmail.com
+SMTP_PASS=heyk wwko ueoy cgmc
+SMTP_FROM=minorneuro@gmail.com
+
+SERVER_PORT=3001
+
+SUPERADMIN_EMAIL=admin@nhlstenden.com
+SUPERADMIN_PASSWORD=neuroadministrator1
+REACT_APP_SUPERADMIN_EMAIL=admin@nhlstenden.com
+REACT_APP_SUPERADMIN_PASSWORD=neuroadministrator1
