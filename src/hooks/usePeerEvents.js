@@ -12,9 +12,15 @@ const fromDb = (row) => {
 
 const toDb = (row) => {
   if (!row) return row;
-  const { allowOwnGroup, allowOtherGroups, allow_own_group, allow_other_groups, ...rest } = row;
+  const cleaned = { ...row };
+  const allowOwnGroup = row.allowOwnGroup ?? row.allow_own_group ?? false;
+  const allowOtherGroups = row.allowOtherGroups ?? row.allow_other_groups ?? true;
+  delete cleaned.allowOwnGroup;
+  delete cleaned.allowOtherGroups;
+  delete cleaned.allow_own_group;
+  delete cleaned.allow_other_groups;
   return {
-    ...rest,
+    ...cleaned,
     allow_own_group: allowOwnGroup,
     allow_other_groups: allowOtherGroups,
   };
