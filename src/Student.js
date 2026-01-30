@@ -26,7 +26,7 @@ import useAppSettings from './hooks/useAppSettings';
 import useSemesters from './hooks/useSemesters';
 
 const WEEKLY_STREAK_POINTS = 50;
-const DATA_POLL_MS = 5000;
+const DATA_POLL_MS = 30000;
 const ABSENCE_PREVIEW_LIMIT = 5;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 const STREAK_FREEZE_AVAILABLE_SRC = `${process.env.PUBLIC_URL}/images/streak-freeze.png`;
@@ -180,7 +180,7 @@ export default function Student({
       .sort((a, b) => b.date - a.date);
   }, [activeStudentId, meetings, studentAttendance, activeSemesterId]);
 
-  // Listen to global attendance refresh counter
+  // Listen to global attendance refresh counter (event-driven, only fires when teacher marks attendance)
   useEffect(() => {
     const checkRefresh = () => {
       if (window.attendanceRefreshCounter && window.attendanceRefreshCounter.value !== attendanceRefresh) {
@@ -188,19 +188,12 @@ export default function Student({
         myStreaks.refresh();
       }
     };
-    
-    const interval = setInterval(checkRefresh, 500); // Check every 500ms
+
+    const interval = setInterval(checkRefresh, 500);
     return () => clearInterval(interval);
   }, [attendanceRefresh, myStreaks]);
 
-  // Auto-refresh streaks every 2 seconds as fallback
-  useEffect(() => {
-    const interval = setInterval(() => {
-      myStreaks.refresh();
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [myStreaks]);
-
+  // Background data poll — refreshes all tables periodically
   useEffect(() => {
     if (!activeStudentId || inPreview) return;
     const refresh = () => {
@@ -210,8 +203,9 @@ export default function Student({
       if (!peerAwardsDirty) refetchPeerAwards();
       refetchPeerEvents();
       refetchAppSettings();
+      refetchMeetings();
+      refetchAttendance();
     };
-    refresh();
     const interval = setInterval(refresh, DATA_POLL_MS);
     return () => clearInterval(interval);
   }, [
@@ -223,6 +217,8 @@ export default function Student({
     refetchPeerAwards,
     refetchPeerEvents,
     refetchAppSettings,
+    refetchMeetings,
+    refetchAttendance,
     studentsDirty,
     awardsDirty,
     peerAwardsDirty,
