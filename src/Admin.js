@@ -50,7 +50,6 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const [newMeetingDate, setNewMeetingDate] = useState('');
   const [newMeetingTime, setNewMeetingTime] = useState('');
   const [newMeetingTitle, setNewMeetingTitle] = useState('');
-  const [newMeetingType, setNewMeetingType] = useState('');
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const attendanceForMeeting = useMemo(() => {
     if (!selectedMeeting) return [];
@@ -194,16 +193,16 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
         ? Math.max(Math.floor(student.streakFreezeTotal), 0)
         : DEFAULT_STREAK_FREEZES;
       const raw = window.prompt(
-        `Extra streak freezes voor ${student.name || 'student'}:`,
+        `Streak freezes aanpassen voor ${student.name || 'student'} (positief of negatief):`,
         '1'
       );
       if (raw === null) return;
       const extra = Number.parseInt(raw, 10);
-      if (!Number.isFinite(extra) || extra <= 0) {
-        alert('Voer een geldig positief geheel getal in.');
+      if (!Number.isFinite(extra) || extra === 0) {
+        alert('Voer een geldig geheel getal in (positief of negatief, niet 0).');
         return;
       }
-      await updateStudentStreakFreezes(student.id, current + extra);
+      await updateStudentStreakFreezes(student.id, Math.max(current + extra, 0));
     },
     [updateStudentStreakFreezes]
   );
@@ -331,7 +330,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   );
 
   const awardToStudent = useCallback(async (studentId, amount, reason) => {
-    if (!studentId || !Number.isFinite(amount)) return;
+    if (!studentId || !Number.isFinite(amount)) return false;
     const delta = Number(amount);
     const targetStudent = students.find((s) => s.id === studentId);
     setStudents((prev) =>
@@ -345,7 +344,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     const { error: saveError } = await saveStudents();
     if (saveError) {
       alert('Kon student data niet opslaan: ' + saveError.message);
-      return;
+      return false;
     }
     const award = {
       id: genId(),
@@ -358,11 +357,15 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     };
     setAwards((prev) => [award, ...prev].slice(0, 500));
     const { error } = await saveAwards();
-    if (error) alert('Kon award niet opslaan: ' + error.message);
+    if (error) {
+      alert('Kon award niet opslaan: ' + error.message);
+      return false;
+    }
+    return true;
   }, [setStudents, setAwards, saveStudents, saveAwards, students]);
 
   const awardToGroup = useCallback(async (groupId, amount, reason) => {
-    if (!groupId || !Number.isFinite(amount)) return;
+    if (!groupId || !Number.isFinite(amount)) return false;
     const delta = Number(amount);
     const targetGroup = groups.find((g) => g.id === groupId);
     setGroups((prev) =>
@@ -375,7 +378,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     const { error: saveError } = await saveGroups();
     if (saveError) {
       alert('Kon groepspunten niet opslaan: ' + saveError.message);
-      return;
+      return false;
     }
     const award = {
       id: genId(),
@@ -388,15 +391,19 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     };
     setAwards((prev) => [award, ...prev].slice(0, 500));
     const { error } = await saveAwards();
-    if (error) alert('Kon award niet opslaan: ' + error.message);
+    if (error) {
+      alert('Kon award niet opslaan: ' + error.message);
+      return false;
+    }
+    return true;
   }, [setGroups, setAwards, saveGroups, saveAwards, groups]);
 
   const addExtraStreakFreezes = useCallback(
     async (studentIds, extra) => {
       const extraCount = Number.parseInt(extra, 10);
-      if (!Number.isFinite(extraCount) || extraCount <= 0) {
-        alert('Voer een geldig positief geheel getal in.');
-        return;
+      if (!Number.isFinite(extraCount) || extraCount === 0) {
+        alert('Voer een geldig geheel getal in (positief of negatief, niet 0).');
+        return false;
       }
       const idSet = new Set(studentIds.map((id) => String(id)));
       setStudents((prev) =>
@@ -405,14 +412,15 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
           const current = Number.isFinite(s.streakFreezeTotal)
             ? Math.max(Math.floor(s.streakFreezeTotal), 0)
             : DEFAULT_STREAK_FREEZES;
-          return { ...s, streakFreezeTotal: current + extraCount };
+          return { ...s, streakFreezeTotal: Math.max(current + extraCount, 0) };
         })
       );
       const { error } = await saveStudents();
       if (error) {
         alert('Kon extra streak freezes niet opslaan: ' + error.message);
-        return;
+        return false;
       }
+      return true;
     },
     [setStudents, saveStudents]
   );
@@ -570,9 +578,11 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const [awardType, setAwardType] = useState('student');
   const [awardStudentIds, setAwardStudentIds] = useState([]);
   const [awardGroupId, setAwardGroupId] = useState('');
-  const [awardAmount, setAwardAmount] = useState(5);
+  const [awardAmount, setAwardAmount] = useState('5');
   const [awardReason, setAwardReason] = useState('');
-  const [extraFreezeAmount, setExtraFreezeAmount] = useState(1);
+  const [extraFreezeAmount, setExtraFreezeAmount] = useState('1');
+  const [awardMessage, setAwardMessage] = useState('');
+  const [freezeMessage, setFreezeMessage] = useState('');
 
   const [newBadgeTitle, setNewBadgeTitle] = useState('');
   const [newBadgeImage, setNewBadgeImage] = useState('');
@@ -741,7 +751,6 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       date: newMeetingDate,
       time: newMeetingTime,
       title: newMeetingTitle,
-      type: newMeetingType,
       semesterId: null,
       created_by: currentTeacherId || null,
     };
@@ -754,7 +763,6 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     setNewMeetingDate('');
     setNewMeetingTime('');
     setNewMeetingTitle('');
-    setNewMeetingType('');
   };
 
   const removeMeeting = async (id) => {
@@ -809,6 +817,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   };
 
   const [page, setPage] = useState('points');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   
 
@@ -844,6 +853,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const menuItems = [
     { value: 'scores', label: 'Scores' },
     { value: 'points', label: 'Punten invoeren' },
+    { value: 'streak-freezes', label: 'Streak freezes' },
     { value: 'peer-points', label: 'Peer punten' },
     { value: 'badges', label: 'Badges toekennen' },
     { value: 'manage-groups', label: 'Groepen beheren' },
@@ -856,8 +866,8 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     { value: 'preview', label: 'Preview student' }
   ];
   return (
-    <div className="relative min-h-screen pl-60">
-      <div className="fixed inset-y-0 left-60 right-0 z-0 pointer-events-none">
+    <div className="relative min-h-screen pl-0 lg:pl-60">
+      <div className="fixed inset-y-0 left-0 right-0 z-0 pointer-events-none lg:left-60">
         <img
           src={process.env.PUBLIC_URL + '/images/voorpagina.png'}
           alt="Background"
@@ -865,12 +875,28 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
         />
       </div>
 
-      <nav className="fixed left-0 top-0 z-20 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2">
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Sluit menu"
+          className="fixed inset-0 z-20 bg-black/30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
+      <nav
+        id="admin-sidebar"
+        className={`fixed left-0 top-0 z-30 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2 transform transition-transform duration-200 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0`}
+      >
         {menuItems.map((item) => (
           <button
             key={item.value}
-            onClick={() => setPage(item.value)}
+            onClick={() => {
+              setPage(item.value);
+              setSidebarOpen(false);
+            }}
             className={`block w-full text-left px-2 py-1 rounded ${page === item.value ? 'bg-neutral-200' : ''}`}
           >
             {item.label}
@@ -881,6 +907,15 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       <div className="relative z-10 space-y-4">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              aria-controls="admin-sidebar"
+              aria-expanded={sidebarOpen}
+              className="lg:hidden inline-flex items-center rounded border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold"
+              onClick={() => setSidebarOpen((open) => !open)}
+            >
+              Menu
+            </button>
             <span className="bg-white/80 px-2 py-1 rounded">Ingelogd als beheerder</span>
           </div>
           <Button className="bg-indigo-600 text-white" onClick={onLogout}>
@@ -1048,7 +1083,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
                         className="border"
                         onClick={() => promptExtraStreakFreezes(s)}
                       >
-                        Extra streak freeze
+                        Streak freezes aanpassen
                       </Button>
                       <Button
                         className="bg-indigo-600 text-white"
@@ -1457,48 +1492,105 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
             <div>
               <label className="text-sm">Punten</label>
-              <TextInput value={String(awardAmount)} onChange={(v) => setAwardAmount(Number(v))} />
+              <TextInput value={awardAmount} onChange={setAwardAmount} />
             </div>
             <div className="md:col-span-2">
               <label className="text-sm">Reden</label>
               <TextInput value={awardReason} onChange={setAwardReason} />
             </div>
-            {awardType === 'student' && (
-              <div className="md:col-span-3">
-                <label className="text-sm">Extra streak freezes</label>
-                <div className="flex flex-wrap gap-2 items-end">
-                  <TextInput
-                    value={String(extraFreezeAmount)}
-                    onChange={(v) => setExtraFreezeAmount(Number(v))}
-                    className="w-24"
-                  />
-                  <Button
-                    className="border"
-                    disabled={awardStudentIds.length === 0 || extraFreezeAmount <= 0}
-                    onClick={() => {
-                      addExtraStreakFreezes(awardStudentIds, extraFreezeAmount);
-                      setExtraFreezeAmount(1);
-                    }}
-                  >
-                    Extra freezes geven
-                  </Button>
-                </div>
-              </div>
-            )}
             <Button
               className="bg-indigo-600 text-white md:col-span-5"
               disabled={awardType === 'student' ? awardStudentIds.length === 0 : !awardGroupId}
-              onClick={() => {
-                if (awardType === 'student') {
-                  awardStudentIds.forEach((id) => awardToStudent(id, awardAmount, awardReason.trim()));
-                } else {
-                  awardToGroup(awardGroupId, awardAmount, awardReason.trim());
+              onClick={async () => {
+                if (!awardAmount.trim()) {
+                  alert('Voer een geldig getal in.');
+                  return;
                 }
-                setAwardReason('');
+                const amountValue = Number(awardAmount);
+                if (!Number.isFinite(amountValue)) {
+                  alert('Voer een geldig getal in.');
+                  return;
+                }
+                const reason = awardReason.trim();
+                let success = false;
+                if (awardType === 'student') {
+                  const results = await Promise.all(
+                    awardStudentIds.map((id) => awardToStudent(id, amountValue, reason))
+                  );
+                  success = results.length > 0 && results.every(Boolean);
+                } else {
+                  success = await awardToGroup(awardGroupId, amountValue, reason);
+                }
+                if (success) {
+                  setAwardReason('');
+                  setAwardAmount('5');
+                  setAwardMessage('Succesvol ingevoerd.');
+                  setTimeout(() => setAwardMessage(''), 2000);
+                }
               }}
             >
               Toekennen
             </Button>
+            {awardMessage && (
+              <div className="md:col-span-5 text-sm text-emerald-600">
+                {awardMessage}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {page === 'streak-freezes' && (
+        <Card title="Streak freezes">
+          <div className="grid md:grid-cols-5 gap-2 items-end">
+            <div className="md:col-span-2">
+              <label className="text-sm">Studenten</label>
+              <Select multiple value={awardStudentIds} onChange={setAwardStudentIds} className="h-32">
+                {sortedAwardStudents.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm">Aantal</label>
+              <TextInput
+                value={extraFreezeAmount}
+                onChange={setExtraFreezeAmount}
+                className="w-24"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <div className="flex flex-wrap gap-2 items-end">
+                <Button
+                  className="border"
+                  disabled={
+                    awardStudentIds.length === 0 ||
+                    !Number.isFinite(Number(extraFreezeAmount)) ||
+                    Number(extraFreezeAmount) === 0
+                  }
+                  onClick={async () => {
+                    const success = await addExtraStreakFreezes(awardStudentIds, extraFreezeAmount);
+                    if (success) {
+                      setExtraFreezeAmount('1');
+                      setFreezeMessage('Succesvol ingevoerd.');
+                      setTimeout(() => setFreezeMessage(''), 2000);
+                    }
+                  }}
+                >
+                  Streak freezes aanpassen
+                </Button>
+                <span className="text-xs text-neutral-500">
+                  Bijv. 2 om toe te voegen, -1 om af te pakken.
+                </span>
+              </div>
+            </div>
+            {freezeMessage && (
+              <div className="md:col-span-5 text-sm text-emerald-600">
+                {freezeMessage}
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -1743,13 +1835,6 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
                 placeholder="Bijv. College Neuromarketing"
               />
             </div>
-            <Select value={newMeetingType} onChange={setNewMeetingType}>
-              <option value="">— Kies type —</option>
-              <option value="lecture">College</option>
-              <option value="workshop">Workshop</option>
-              <option value="seminar">Seminar</option>
-              <option value="other">Anders</option>
-            </Select>
             <Button
               className="bg-indigo-600 text-white"
               onClick={addMeeting}
@@ -1763,7 +1848,6 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
                   <div className="flex justify-between items-center">
                     <div>
                       <strong>{m.title}</strong> - {new Date(m.date).toLocaleDateString()} {m.time}
-                      <span className="ml-2 text-sm text-gray-500">({m.type})</span>
                     </div>
                     <div className="flex gap-2">
                       <Button onClick={() => setSelectedMeeting(m.id)}>Aanwezigheid markeren</Button>

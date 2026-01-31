@@ -656,7 +656,6 @@ export default function Student({
       return eligibleAwardGroupsWithMembers.map((g) => ({
         id: g.id,
         label: g.name || 'Groep',
-        size: groupMemberCounts.get(g.id) || 0,
         type: 'group',
       }));
     }
@@ -669,18 +668,15 @@ export default function Student({
       }));
     }
     return [];
-  }, [peerTarget, eligibleAwardGroupsWithMembers, eligibleStudents, groupMemberCounts, groupById]);
+  }, [peerTarget, eligibleAwardGroupsWithMembers, eligibleStudents, groupById]);
 
   const allocationTotalCost = useMemo(() => {
     return allocationItems.reduce((sum, item) => {
       const amount = Number(peerAllocations[item.id]?.amount) || 0;
       if (!Number.isFinite(amount) || amount <= 0) return sum;
-      if (peerTarget === 'group') {
-        return sum + amount * (item.size || 0);
-      }
       return sum + amount;
     }, 0);
-  }, [allocationItems, peerAllocations, peerTarget]);
+  }, [allocationItems, peerAllocations]);
 
   const peerEventBudget = Number(selectedPeerEvent?.budget) || 0;
   const peerEventSpent = useMemo(() => {
@@ -722,17 +718,6 @@ export default function Student({
       ),
     [allocationItems, peerAllocations]
   );
-  const hasMissingReasons = useMemo(
-    () =>
-      allocationItems.some((item) => {
-        const entry = peerAllocations[item.id] || {};
-        const amount = Number(entry.amount) || 0;
-        if (!Number.isFinite(amount) || amount <= 0) return false;
-        return !(entry.reason || '').trim();
-      }),
-    [allocationItems, peerAllocations]
-  );
-
   const updateAllocationAmount = useCallback((id, rawValue) => {
     const parsed = Math.floor(Number(rawValue) || 0);
     const value = Math.max(0, parsed);
@@ -823,21 +808,15 @@ export default function Student({
       setPeerFeedback('Vul bij minimaal één ontvanger punten in.');
       return;
     }
-    if (hasMissingReasons) {
-      setPeerFeedback('Vul bij elke toekenning een reden in.');
-      return;
-    }
-
     const allocations = allocationItems
       .map((item) => {
         const entry = peerAllocations[item.id] || {};
         const amount = Number(entry.amount) || 0;
         const reason = (entry.reason || '').trim();
         if (!Number.isFinite(amount) || amount <= 0) return null;
-        const recipientsCount = peerTarget === 'group' ? item.size || 0 : 1;
-        const totalAmount = peerTarget === 'group' ? amount * recipientsCount : amount;
-        if (!totalAmount || !reason) return null;
-        return { ...item, amount, totalAmount, recipientsCount, reason };
+        const totalAmount = amount;
+        if (!totalAmount) return null;
+        return { ...item, amount, totalAmount, reason };
       })
       .filter(Boolean);
     if (allocationTotalCost !== peerBudgetRemaining) {
@@ -865,7 +844,8 @@ export default function Student({
     if (peerTarget === 'group') {
       const groupBonus = new Map();
       allocations.forEach((item) => {
-        const awardReason = `Peer punten${eventLabel} (groep) van ${me.name}: ${item.reason}`;
+        const reasonSuffix = item.reason ? `: ${item.reason}` : '';
+        const awardReason = `Peer punten${eventLabel} (groep) van ${me.name}${reasonSuffix}`;
         newAwards.push({
           id: genId(),
           ts,
@@ -890,7 +870,7 @@ export default function Student({
           semesterId: null,
           amount: item.amount,
           total_amount: item.totalAmount,
-          reason: item.reason,
+          reason: item.reason || '',
           recipients,
         });
       });
@@ -904,7 +884,8 @@ export default function Student({
     } else {
       const studentBonus = new Map();
       allocations.forEach((item) => {
-        const awardReason = `Peer punten${eventLabel} van ${me.name}: ${item.reason}`;
+        const reasonSuffix = item.reason ? `: ${item.reason}` : '';
+        const awardReason = `Peer punten${eventLabel} van ${me.name}${reasonSuffix}`;
         newAwards.push({
           id: genId(),
           ts,
@@ -926,7 +907,7 @@ export default function Student({
           semesterId: null,
           amount: item.amount,
           total_amount: item.amount,
-          reason: item.reason,
+          reason: item.reason || '',
           recipients: [item.id],
         });
       });
@@ -1652,9 +1633,16 @@ export default function Student({
                         ? `Te veel verdeeld: ${Math.abs(allocationRemaining)}`
                         : `Nog te verdelen: ${allocationRemaining}`}
                     </span>
-                    <span className="text-xs text-neutral-500">
-                      Totaal = punten × aantal ontvangers (groep = aantal studenten).
-                    </span>
+                    {peerTarget === 'student' && (
+                      <span className="text-xs text-neutral-500">
+                        Totaal = punten x aantal ontvangers.
+                      </span>
+                    )}
+                    {peerTarget === 'group' && (
+                      <span className="text-xs text-neutral-500">
+                        Groepspunten = totaal per groep.
+                      </span>
+                    )}
                   </div>
                   {peerEventLocked && (
                     <div className="text-xs text-rose-600">
@@ -1672,15 +1660,13 @@ export default function Student({
                         <div className="grid grid-cols-1 gap-2 text-xs max-h-52 overflow-auto border rounded p-2 bg-white/70">
                           <div className="flex items-center gap-2 text-[11px] text-neutral-500">
                             <span className="flex-1">Groep</span>
-                            <span className="w-20 text-right">Punten p.p.</span>
+                            <span className="w-20 text-right">Punten</span>
                             <span className="flex-1">Reden</span>
-                            <span className="w-20 text-right">Totaal</span>
                           </div>
                           {eligibleAwardGroupsWithMembers.map((g) => {
                             const count = groupMemberCounts.get(g.id) || 0;
                             const amount = peerAllocations[g.id]?.amount ?? '';
                             const reason = peerAllocations[g.id]?.reason ?? '';
-                            const total = (Number(amount) || 0) * count;
                             return (
                               <div key={g.id} className="flex items-center gap-2">
                                 <span className="flex-1">
@@ -1699,12 +1685,9 @@ export default function Student({
                                   className="flex-1 text-sm"
                                   value={reason}
                                   disabled={peerEventLocked}
-                                  placeholder="Waarom?"
+                                  placeholder="Waarom? (optioneel)"
                                   onChange={(e) => updateAllocationReason(g.id, e.target.value)}
                                 />
-                                <span className="w-20 text-right text-neutral-500">
-                                  {total}
-                                </span>
                               </div>
                             );
                           })}
@@ -1753,7 +1736,7 @@ export default function Student({
                                   className="flex-1 text-sm"
                                   value={reason}
                                   disabled={peerEventLocked}
-                                  placeholder="Waarom?"
+                                  placeholder="Waarom? (optioneel)"
                                   onChange={(e) => updateAllocationReason(s.id, e.target.value)}
                                 />
                               </div>
