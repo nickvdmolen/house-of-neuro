@@ -6,7 +6,6 @@ const toDb = (row) => {
     id: row.id,
     date: row.date,
     time: row.time ?? null,
-    type: row.type,
     title: row.title,
     semesterId: row.semesterId ?? null,
     created_by: null,

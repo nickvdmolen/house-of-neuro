@@ -119,9 +119,11 @@ export default function BingoAdmin() {
     return result;
   }, [filteredStudents]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="relative min-h-screen pl-60">
-      <div className="fixed inset-y-0 left-60 right-0 z-0 pointer-events-none">
+    <div className="relative min-h-screen pl-0 lg:pl-60">
+      <div className="fixed inset-y-0 left-0 right-0 z-0 pointer-events-none lg:left-60">
         <img
           src={getImageUrl('voorpagina.png')}
           alt="Background"
@@ -129,10 +131,27 @@ export default function BingoAdmin() {
         />
       </div>
 
-      <nav className="fixed left-0 top-0 z-20 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2">
+      {sidebarOpen && (
         <button
           type="button"
-          onClick={() => window.location.hash = '/admin'}
+          aria-label="Sluit menu"
+          className="fixed inset-0 z-20 bg-black/30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <nav
+        id="bingo-sidebar"
+        className={`fixed left-0 top-0 z-30 h-screen w-60 overflow-y-auto border-r bg-white p-4 space-y-2 transform transition-transform duration-200 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0`}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            window.location.hash = '/admin';
+            setSidebarOpen(false);
+          }}
           className="block w-full text-left px-2 py-1 rounded bg-neutral-200"
         >
           Terug naar beheer
@@ -141,7 +160,18 @@ export default function BingoAdmin() {
 
       <div className="relative z-10 space-y-4">
         <div className="flex items-center justify-between p-4">
-          <span className="bg-white/80 px-2 py-1 rounded">Ingelogd als beheerder</span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              aria-controls="bingo-sidebar"
+              aria-expanded={sidebarOpen}
+              className="lg:hidden inline-flex items-center rounded border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold"
+              onClick={() => setSidebarOpen((open) => !open)}
+            >
+              Menu
+            </button>
+            <span className="bg-white/80 px-2 py-1 rounded">Ingelogd als beheerder</span>
+          </div>
           <Button
             className="bg-gray-600 text-white"
             onClick={() => window.location.hash = '/admin'}
