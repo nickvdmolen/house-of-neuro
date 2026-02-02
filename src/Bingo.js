@@ -314,14 +314,12 @@ export default function Bingo({ selectedStudentId, previewMode = false }) {
             Bingo - {studentAnswers[activeStudent].name}
           </h2>
           <div className="flex gap-2 flex-wrap">
-            {hasUnanswered && (
-              <Button
-                className="bg-indigo-600 text-white"
-                onClick={() => window.location.hash = '/bingo/edit'}
-              >
-                Vragen invullen
-              </Button>
-            )}
+            <Button
+              className="bg-indigo-600 text-white"
+              onClick={() => window.location.hash = '/bingo/edit'}
+            >
+              {hasUnanswered ? 'Vragen invullen' : 'Antwoorden bekijken/bewerken'}
+            </Button>
             <Button
               className="bg-gray-600 text-white"
               onClick={() => window.location.hash = previewMode ? '/admin/preview' : '/student'}

@@ -13,6 +13,7 @@ import {
   DEFAULT_STREAK_FREEZES,
 } from './utils';
 import Student from './Student';
+import { questions as bingoQuestions } from './bingoData';
 import useBadges from './hooks/useBadges';
 import useTeachers from './hooks/useTeachers';
 import useMeetings from './hooks/useMeetings';
@@ -32,6 +33,7 @@ const compareBadgeTitles = (a, b) =>
     normalizeSortValue(a?.title || a?.id),
     normalizeSortValue(b?.title || b?.id)
   );
+const bingoQuestionKeys = Object.keys(bingoQuestions);
 
 export default function Admin({ onLogout = () => {}, currentTeacherId = null }) {
   const [students, setStudents, { save: saveStudents }] = useStudents();
@@ -823,6 +825,10 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
   // Preview state (gedeeld met Student-weergave)
   const [previewId, setPreviewId] = usePersistentState('nm_preview_student', '');
+  const previewStudent = useMemo(
+    () => (previewId ? studentById.get(previewId) : null),
+    [previewId, studentById]
+  );
 
   useEffect(() => {
     if (semesterStudents.length === 0) {
@@ -1910,32 +1916,59 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       )}
 
       {page === 'preview' && (
-        <Card title="Preview student">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-end">
-            <div>
-              <label className="text-sm">Student</label>
-              <Select value={previewId} onChange={setPreviewId}>
-                <option value="">— Kies student —</option>
-                {previewStudents.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.email || s.id})
-                  </option>
-                ))}
-              </Select>
-              <p className="text-xs text-neutral-500 mt-2">
-                Laat leeg om te zien wat een student zonder selectie ziet.
-              </p>
+        <>
+          <Card title="Preview student">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-end">
+              <div>
+                <label className="text-sm">Student</label>
+                <Select value={previewId} onChange={setPreviewId}>
+                  <option value="">— Kies student —</option>
+                  {previewStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.email || s.id})
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-neutral-500 mt-2">
+                  Laat leeg om te zien wat een student zonder selectie ziet.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button className="border" onClick={() => setPreviewId('')}>Leegmaken</Button>
+                <a href="#/admin/preview" className="px-4 py-2 rounded-2xl border">Open als losse pagina</a>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button className="border" onClick={() => setPreviewId('')}>Leegmaken</Button>
-              <a href="#/admin/preview" className="px-4 py-2 rounded-2xl border">Open als losse pagina</a>
-            </div>
-          </div>
 
-          <div className="mt-4">
-            <Student previewStudentId={previewId} />
-          </div>
-        </Card>
+            <div className="mt-4">
+              <Student previewStudentId={previewId} />
+            </div>
+          </Card>
+
+          <Card title="Bingo antwoorden">
+            {!previewStudent ? (
+              <p className="text-sm text-neutral-600">
+                Selecteer een student om bingo-antwoorden te bekijken.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {bingoQuestionKeys.map((q) => (
+                  <div key={q}>
+                    <div className="font-medium text-gray-700">{bingoQuestions[q]}</div>
+                    <ul className="list-disc ml-6 text-gray-600">
+                      {(previewStudent.bingo?.[q] || []).length > 0 ? (
+                        previewStudent.bingo[q].map((answer, i) => (
+                          <li key={i}>{answer}</li>
+                        ))
+                      ) : (
+                        <li className="text-gray-400 italic">Geen antwoorden</li>
+                      )}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </>
       )}
     </div>
   </div>
