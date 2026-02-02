@@ -3,6 +3,7 @@ import { questions } from './bingoData';
 import useStudents from './hooks/useStudents';
 import { Button, Card } from './components/ui';
 import { getImageUrl } from './supabase';
+import useViewRefresh from './hooks/useViewRefresh';
 
 // Genereer dynamisch de keys op basis van de questions
 const questionKeys = Object.keys(questions);
@@ -94,7 +95,12 @@ const hasAllAnswersFilled = (studentData) => {
 };
 
 export default function Bingo({ selectedStudentId, previewMode = false }) {
-  const [students, setStudents, { save: saveStudents }] = useStudents();
+  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
+  const { refreshOnViewChange } = useViewRefresh();
+
+  useEffect(() => {
+    refreshOnViewChange('bingo', { refetchStudents });
+  }, [refreshOnViewChange, refetchStudents]);
 
   const activeStudentRecord = useMemo(
     () => students.find((s) => s.id === selectedStudentId) || null,

@@ -3,6 +3,7 @@ import { questions } from './bingoData';
 import useStudents from './hooks/useStudents';
 import { Button, TextInput, Card } from './components/ui';
 import { getImageUrl } from './supabase';
+import useViewRefresh from './hooks/useViewRefresh';
 
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 
@@ -19,7 +20,12 @@ const createEmptyAnswers = () => {
 };
 
 export default function BingoAdmin() {
-  const [students, setStudents, { save: saveStudents }] = useStudents();
+  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
+  const { refreshOnViewChange } = useViewRefresh();
+
+  useEffect(() => {
+    refreshOnViewChange('bingo-admin', { refetchStudents });
+  }, [refreshOnViewChange, refetchStudents]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [answers, setAnswers] = useState(createEmptyAnswers);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { checkPassword, hashPassword } from './auth';
 import { Card, Button, TextInput, Select } from './components/ui';
 import BadgeOverview from './components/BadgeOverview';
@@ -22,6 +22,8 @@ import useAttendance from './hooks/useAttendance';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
+import useAnnouncements from './hooks/useAnnouncements';
+import useViewRefresh from './hooks/useViewRefresh';
 const WEEKLY_STREAK_POINTS = 50;
 const ABSENCE_PREVIEW_LIMIT = 5;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
@@ -81,24 +83,31 @@ export default function Student({
     {
       save: saveStudents,
       loaded: studentsLoaded,
+      refetch: refetchStudents,
     },
   ] = useStudents();
-  const [groups, setGroups, { save: saveGroups }] = useGroups({ enabled: dataEnabled });
+  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups }] = useGroups({ enabled: dataEnabled });
   const [
     awards,
     setAwards,
     {
       save: saveAwards,
       error: awardsError,
+      refetch: refetchAwards,
     },
   ] = useAwards({ enabled: dataEnabled });
-  const [badgeDefs] = useBadges({ enabled: dataEnabled });
-  const [peerAwards, setPeerAwards] = usePeerAwards({ enabled: dataEnabled });
-  const [peerEvents] = usePeerEvents({ enabled: dataEnabled });
-  const [appSettings] = useAppSettings({ enabled: dataEnabled });
+  const [badgeDefs, , { refetch: refetchBadges }] = useBadges({ enabled: dataEnabled });
+  const [peerAwards, setPeerAwards, { refetch: refetchPeerAwards }] = usePeerAwards({ enabled: dataEnabled });
+  const [peerEvents, , { refetch: refetchPeerEvents }] = usePeerEvents({ enabled: dataEnabled });
+  const [appSettings, , { refetch: refetchAppSettings }] = useAppSettings({ enabled: dataEnabled });
+  const [announcements] = useAnnouncements({ enabled: dataEnabled });
   const [meetings, , { refetch: refetchMeetings }] = useMeetings({ enabled: dataEnabled });
   const [attendance, setAttendance, { save: saveAttendance, refetch: refetchAttendance }] =
     useAttendance({ enabled: dataEnabled });
+
+  // Refresh data when switching views
+  const { refreshOnViewChange } = useViewRefresh();
+  const viewRefreshDeps = useRef({});
 
   const me = students.find((s) => s.id === activeStudentId) || null;
   const activeSemesterId = null;
@@ -214,6 +223,10 @@ export default function Student({
   }, [me, badgeDefs]);
   const myBadgeSet = useMemo(() => new Set(myBadges), [myBadges]);
   const bingoHintsEnabled = Boolean(appSettings?.bingoHintsEnabled);
+  const activeAnnouncements = useMemo(
+    () => announcements.filter((a) => a.active !== false),
+    [announcements]
+  );
 
   useEffect(() => {
     if (inPreview || !activeStudentId || !me) return;
@@ -452,6 +465,30 @@ export default function Student({
       setProfileShowRank(me.showRankPublic !== false);
     }
   }, [showProfile, me]);
+
+  // View refresh: fetch fresh data when switching between dashboard/badges/profile
+  const currentView = useMemo(() => {
+    if (!activeStudentId) return 'login';
+    if (showProfile) return 'profile';
+    if (showBadges) return 'badges';
+    return 'dashboard';
+  }, [activeStudentId, showProfile, showBadges]);
+
+  viewRefreshDeps.current = {
+    'login': {},
+    'dashboard': {
+      refetchStudents, refetchGroups, refetchAwards, refetchBadges,
+      refetchMeetings, refetchAttendance, refetchPeerAwards,
+      refetchPeerEvents, refetchAppSettings,
+    },
+    'badges': { refetchBadges, refetchStudents },
+    'profile': { refetchStudents },
+  };
+
+  useEffect(() => {
+    const deps = viewRefreshDeps.current[currentView] || {};
+    refreshOnViewChange(currentView, deps);
+  }, [currentView, refreshOnViewChange]);
 
   const [authMode, setAuthMode] = useState('login');
 
@@ -1254,6 +1291,25 @@ export default function Student({
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+            {activeAnnouncements.length > 0 && (
+              <Card title="Punten verdienen" className="lg:col-span-2">
+                <ul className="space-y-3">
+                  {activeAnnouncements.map((item) => (
+                    <li key={item.id} className="flex items-start gap-3">
+                      <span className="shrink-0 inline-flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5">
+                        {item.points} pt
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{item.title}</div>
+                        {item.description && (
+                          <div className="text-xs text-neutral-500">{item.description}</div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
             <Card title="Aanwezigheidsstreak" className="lg:col-span-2">
               {me ? (
                 <div className="text-center">

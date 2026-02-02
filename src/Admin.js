@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, Button, TextInput, Select } from './components/ui';
 import BadgeChecklist from './components/BadgeChecklist';
 import useStudents from './hooks/useStudents';
@@ -24,6 +24,8 @@ import usePersistentState from './hooks/usePersistentState';
 import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
+import useAnnouncements from './hooks/useAnnouncements';
+import useViewRefresh from './hooks/useViewRefresh';
 
 const BADGE_POINTS = 50;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
@@ -36,16 +38,38 @@ const compareBadgeTitles = (a, b) =>
 const bingoQuestionKeys = Object.keys(bingoQuestions);
 
 export default function Admin({ onLogout = () => {}, currentTeacherId = null }) {
-  const [students, setStudents, { save: saveStudents }] = useStudents();
-  const [groups, setGroups, { save: saveGroups }] = useGroups();
-  const [awards, setAwards, { save: saveAwards }] = useAwards();
-  const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty }] = useBadges();
-  const [teachers, setTeachers, { save: saveTeachers }] = useTeachers();
-  const [meetings, setMeetings, { save: saveMeetings }] = useMeetings();
-  const [attendance, setAttendance, { save: saveAttendance }] = useAttendance();
-  const [peerAwards, setPeerAwards, { save: savePeerAwards }] = usePeerAwards();
-  const [peerEvents, setPeerEvents, { save: savePeerEvents, dirty: peerEventsDirty }] = usePeerEvents();
-  const [appSettings, setAppSettings, { save: saveAppSettings }] = useAppSettings();
+  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
+  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups }] = useGroups();
+  const [awards, setAwards, { save: saveAwards, refetch: refetchAwards }] = useAwards();
+  const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty, refetch: refetchBadges }] = useBadges();
+  const [teachers, setTeachers, { save: saveTeachers, refetch: refetchTeachers }] = useTeachers();
+  const [meetings, setMeetings, { save: saveMeetings, refetch: refetchMeetings }] = useMeetings();
+  const [attendance, setAttendance, { save: saveAttendance, refetch: refetchAttendance }] = useAttendance();
+  const [peerAwards, setPeerAwards, { save: savePeerAwards, refetch: refetchPeerAwards }] = usePeerAwards();
+  const [peerEvents, setPeerEvents, { save: savePeerEvents, dirty: peerEventsDirty, refetch: refetchPeerEvents }] = usePeerEvents();
+  const [appSettings, setAppSettings, { save: saveAppSettings, refetch: refetchAppSettings }] = useAppSettings();
+  const [announcements, setAnnouncements, { save: saveAnnouncements, dirty: announcementsDirty, refetch: refetchAnnouncements }] = useAnnouncements();
+
+  // Refresh data when switching tabs
+  const { refreshOnViewChange } = useViewRefresh();
+  const tabRefreshDeps = useRef({});
+  tabRefreshDeps.current = {
+    'scores': { refetchStudents, refetchGroups },
+    'points': { refetchStudents, refetchGroups },
+    'streak-freezes': { refetchStudents },
+    'peer-points': { refetchPeerAwards, refetchPeerEvents, refetchStudents, refetchGroups },
+    'badges': { refetchStudents, refetchBadges },
+    'manage-groups': { refetchGroups, refetchStudents },
+    'manage-students': { refetchStudents, refetchGroups },
+    'manage-teachers': { refetchTeachers },
+    'manage-badges': { refetchBadges },
+    'manage-meetings': { refetchMeetings, refetchAttendance, refetchStudents },
+    'bingo': { refetchAppSettings, refetchStudents },
+    'announcements': { refetchAnnouncements },
+    'backup': {},
+    'preview': { refetchStudents, refetchGroups, refetchAwards, refetchBadges, refetchMeetings, refetchAttendance },
+  };
+
   const [restoreFile, setRestoreFile] = useState(null);
 
   // Meeting state
@@ -520,6 +544,78 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     [setPeerEvents, savePeerEvents]
   );
 
+  // Announcement state
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementPoints, setAnnouncementPoints] = useState('');
+  const [announcementDescription, setAnnouncementDescription] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
+
+  const addAnnouncement = useCallback(async () => {
+    const title = announcementTitle.trim();
+    const points = Number(announcementPoints);
+    if (!title || !Number.isFinite(points) || points < 0) {
+      alert('Vul een titel en geldig aantal punten in.');
+      return;
+    }
+    const item = {
+      id: genId(),
+      title,
+      points,
+      description: announcementDescription.trim(),
+      active: true,
+      createdBy: currentTeacherId || null,
+      created_at: new Date().toISOString(),
+    };
+    setAnnouncements((prev) => [item, ...prev]);
+    const { error } = await saveAnnouncements();
+    if (error) {
+      alert('Kon melding niet opslaan: ' + error.message);
+      return;
+    }
+    setAnnouncementTitle('');
+    setAnnouncementPoints('');
+    setAnnouncementDescription('');
+  }, [
+    announcementTitle,
+    announcementPoints,
+    announcementDescription,
+    currentTeacherId,
+    setAnnouncements,
+    saveAnnouncements,
+  ]);
+
+  const updateAnnouncement = useCallback(
+    (id, changes) => {
+      setAnnouncements((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...changes } : item))
+      );
+    },
+    [setAnnouncements]
+  );
+
+  const persistAnnouncements = useCallback(async () => {
+    const { error } = await saveAnnouncements();
+    if (error) {
+      alert('Kon meldingen niet opslaan: ' + error.message);
+      return;
+    }
+    setAnnouncementMessage('Meldingen opgeslagen.');
+    setTimeout(() => setAnnouncementMessage(''), 2000);
+  }, [saveAnnouncements]);
+
+  const removeAnnouncement = useCallback(
+    async (id) => {
+      if (!window.confirm('Melding verwijderen?')) return;
+      setAnnouncements((prev) => prev.filter((item) => item.id !== id));
+      const { error } = await saveAnnouncements();
+      if (error) {
+        alert('Kon melding niet verwijderen: ' + error.message);
+        return;
+      }
+    },
+    [setAnnouncements, saveAnnouncements]
+  );
+
   const peerAwardsSorted = useMemo(
     () =>
       [...peerAwards].sort(
@@ -645,6 +741,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       attendance,
       peerAwards,
       peerEvents,
+      announcements,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -653,7 +750,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     a.download = 'backup.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [students, groups, awards, badgeDefs, teachers, meetings, attendance, peerAwards, peerEvents]);
+  }, [students, groups, awards, badgeDefs, teachers, meetings, attendance, peerAwards, peerEvents, announcements]);
 
   const handleRestore = useCallback((file) => {
     if (!file) return;
@@ -717,6 +814,11 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
           const { error } = await savePeerEvents();
           if (error) errors.push('peer events');
         }
+        if (Array.isArray(data.announcements)) {
+          setAnnouncements(data.announcements);
+          const { error } = await saveAnnouncements();
+          if (error) errors.push('meldingen');
+        }
         if (errors.length) {
           alert(`Herstel gedeeltelijk mislukt: ${errors.join(', ')}`);
         }
@@ -744,6 +846,8 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     saveAttendance,
     savePeerAwards,
     savePeerEvents,
+    setAnnouncements,
+    saveAnnouncements,
   ]);
 
   // Meeting functions
@@ -821,6 +925,11 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const [page, setPage] = useState('points');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    const deps = tabRefreshDeps.current[page] || {};
+    refreshOnViewChange(page, deps);
+  }, [page, refreshOnViewChange]);
+
   
 
   // Preview state (gedeeld met Student-weergave)
@@ -868,6 +977,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     { value: 'manage-badges', label: 'Badges beheren' },
     { value: 'manage-meetings', label: 'Bijeenkomsten beheren' },
     { value: 'bingo', label: 'Bingo beheer' },
+    { value: 'announcements', label: 'Meldingen' },
     { value: 'backup', label: 'Backup & herstel' },
     { value: 'preview', label: 'Preview student' }
   ];
@@ -1783,6 +1893,124 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {page === 'announcements' && (
+        <Card title="Meldingen">
+          <div className="space-y-6">
+            <div className="grid gap-2 md:grid-cols-3">
+              <div>
+                <label className="text-sm">Titel</label>
+                <TextInput value={announcementTitle} onChange={setAnnouncementTitle} placeholder="Bijv. Studiereis organiseren" />
+              </div>
+              <div>
+                <label className="text-sm">Punten</label>
+                <TextInput
+                  type="number"
+                  value={announcementPoints}
+                  onChange={setAnnouncementPoints}
+                  placeholder="100"
+                />
+              </div>
+              <div className="md:col-span-3">
+                <label className="text-sm">Omschrijving</label>
+                <TextInput
+                  value={announcementDescription}
+                  onChange={setAnnouncementDescription}
+                  placeholder="Wat moet de student doen?"
+                />
+              </div>
+              <div className="flex gap-2 md:col-span-3">
+                <Button
+                  className="bg-indigo-600 text-white"
+                  onClick={addAnnouncement}
+                >
+                  Melding aanmaken
+                </Button>
+                <Button
+                  className="bg-gray-600 text-white"
+                  disabled={!announcementsDirty}
+                  onClick={persistAnnouncements}
+                >
+                  Wijzigingen opslaan
+                </Button>
+                {announcementMessage && (
+                  <span className="text-sm text-emerald-600 self-center">{announcementMessage}</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Meldingen</h3>
+              {announcements.length === 0 ? (
+                <p className="text-sm text-neutral-500">Nog geen meldingen.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b">
+                      <th className="py-1 pr-2">Titel</th>
+                      <th className="py-1 pr-2">Punten</th>
+                      <th className="py-1 pr-2">Actief</th>
+                      <th className="py-1 pr-2">Omschrijving</th>
+                      <th className="py-1 pr-2">Acties</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {announcements.map((item) => (
+                      <tr key={item.id} className="border-b last:border-0">
+                        <td className="py-1 pr-2">
+                          <input
+                            className="w-full text-base"
+                            value={item.title || ''}
+                            onChange={(e) =>
+                              updateAnnouncement(item.id, { title: e.target.value })
+                            }
+                          />
+                        </td>
+                        <td className="py-1 pr-2">
+                          <input
+                            type="number"
+                            className="w-24 text-base"
+                            value={item.points ?? 0}
+                            onChange={(e) =>
+                              updateAnnouncement(item.id, { points: Number(e.target.value) })
+                            }
+                          />
+                        </td>
+                        <td className="py-1 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={item.active !== false}
+                            onChange={(e) =>
+                              updateAnnouncement(item.id, { active: e.target.checked })
+                            }
+                          />
+                        </td>
+                        <td className="py-1 pr-2">
+                          <input
+                            className="w-full text-base"
+                            value={item.description || ''}
+                            onChange={(e) =>
+                              updateAnnouncement(item.id, { description: e.target.value })
+                            }
+                          />
+                        </td>
+                        <td className="py-1 pr-2">
+                          <Button
+                            className="bg-rose-600 text-white"
+                            onClick={() => removeAnnouncement(item.id)}
+                          >
+                            Verwijder
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               )}
