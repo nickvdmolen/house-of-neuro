@@ -38,8 +38,8 @@ const compareBadgeTitles = (a, b) =>
 const bingoQuestionKeys = Object.keys(bingoQuestions);
 
 export default function Admin({ onLogout = () => {}, currentTeacherId = null }) {
-  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
-  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups }] = useGroups();
+  const [students, setStudents, { save: saveStudents, refetch: refetchStudents, patchRow: patchStudent }] = useStudents();
+  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups, patchRow: patchGroup }] = useGroups();
   const [awards, setAwards, { save: saveAwards, refetch: refetchAwards }] = useAwards();
   const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty, refetch: refetchBadges }] = useBadges();
   const [teachers, setTeachers, { save: saveTeachers, refetch: refetchTeachers }] = useTeachers();
@@ -163,17 +163,10 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     async (id) => {
       const pwd = window.prompt('Nieuw wachtwoord:');
       if (!pwd?.trim()) return;
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, password: hashPassword(pwd.trim()), tempCode: undefined }
-            : s
-        )
-      );
-      const { error } = await saveStudents();
+      const { error } = await patchStudent(id, { password: hashPassword(pwd.trim()), tempCode: null });
       if (error) alert('Kon wachtwoord niet resetten: ' + error.message);
     },
-    [setStudents, saveStudents]
+    [patchStudent]
   );
 
   const updateStudentStreakFreezes = useCallback(
@@ -181,15 +174,10 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       const total = Number.isFinite(nextTotal)
         ? Math.max(Math.floor(nextTotal), 0)
         : DEFAULT_STREAK_FREEZES;
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.id === studentId ? { ...s, streakFreezeTotal: total } : s
-        )
-      );
-      const { error } = await saveStudents();
+      const { error } = await patchStudent(studentId, { streakFreezeTotal: total });
       if (error) alert('Kon streak freezes niet bijwerken: ' + error.message);
     },
-    [setStudents, saveStudents]
+    [patchStudent]
   );
 
   const promptStudentStreakFreezes = useCallback(
@@ -246,23 +234,17 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
   const renameGroup = useCallback(async (id, newName) => {
     if (!newName.trim()) return;
-    setGroups((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, name: newName.trim() } : g))
-    );
-    const { error } = await saveGroups();
+    const { error } = await patchGroup(id, { name: newName.trim() });
     if (error) alert('Kon groep niet hernoemen: ' + error.message);
-  }, [setGroups, saveGroups]);
+  }, [patchGroup]);
 
   const updateStudentGroup = useCallback(
     async (studentId, groupId) => {
       const nextGroupId = groupId || null;
-      setStudents((prev) =>
-        prev.map((s) => (s.id === studentId ? { ...s, groupId: nextGroupId } : s))
-      );
-      const { error } = await saveStudents();
+      const { error } = await patchStudent(studentId, { groupId: nextGroupId });
       if (error) alert('Kon student niet aan groep koppelen: ' + error.message);
     },
-    [setStudents, saveStudents]
+    [patchStudent]
   );
 
   const addStudentToGroup = useCallback(
@@ -282,19 +264,20 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const removeGroup = useCallback(
     async (groupId) => {
       setGroups((prev) => prev.filter((g) => g.id !== groupId));
-      setStudents((prev) =>
-        prev.map((s) => (s.groupId === groupId ? { ...s, groupId: null } : s))
-      );
       const { error: groupError } = await saveGroups();
       if (groupError) {
         alert('Kon groep niet verwijderen: ' + groupError.message);
       }
-      const { error: studentError } = await saveStudents();
-      if (studentError) {
-        alert('Kon studenten niet bijwerken: ' + studentError.message);
+      const affected = students.filter((s) => s.groupId === groupId);
+      for (const s of affected) {
+        const { error } = await patchStudent(s.id, { groupId: null });
+        if (error) {
+          alert('Kon studenten niet bijwerken: ' + error.message);
+          break;
+        }
       }
     },
-    [setGroups, setStudents, saveGroups, saveStudents]
+    [setGroups, saveGroups, students, patchStudent]
   );
 
   const toggleBingoHints = useCallback(
@@ -312,31 +295,25 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     async (studentId, badgeId, hasBadge) => {
       if (!studentId || !badgeId) return;
       let delta = 0;
-      setStudents((prev) =>
-        prev.map((s) => {
-          if (s.id !== studentId) return s;
-          const current = new Set(s.badges || []);
-          const hadBadge = current.has(badgeId);
-          if (hasBadge && !hadBadge) {
-            current.add(badgeId);
-            delta = BADGE_POINTS;
-            return { ...s, badges: Array.from(current), points: s.points + BADGE_POINTS };
-          } else if (!hasBadge && hadBadge) {
-            current.delete(badgeId);
-            delta = -BADGE_POINTS;
-            return { ...s, badges: Array.from(current), points: s.points - BADGE_POINTS };
-          }
-          return s;
-        })
-      );
-      // Save the updated students data
-      const { error: saveError } = await saveStudents();
+      const { error: saveError } = await patchStudent(studentId, (s) => {
+        const current = new Set(s.badges || []);
+        const hadBadge = current.has(badgeId);
+        if (hasBadge && !hadBadge) {
+          current.add(badgeId);
+          delta = BADGE_POINTS;
+          return { badges: Array.from(current), points: (s.points || 0) + BADGE_POINTS };
+        } else if (!hasBadge && hadBadge) {
+          current.delete(badgeId);
+          delta = -BADGE_POINTS;
+          return { badges: Array.from(current), points: (s.points || 0) - BADGE_POINTS };
+        }
+        return null;
+      });
       if (saveError) {
         alert('Kon student data niet opslaan: ' + saveError.message);
         return;
       }
       if (delta !== 0) {
-        const student = students.find((s) => s.id === studentId);
         const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
         const award = {
           id: genId(),
@@ -352,22 +329,15 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
         if (error) alert('Kon award niet opslaan: ' + error.message);
       }
     },
-    [setStudents, setAwards, badgeDefs, saveStudents, saveAwards, students]
+    [patchStudent, setAwards, badgeDefs, saveAwards]
   );
 
   const awardToStudent = useCallback(async (studentId, amount, reason) => {
     if (!studentId || !Number.isFinite(amount)) return false;
     const delta = Number(amount);
-    const targetStudent = students.find((s) => s.id === studentId);
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const currentPoints = Number(s.points) || 0;
-        return { ...s, points: currentPoints + delta };
-      })
-    );
-    // Save the updated students data
-    const { error: saveError } = await saveStudents();
+    const { error: saveError } = await patchStudent(studentId, (s) => ({
+      points: (Number(s.points) || 0) + delta,
+    }));
     if (saveError) {
       alert('Kon student data niet opslaan: ' + saveError.message);
       return false;
@@ -388,20 +358,14 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       return false;
     }
     return true;
-  }, [setStudents, setAwards, saveStudents, saveAwards, students]);
+  }, [patchStudent, setAwards, saveAwards]);
 
   const awardToGroup = useCallback(async (groupId, amount, reason) => {
     if (!groupId || !Number.isFinite(amount)) return false;
     const delta = Number(amount);
-    const targetGroup = groups.find((g) => g.id === groupId);
-    setGroups((prev) =>
-      prev.map((g) =>
-        g.id === groupId
-          ? { ...g, points: (Number(g.points) || 0) + delta }
-          : g
-      )
-    );
-    const { error: saveError } = await saveGroups();
+    const { error: saveError } = await patchGroup(groupId, (g) => ({
+      points: (Number(g.points) || 0) + delta,
+    }));
     if (saveError) {
       alert('Kon groepspunten niet opslaan: ' + saveError.message);
       return false;
@@ -422,7 +386,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       return false;
     }
     return true;
-  }, [setGroups, setAwards, saveGroups, saveAwards, groups]);
+  }, [patchGroup, setAwards, saveAwards]);
 
   const addExtraStreakFreezes = useCallback(
     async (studentIds, extra) => {
@@ -431,24 +395,21 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
         alert('Voer een geldig geheel getal in (positief of negatief, niet 0).');
         return false;
       }
-      const idSet = new Set(studentIds.map((id) => String(id)));
-      setStudents((prev) =>
-        prev.map((s) => {
-          if (!idSet.has(String(s.id))) return s;
+      for (const id of studentIds) {
+        const { error } = await patchStudent(id, (s) => {
           const current = Number.isFinite(s.streakFreezeTotal)
             ? Math.max(Math.floor(s.streakFreezeTotal), 0)
             : DEFAULT_STREAK_FREEZES;
-          return { ...s, streakFreezeTotal: Math.max(current + extraCount, 0) };
-        })
-      );
-      const { error } = await saveStudents();
-      if (error) {
-        alert('Kon extra streak freezes niet opslaan: ' + error.message);
-        return false;
+          return { streakFreezeTotal: Math.max(current + extraCount, 0) };
+        });
+        if (error) {
+          alert('Kon extra streak freezes niet opslaan: ' + error.message);
+          return false;
+        }
       }
       return true;
     },
-    [setStudents, saveStudents]
+    [patchStudent]
   );
 
   const [peerEventTitle, setPeerEventTitle] = useState('');
@@ -856,6 +817,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       id: genId(),
       date: newMeetingDate,
       time: newMeetingTime,
+      type: 'lecture',
       title: newMeetingTitle,
       semesterId: null,
       created_by: currentTeacherId || null,

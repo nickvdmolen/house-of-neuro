@@ -95,7 +95,7 @@ const hasAllAnswersFilled = (studentData) => {
 };
 
 export default function Bingo({ selectedStudentId, previewMode = false }) {
-  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
+  const [students, , { refetch: refetchStudents, patchRow: patchStudent }] = useStudents();
   const { refreshOnViewChange } = useViewRefresh();
 
   useEffect(() => {
@@ -269,12 +269,7 @@ export default function Bingo({ selectedStudentId, previewMode = false }) {
       };
       setMatches(next);
       if (!previewMode) {
-        setStudents((prev) =>
-          prev.map((s) =>
-            s.id === selectedStudentId ? { ...s, bingoMatches: next } : s
-          )
-        );
-        saveStudents().then(({ error }) => {
+        patchStudent(selectedStudentId, { bingoMatches: next }).then(({ error }) => {
           if (error) {
             alert('Kon bingo matches niet opslaan: ' + error.message);
           }
@@ -399,11 +394,11 @@ export default function Bingo({ selectedStudentId, previewMode = false }) {
                       </label>
                       <div className="space-y-1">
                         {myAnswers.map((answer, i) => (
-                          <label 
-                            key={i} 
-                            className={`flex items-center gap-2 p-1.5 sm:p-2 rounded cursor-pointer border text-sm ${
-                              selection.selectedAnswer === answer 
-                                ? 'bg-indigo-100 border-indigo-400' 
+                          <label
+                            key={i}
+                            className={`flex items-start gap-2 p-1.5 sm:p-2 rounded cursor-pointer border text-sm ${
+                              selection.selectedAnswer === answer
+                                ? 'bg-indigo-100 border-indigo-400'
                                 : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                             }`}
                           >
@@ -413,9 +408,9 @@ export default function Bingo({ selectedStudentId, previewMode = false }) {
                               value={answer}
                               checked={selection.selectedAnswer === answer}
                               onChange={() => handleAnswerSelect(q, answer)}
-                              className="accent-indigo-600"
+                              className="accent-indigo-600 mt-0.5 shrink-0 w-4 h-4"
                             />
-                            <span className="break-words">{answer}</span>
+                            <span className="break-words min-w-0">{answer}</span>
                           </label>
                         ))}
                       </div>

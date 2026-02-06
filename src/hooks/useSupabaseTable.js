@@ -128,6 +128,38 @@ export default function useSupabaseTable(
     return { error: err };
   }, [table, loaded]);
 
+  const patchRow = useCallback(async (id, changesOrUpdater) => {
+    if (!enabledRef.current || !id) return { error: null };
+    const currentRow = dataRef.current.find((r) => r.id === id);
+    if (!currentRow) return { error: new Error(`Row ${id} not found`) };
+    const changes =
+      typeof changesOrUpdater === 'function'
+        ? changesOrUpdater(currentRow)
+        : changesOrUpdater;
+    if (!changes || Object.keys(changes).length === 0) return { error: null };
+
+    // Update local state immediately (without marking dirty)
+    const next = dataRef.current.map((row) =>
+      row.id === id ? { ...row, ...changes } : row
+    );
+    dataRef.current = next;
+    setData(next);
+
+    // Persist only the changed fields to the database
+    try {
+      await ensureSession();
+      const { error } = await supabase.from(table).update(changes).eq('id', id);
+      if (error) {
+        console.error('Error patching', table, id, error);
+        return { error };
+      }
+      return { error: null };
+    } catch (err) {
+      console.error('Error patching', table, id, err);
+      return { error: err };
+    }
+  }, [table]);
+
   const refetch = useCallback(async () => {
     if (!enabledRef.current) return { error: null };
     try {
@@ -158,5 +190,5 @@ export default function useSupabaseTable(
     save();
   }, [save, enabled, autoSave, dirty]);
 
-  return [data, update, { save, dirty, error, refetch, loaded }];
+  return [data, update, { save, dirty, error, refetch, loaded, patchRow }];
 }

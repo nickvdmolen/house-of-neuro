@@ -84,9 +84,10 @@ export default function Student({
       save: saveStudents,
       loaded: studentsLoaded,
       refetch: refetchStudents,
+      patchRow: patchStudent,
     },
   ] = useStudents();
-  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups }] = useGroups({ enabled: dataEnabled });
+  const [groups, , { refetch: refetchGroups, patchRow: patchGroup }] = useGroups({ enabled: dataEnabled });
   const [
     awards,
     setAwards,
@@ -243,21 +244,13 @@ export default function Student({
       reason: `Aanwezigheidsstreak ${myStreaks.prevWeekKey}`,
     };
 
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === activeStudentId
-          ? {
-              ...s,
-              points: (Number(s.points) || 0) + WEEKLY_STREAK_POINTS,
-              lastWeekRewarded: myStreaks.prevWeekKey,
-            }
-          : s
-      )
-    );
     setAwards((prev) => [award, ...prev].slice(0, 500));
 
     const persistBonus = async () => {
-      const { error: studentError } = await saveStudents();
+      const { error: studentError } = await patchStudent(activeStudentId, (s) => ({
+        points: (Number(s.points) || 0) + WEEKLY_STREAK_POINTS,
+        lastWeekRewarded: myStreaks.prevWeekKey,
+      }));
       if (studentError) {
         console.warn('[streak bonus] Failed to save student', studentError);
       }
@@ -274,9 +267,8 @@ export default function Student({
     myStreaks.prevWeekComplete,
     myStreaks.prevWeekKey,
     saveAwards,
-    saveStudents,
+    patchStudent,
     setAwards,
-    setStudents,
   ]);
 
   const toggleStreakFreeze = useCallback(
@@ -508,20 +500,13 @@ export default function Student({
 
   const handleSaveProfile = async () => {
     const nextPassword = profilePassword ? hashPassword(profilePassword) : null;
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === activeStudentId
-          ? {
-              ...s,
-              name: profileName.trim(),
-              password: nextPassword || s.password,
-              photo: profilePhoto,
-              showRankPublic: profileShowRank,
-            }
-          : s
-      )
-    );
-    const { error } = await saveStudents();
+    const changes = {
+      name: profileName.trim(),
+      photo: profilePhoto,
+      showRankPublic: profileShowRank,
+    };
+    if (nextPassword) changes.password = nextPassword;
+    const { error } = await patchStudent(activeStudentId, changes);
     if (error) {
       alert('Kon profiel niet opslaan: ' + error.message);
       return;
@@ -550,12 +535,7 @@ export default function Student({
       } else {
         const { ok, needsRehash } = checkPassword(pass, existing.password || '');
         if (ok && needsRehash) {
-          setStudents((prev) =>
-            prev.map((s) =>
-              s.id === existing.id ? { ...s, password: hashPassword(pass) } : s
-            )
-          );
-          const { error } = await saveStudents();
+          const { error } = await patchStudent(existing.id, { password: hashPassword(pass) });
           if (error) {
             console.warn('[login] Failed to upgrade student password hash', error);
           }
@@ -878,8 +858,10 @@ export default function Student({
       return supabase.from('peer_awards').insert(payload);
     };
 
+    const groupBonus = new Map();
+    const studentBonus = new Map();
+
     if (peerTarget === 'group') {
-      const groupBonus = new Map();
       allocations.forEach((item) => {
         const reasonSuffix = item.reason ? `: ${item.reason}` : '';
         const awardReason = `Peer punten${eventLabel} (groep) van ${me.name}${reasonSuffix}`;
@@ -911,15 +893,7 @@ export default function Student({
           recipients,
         });
       });
-      setGroups((prev) =>
-        prev.map((g) =>
-          groupBonus.has(g.id)
-            ? { ...g, points: (Number(g.points) || 0) + groupBonus.get(g.id) }
-            : g
-        )
-      );
     } else {
-      const studentBonus = new Map();
       allocations.forEach((item) => {
         const reasonSuffix = item.reason ? `: ${item.reason}` : '';
         const awardReason = `Peer punten${eventLabel} van ${me.name}${reasonSuffix}`;
@@ -948,29 +922,30 @@ export default function Student({
           recipients: [item.id],
         });
       });
-      setStudents((prev) =>
-        prev.map((s) =>
-          studentBonus.has(s.id)
-            ? { ...s, points: (Number(s.points) || 0) + studentBonus.get(s.id) }
-            : s
-        )
-      );
     }
 
     setAwards((prev) => [...newAwards, ...prev].slice(0, 500));
     setPeerAwards((prev) => [...peerAwardEntries, ...prev].slice(0, 1000));
 
     if (peerTarget === 'group') {
-      const { error: groupsError } = await saveGroups();
-      if (groupsError) {
-        setPeerFeedback('Opslaan punten mislukt.');
-        return;
+      for (const [id, bonus] of groupBonus) {
+        const { error } = await patchGroup(id, (g) => ({
+          points: (Number(g.points) || 0) + bonus,
+        }));
+        if (error) {
+          setPeerFeedback('Opslaan punten mislukt.');
+          return;
+        }
       }
     } else {
-      const { error: studentsError } = await saveStudents();
-      if (studentsError) {
-        setPeerFeedback('Opslaan punten mislukt.');
-        return;
+      for (const [id, bonus] of studentBonus) {
+        const { error } = await patchStudent(id, (s) => ({
+          points: (Number(s.points) || 0) + bonus,
+        }));
+        if (error) {
+          setPeerFeedback('Opslaan punten mislukt.');
+          return;
+        }
       }
     }
     const { error: awardsError } = await saveAwards();
@@ -994,12 +969,7 @@ export default function Student({
     const id = resetStudent.id;
     const pass = newPassword.trim();
     const hash = hashPassword(pass);
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, password: hash, tempCode: undefined } : s
-      )
-    );
-    const { error } = await saveStudents();
+    const { error } = await patchStudent(id, { password: hash, tempCode: null });
     if (error) {
       alert('Kon wachtwoord niet opslaan: ' + error.message);
       return;
@@ -1061,10 +1031,18 @@ export default function Student({
               </span>
             </div>
           ) : (
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex items-center justify-between">
+                <span className="bg-white/80 px-2 py-1 rounded text-xs truncate max-w-[200px]">
+                  Ingelogd als {me.name}
+                </span>
+                <Button className="bg-indigo-600 text-white text-xs sm:text-sm" onClick={handleLogout}>
+                  Uitloggen
+                </Button>
+              </div>
+              <div className="flex gap-1.5 sm:gap-2 flex-wrap">
                 <Button
-                  className="bg-indigo-600 text-white"
+                  className="bg-indigo-600 text-white text-xs sm:text-sm"
                   onClick={() => {
                     setShowBadges(false);
                     window.location.hash = '/student';
@@ -1073,37 +1051,31 @@ export default function Student({
                   Overzicht
                 </Button>
                 <Button
-                  className="bg-indigo-600 text-white relative"
+                  className="bg-indigo-600 text-white relative text-xs sm:text-sm"
                   onClick={() => {
                     setShowBadges(true);
                     window.location.hash = '/student';
                   }}
                   disabled={showBadges}
                 >
-                  Bekijk badges
+                  Badges
                   {hasUnseenBadges && (
                     <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-rose-500" />
                   )}
                 </Button>
                 <Button
-                  className="bg-indigo-600 text-white"
+                  className="bg-indigo-600 text-white text-xs sm:text-sm"
                   onClick={() => (window.location.hash = '/student/profile')}
                 >
-                  Mijn profiel
+                  Profiel
                 </Button>
                 <Button
-                  className="bg-emerald-600 text-white"
+                  className="bg-emerald-600 text-white text-xs sm:text-sm"
                   onClick={() => (window.location.hash = '/bingo')}
                 >
                   Bingo
                 </Button>
-                <Button className="bg-indigo-600 text-white" onClick={handleLogout}>
-                  Uitloggen
-                </Button>
               </div>
-              <span className="bg-white/80 px-2 py-1 rounded text-xs">
-                Ingelogd als {me.name}
-              </span>
             </div>
           )
         )}
@@ -1337,7 +1309,7 @@ export default function Student({
                     </div>
                     <div className="flex flex-col items-center justify-between">
                       <div>
-                        <div className="text-4xl font-bold text-indigo-600 mb-2">
+                        <div className="text-2xl sm:text-4xl font-bold text-indigo-600 mb-2">
                           {myStreaks.current}
                         </div>
                         <div className="text-sm text-gray-600">Huidige streak</div>
@@ -1452,11 +1424,11 @@ export default function Student({
                   return (
                     <li key={a.id} className="flex flex-col gap-1">
                       <div className="flex justify-between gap-2">
-                        <span>
+                        <span className="min-w-0 break-words">
                           {new Date(a.ts).toLocaleDateString('nl-NL')} · {a.target === 'student' ? 'Individueel' : `Groep (${myGroup?.name || '-'})`}{' '}
                           {a.reason ? `— ${a.reason}` : ''}
                         </span>
-                        <span className={`font-semibold ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
+                        <span className={`font-semibold shrink-0 ${a.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{a.amount >= 0 ? '+' : ''}{a.amount}</span>
                       </div>
                       {isNewBadge && badgeTitle && (
                         <span className="text-xs text-indigo-700">🏅 Gefeliciteerd met je nieuwe badge: {badgeTitle}!</span>
@@ -1468,7 +1440,7 @@ export default function Student({
             </Card>
 
             <Card title="Leaderboard – Individueel" className="lg:col-span-2">
-              <table className="w-full text-sm whitespace-nowrap">
+              <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="text-left border-b">
                     <th className="py-1 pr-2">#</th>
@@ -1533,7 +1505,7 @@ export default function Student({
             </Card>
 
             <Card title="Leaderboard – Groepen" className="lg:col-span-2">
-              <table className="w-full text-sm whitespace-nowrap">
+              <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="text-left border-b">
                     <th className="py-1 pr-2">#</th>
@@ -1714,31 +1686,27 @@ export default function Student({
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 gap-2 text-xs max-h-52 overflow-auto border rounded p-2 bg-white/70">
-                          <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-                            <span className="flex-1">Groep</span>
-                            <span className="w-20 text-right">Punten</span>
-                            <span className="flex-1">Reden</span>
-                          </div>
                           {eligibleAwardGroupsWithMembers.map((g) => {
                             const count = groupMemberCounts.get(g.id) || 0;
                             const amount = peerAllocations[g.id]?.amount ?? '';
                             const reason = peerAllocations[g.id]?.reason ?? '';
                             return (
-                              <div key={g.id} className="flex items-center gap-2">
-                                <span className="flex-1">
+                              <div key={g.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="min-w-0 truncate w-24 sm:w-auto sm:flex-1">
                                   {g.name} ({count})
                                 </span>
                                 <input
                                   type="number"
                                   min="0"
-                                  className="w-20 text-right text-sm"
+                                  className="w-16 sm:w-20 text-right text-sm"
                                   value={amount}
                                   disabled={peerEventLocked}
+                                  placeholder="Pt"
                                   onChange={(e) => updateAllocationAmount(g.id, e.target.value)}
                                 />
                                 <input
                                   type="text"
-                                  className="flex-1 text-sm"
+                                  className="w-full sm:flex-1 text-sm"
                                   value={reason}
                                   disabled={peerEventLocked}
                                   placeholder="Waarom? (optioneel)"
@@ -1762,11 +1730,6 @@ export default function Student({
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 gap-2 text-xs max-h-52 overflow-auto border rounded p-2 bg-white/70">
-                          <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-                            <span className="flex-1">Student</span>
-                            <span className="w-20 text-right">Punten</span>
-                            <span className="flex-1">Reden</span>
-                          </div>
                           {eligibleStudents.map((s) => {
                             const groupName = s.groupId
                               ? groupById.get(s.groupId)?.name || 'Groep'
@@ -1774,22 +1737,23 @@ export default function Student({
                             const amount = peerAllocations[s.id]?.amount ?? '';
                             const reason = peerAllocations[s.id]?.reason ?? '';
                             return (
-                              <div key={s.id} className="flex items-center gap-2">
-                                <span className="flex-1">
+                              <div key={s.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="min-w-0 truncate w-24 sm:w-auto sm:flex-1">
                                   {s.name}
                                   {groupName ? ` (${groupName})` : ''}
                                 </span>
                                 <input
                                   type="number"
                                   min="0"
-                                  className="w-20 text-right text-sm"
+                                  className="w-16 sm:w-20 text-right text-sm"
                                   value={amount}
                                   disabled={peerEventLocked}
+                                  placeholder="Pt"
                                   onChange={(e) => updateAllocationAmount(s.id, e.target.value)}
                                 />
                                 <input
                                   type="text"
-                                  className="flex-1 text-sm"
+                                  className="w-full sm:flex-1 text-sm"
                                   value={reason}
                                   disabled={peerEventLocked}
                                   placeholder="Waarom? (optioneel)"

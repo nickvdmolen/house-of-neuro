@@ -52,7 +52,7 @@ export default function BadgeOverview({ badgeDefs, earnedBadges }) {
               className="max-w-full max-h-[80vh] mx-auto object-contain"
             />
             {expandedBadge.requirement && (
-              <p className="mt-4 text-white">{expandedBadge.requirement}</p>
+              <p className="mt-4 text-white break-words max-w-sm mx-auto">{expandedBadge.requirement}</p>
             )}
           </div>
         </div>

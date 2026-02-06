@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 
 const badgeCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 
@@ -15,17 +15,6 @@ const normalizeTitle = (value, fallback = '') => {
 };
 
 export default function BadgeChecklist({ badgeDefs, studentBadges, onToggle }) {
-  const [numColumns, setNumColumns] = useState(1);
-
-  useEffect(() => {
-    const updateColumns = () => {
-      setNumColumns(window.innerWidth >= 640 ? 2 : 1);
-    };
-    updateColumns();
-    window.addEventListener('resize', updateColumns);
-    return () => window.removeEventListener('resize', updateColumns);
-  }, []);
-
   const sortedBadges = useMemo(() => {
     if (!Array.isArray(badgeDefs)) return [];
     return [...badgeDefs].sort((a, b) =>
@@ -36,37 +25,34 @@ export default function BadgeChecklist({ badgeDefs, studentBadges, onToggle }) {
     );
   }, [badgeDefs]);
 
-  const columns = useMemo(() => {
-    const cols = Array.from({ length: numColumns }, () => []);
-    sortedBadges.forEach((b, i) => cols[i % numColumns].push(b));
-    return cols;
-  }, [sortedBadges, numColumns]);
-
   return (
-    <div className="flex gap-4">
-      {columns.map((col, idx) => (
-        <div key={idx} className="flex flex-col gap-2 flex-1">
-          {col.map((b) => (
-            <label key={b.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="shrink-0"
-                checked={studentBadges.includes(b.id)}
-                onChange={(e) => onToggle(b.id, e.target.checked)}
-              />
-              {b.image ? (
-                <img
-                  src={b.image}
-                  alt={b.title}
-                  className="w-8 h-8 rounded-full object-cover border shrink-0"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full border bg-neutral-100 shrink-0" />
-              )}
-              <span>{b.title}</span>
-            </label>
-          ))}
-        </div>
+    <div className="flex flex-col">
+      {sortedBadges.map((b) => (
+        <label
+          key={b.id}
+          className="grid items-center gap-x-2 text-sm py-1 cursor-pointer hover:bg-black/5 rounded px-1 -mx-1"
+          style={{ gridTemplateColumns: '1rem 1.5rem 1fr 1fr' }}
+        >
+          <input
+            type="checkbox"
+            className="shrink-0 w-3.5 h-3.5"
+            checked={studentBadges.includes(b.id)}
+            onChange={(e) => onToggle(b.id, e.target.checked)}
+          />
+          {b.image ? (
+            <img
+              src={b.image}
+              alt={b.title}
+              className="w-12 h-12 rounded-full object-cover border"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full border bg-neutral-100" />
+          )}
+          <span className="font-medium truncate">{b.title}</span>
+          {b.requirement && (
+            <span className="text-xs text-neutral-500 truncate">{b.requirement}</span>
+          )}
+        </label>
       ))}
     </div>
   );

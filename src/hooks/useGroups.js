@@ -11,5 +11,5 @@ const toDb = (row) => {
 };
 
 export default function useGroups(options = {}) {
-  return useSupabaseTable('groups', { toDb, ...options });
+  return useSupabaseTable('groups', { autoSave: false, toDb, ...options });
 }
