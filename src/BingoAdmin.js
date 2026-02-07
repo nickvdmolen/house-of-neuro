@@ -20,7 +20,7 @@ const createEmptyAnswers = () => {
 };
 
 export default function BingoAdmin() {
-  const [students, setStudents, { save: saveStudents, refetch: refetchStudents }] = useStudents();
+  const [students, , { refetch: refetchStudents, patchRow: patchStudent }] = useStudents();
   const { refreshOnViewChange } = useViewRefresh();
 
   useEffect(() => {
@@ -77,15 +77,8 @@ export default function BingoAdmin() {
     questionKeys.forEach(q => {
       cleanedAnswers[q] = answers[q].map((a) => a.trim()).filter(Boolean);
     });
-    
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === selectedStudentId
-          ? { ...s, bingo: cleanedAnswers }
-          : s
-      )
-    );
-    const { error } = await saveStudents();
+
+    const { error } = await patchStudent(selectedStudentId, { bingo: cleanedAnswers });
     if (error) {
       alert('Kon bingo niet opslaan: ' + error.message);
       return;

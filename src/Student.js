@@ -85,6 +85,7 @@ export default function Student({
       loaded: studentsLoaded,
       refetch: refetchStudents,
       patchRow: patchStudent,
+      insertRow: insertStudent,
     },
   ] = useStudents();
   const [groups, , { refetch: refetchGroups, patchRow: patchGroup }] = useGroups({ enabled: dataEnabled });
@@ -180,30 +181,26 @@ export default function Student({
   const addStudent = useCallback(async (name, email, password = '') => {
     const id = genId();
     const hashedPassword = password ? hashPassword(password) : '';
-    setStudents((prev) => [
-      ...prev,
-      {
-        id,
-        name,
-        email: email || undefined,
-        password: hashedPassword,
-        semesterId: null,
-        groupId: null,
-        points: 0,
-        streakFreezeTotal: DEFAULT_STREAK_FREEZES,
-        badges: [],
-        photo: '',
-        bingoMatches: {},
-        showRankPublic: true,
-      }
-    ]);
-    const { error } = await saveStudents();
+    const { error } = await insertStudent({
+      id,
+      name,
+      email: email || undefined,
+      password: hashedPassword,
+      semesterId: null,
+      groupId: null,
+      points: 0,
+      streakFreezeTotal: DEFAULT_STREAK_FREEZES,
+      badges: [],
+      photo: '',
+      bingoMatches: {},
+      showRankPublic: true,
+    });
     if (error) {
       alert('Kon account niet opslaan: ' + error.message);
       return null;
     }
     return id;
-  }, [setStudents, saveStudents]);
+  }, [insertStudent]);
 
   useEffect(() => {
     if (

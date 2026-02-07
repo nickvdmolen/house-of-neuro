@@ -38,8 +38,8 @@ const compareBadgeTitles = (a, b) =>
 const bingoQuestionKeys = Object.keys(bingoQuestions);
 
 export default function Admin({ onLogout = () => {}, currentTeacherId = null }) {
-  const [students, setStudents, { save: saveStudents, refetch: refetchStudents, patchRow: patchStudent }] = useStudents();
-  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups, patchRow: patchGroup }] = useGroups();
+  const [students, setStudents, { save: saveStudents, refetch: refetchStudents, patchRow: patchStudent, insertRow: insertStudent, deleteRow: deleteStudent }] = useStudents();
+  const [groups, setGroups, { save: saveGroups, refetch: refetchGroups, patchRow: patchGroup, insertRow: insertGroup, deleteRow: deleteGroup }] = useGroups();
   const [awards, setAwards, { save: saveAwards, refetch: refetchAwards }] = useAwards();
   const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty, refetch: refetchBadges }] = useBadges();
   const [teachers, setTeachers, { save: saveTeachers, refetch: refetchTeachers }] = useTeachers();
@@ -133,31 +133,26 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
   const addStudent = useCallback(async (name, email, password = '') => {
     const id = genId();
-    setStudents((prev) => [
-      ...prev,
-      {
-        id,
-        name,
-        email: email || undefined,
-        password,
-        semesterId: null,
-        groupId: null,
-        points: 0,
-        streakFreezeTotal: DEFAULT_STREAK_FREEZES,
-        badges: [],
-        showRankPublic: true,
-      }
-    ]);
-    const { error } = await saveStudents();
+    const { error } = await insertStudent({
+      id,
+      name,
+      email: email || undefined,
+      password,
+      semesterId: null,
+      groupId: null,
+      points: 0,
+      streakFreezeTotal: DEFAULT_STREAK_FREEZES,
+      badges: [],
+      showRankPublic: true,
+    });
     if (error) alert('Kon student niet toevoegen: ' + error.message);
     return id;
-  }, [setStudents, saveStudents]);
+  }, [insertStudent]);
 
   const removeStudent = useCallback(async (id) => {
-    setStudents((prev) => prev.filter((s) => s.id !== id));
-    const { error } = await saveStudents();
+    const { error } = await deleteStudent(id);
     if (error) alert('Kon student niet verwijderen: ' + error.message);
-  }, [setStudents, saveStudents]);
+  }, [deleteStudent]);
 
   const resetStudentPassword = useCallback(
     async (id) => {
@@ -223,14 +218,10 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
   const addGroup = useCallback(async (name) => {
     const id = genId();
-    setGroups((prev) => [
-      ...prev,
-      { id, name, semesterId: null, points: 0 },
-    ]);
-    const { error } = await saveGroups();
+    const { error } = await insertGroup({ id, name, semesterId: null, points: 0 });
     if (error) alert('Kon groep niet toevoegen: ' + error.message);
     return id;
-  }, [setGroups, saveGroups]);
+  }, [insertGroup]);
 
   const renameGroup = useCallback(async (id, newName) => {
     if (!newName.trim()) return;
@@ -263,8 +254,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
   const removeGroup = useCallback(
     async (groupId) => {
-      setGroups((prev) => prev.filter((g) => g.id !== groupId));
-      const { error: groupError } = await saveGroups();
+      const { error: groupError } = await deleteGroup(groupId);
       if (groupError) {
         alert('Kon groep niet verwijderen: ' + groupError.message);
       }
@@ -277,7 +267,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
         }
       }
     },
-    [setGroups, saveGroups, students, patchStudent]
+    [deleteGroup, students, patchStudent]
   );
 
   const toggleBingoHints = useCallback(

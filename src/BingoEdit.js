@@ -17,7 +17,7 @@ const createEmptyAnswers = () => {
 };
 
 export default function BingoEdit({ selectedStudentId }) {
-  const [students, setStudents, { save: saveStudents }] = useStudents();
+  const [students, , { patchRow: patchStudent }] = useStudents();
   const student = students.find((s) => s.id === selectedStudentId);
   
   const [answers, setAnswers] = useState(createEmptyAnswers);
@@ -49,15 +49,8 @@ export default function BingoEdit({ selectedStudentId }) {
     questionKeys.forEach(q => {
       cleanedAnswers[q] = answers[q].map((a) => a.trim()).filter(Boolean);
     });
-    
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === selectedStudentId
-          ? { ...s, bingo: cleanedAnswers }
-          : s
-      )
-    );
-    const { error } = await saveStudents();
+
+    const { error } = await patchStudent(selectedStudentId, { bingo: cleanedAnswers });
     if (error) {
       alert('Kon bingo niet opslaan: ' + error.message);
       return;

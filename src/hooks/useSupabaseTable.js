@@ -160,6 +160,54 @@ export default function useSupabaseTable(
     }
   }, [table]);
 
+  const insertRow = useCallback(async (row) => {
+    if (!enabledRef.current || !row) return { error: null };
+
+    // Update local state immediately (without marking dirty)
+    const next = [...dataRef.current, row];
+    dataRef.current = next;
+    prevIds.current.add(row.id);
+    setData(next);
+
+    // Insert only this row into the database
+    try {
+      await ensureSession();
+      const { error } = await supabase.from(table).insert(toDbRef.current(row));
+      if (error) {
+        console.error('Error inserting into', table, error);
+        return { error };
+      }
+      return { error: null };
+    } catch (err) {
+      console.error('Error inserting into', table, err);
+      return { error: err };
+    }
+  }, [table]);
+
+  const deleteRow = useCallback(async (id) => {
+    if (!enabledRef.current || !id) return { error: null };
+
+    // Update local state immediately (without marking dirty)
+    const next = dataRef.current.filter((row) => row.id !== id);
+    dataRef.current = next;
+    prevIds.current.delete(id);
+    setData(next);
+
+    // Delete only this row from the database
+    try {
+      await ensureSession();
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) {
+        console.error('Error deleting from', table, id, error);
+        return { error };
+      }
+      return { error: null };
+    } catch (err) {
+      console.error('Error deleting from', table, id, err);
+      return { error: err };
+    }
+  }, [table]);
+
   const refetch = useCallback(async () => {
     if (!enabledRef.current) return { error: null };
     try {
@@ -190,5 +238,5 @@ export default function useSupabaseTable(
     save();
   }, [save, enabled, autoSave, dirty]);
 
-  return [data, update, { save, dirty, error, refetch, loaded, patchRow }];
+  return [data, update, { save, dirty, error, refetch, loaded, patchRow, insertRow, deleteRow }];
 }
