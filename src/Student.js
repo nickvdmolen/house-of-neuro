@@ -1436,6 +1436,33 @@ export default function Student({
               </ul>
             </Card>
 
+            {(appSettings.topStudentImage || appSettings.topGroupImage) && (
+              <Card title="Nummer 1" className="lg:col-span-2">
+                <div className={`grid gap-4 ${appSettings.topStudentImage && appSettings.topGroupImage ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                  {appSettings.topStudentImage && (
+                    <div className="text-center">
+                      <h3 className="text-sm font-semibold mb-2">Studenten</h3>
+                      <img
+                        src={appSettings.topStudentImage}
+                        alt="Nummer 1 studenten"
+                        className="w-full rounded-lg border object-cover"
+                      />
+                    </div>
+                  )}
+                  {appSettings.topGroupImage && (
+                    <div className="text-center">
+                      <h3 className="text-sm font-semibold mb-2">Groepen</h3>
+                      <img
+                        src={appSettings.topGroupImage}
+                        alt="Nummer 1 groepen"
+                        className="w-full rounded-lg border object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
             <Card title="Leaderboard – Individueel" className="lg:col-span-2">
               <table className="w-full text-xs sm:text-sm">
                 <thead>

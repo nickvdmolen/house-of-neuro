@@ -163,7 +163,7 @@ if (USE_LOCAL_SERVER) {
   supabaseClient = localSupabase;
   ensureSessionFn = async () => ({ user: { id: 'local-user' } });
   getImageUrlFn = (path) => `/images/${path}`;
-  uploadImageFn = async (file) => {
+  uploadImageFn = async (file, subfolder = 'badges') => {
     if (!file) return null;
     return URL.createObjectURL(file);
   };
@@ -205,7 +205,7 @@ if (USE_LOCAL_SERVER) {
   getImageUrlFn = (path) =>
     `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/images/${path}`;
 
-  uploadImageFn = async (file) => {
+  uploadImageFn = async (file, subfolder = 'badges') => {
     if (!file) return null;
 
     await ensureSessionFn();
@@ -221,7 +221,7 @@ if (USE_LOCAL_SERVER) {
 
     const uid = userData.user.id;
     const ext = file.name.split('.').pop() || 'jpg';
-    const filePath = `images/${uid}/badges/${Date.now()}.${ext}`;
+    const filePath = `images/${uid}/${subfolder}/${Date.now()}.${ext}`;
 
     const { error } = await supabaseClient.storage
       .from(supabaseBucket)

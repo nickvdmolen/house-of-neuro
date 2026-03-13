@@ -992,6 +992,85 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
         </div>
 
       {page === 'scores' && (
+        <>
+        <Card title="Nummer 1 afbeeldingen" className="mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Nummer 1 studenten</h3>
+              {appSettings.topStudentImage && (
+                <div className="relative mb-2">
+                  <img
+                    src={appSettings.topStudentImage}
+                    alt="Nummer 1 studenten"
+                    className="w-full rounded-lg border object-cover max-h-48"
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700"
+                    onClick={async () => {
+                      setAppSettings((prev) => ({ ...prev, topStudentImage: null }));
+                      await saveAppSettings();
+                    }}
+                    title="Verwijderen"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const url = await uploadImage(file, 'nummer1');
+                  if (url) {
+                    setAppSettings((prev) => ({ ...prev, topStudentImage: url }));
+                    await saveAppSettings();
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Nummer 1 groepen</h3>
+              {appSettings.topGroupImage && (
+                <div className="relative mb-2">
+                  <img
+                    src={appSettings.topGroupImage}
+                    alt="Nummer 1 groepen"
+                    className="w-full rounded-lg border object-cover max-h-48"
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700"
+                    onClick={async () => {
+                      setAppSettings((prev) => ({ ...prev, topGroupImage: null }));
+                      await saveAppSettings();
+                    }}
+                    title="Verwijderen"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const url = await uploadImage(file, 'nummer1');
+                  if (url) {
+                    setAppSettings((prev) => ({ ...prev, topGroupImage: url }));
+                    await saveAppSettings();
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          </div>
+        </Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card title="Leaderboard – Individueel">
             <table className="w-full text-sm whitespace-nowrap">
@@ -1059,6 +1138,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
             </table>
           </Card>
         </div>
+        </>
       )}
 
       {page === 'manage-students' && (

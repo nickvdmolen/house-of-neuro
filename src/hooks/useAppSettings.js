@@ -4,6 +4,8 @@ import useSupabaseTable from './useSupabaseTable';
 const DEFAULT_SETTINGS = {
   id: 'global',
   bingoHintsEnabled: false,
+  topStudentImage: null,
+  topGroupImage: null,
 };
 
 const toDb = (row) => {
@@ -11,6 +13,8 @@ const toDb = (row) => {
   return {
     id: row.id,
     bingoHintsEnabled: row.bingoHintsEnabled ?? false,
+    topStudentImage: row.topStudentImage ?? null,
+    topGroupImage: row.topGroupImage ?? null,
   };
 };
 
@@ -23,6 +27,8 @@ export default function useAppSettings(options = {}) {
       ...DEFAULT_SETTINGS,
       ...row,
       bingoHintsEnabled: Boolean(row?.bingoHintsEnabled),
+      topStudentImage: row?.topStudentImage || null,
+      topGroupImage: row?.topGroupImage || null,
     };
   }, [rows]);
 
