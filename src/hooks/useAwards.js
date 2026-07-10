@@ -1,5 +1,7 @@
 import useSupabaseTable from './useSupabaseTable';
 
+export const awardFromDb = (row) => (row?.mutation_meta?.noop ? null : row);
+
 const toDb = (row) => {
   if (!row) return row;
   return {
@@ -14,5 +16,14 @@ const toDb = (row) => {
 };
 
 export default function useAwards(options = {}) {
-  return useSupabaseTable('awards', { autoSave: false, toDb, allowDeletes: false, ...options });
+  return useSupabaseTable('awards', {
+    autoSave: false,
+    fromDb: awardFromDb,
+    toDb,
+    allowDeletes: false,
+    ...options,
+    fetchPageSize: 500,
+    fetchOrderBy: 'ts,id',
+    preserveLocalRowsOnFetch: true,
+  });
 }

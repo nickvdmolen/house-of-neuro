@@ -35,6 +35,7 @@ Laatst bijgewerkt: 10 januari 2026
 | `useBadges` | `badge_defs` | Badge definities |
 | `usePeerAwards` | `peer_awards` | Peer awards log |
 | `usePeerEvents` | `peer_events` | Peer punten events |
+| `useSemesters` | `semesters` | Semesternaam en begin-/einddatum |
 | `useTeachers` | `teachers` | Docenten data |
 | `useMeetings` | `meetings` | Bijeenkomsten data |
 | `useAttendance` | `attendance` | Aanwezigheid per bijeenkomst |
@@ -225,6 +226,9 @@ Gedefinieerd in `src/bingoData.js`:
 | GET | `/api/:collection` | - | Lees data |
 | POST | `/api/:collection` | Teacher* | Voeg data toe |
 | PUT | `/api/:collection` | Teacher* | Update data |
+| PATCH | `/api/:collection` | Teacher* | Werk één of meer velden gericht bij |
+| DELETE | `/api/:collection` | Teacher* | Verwijder gerichte rijen |
+| POST | `/api/score-mutations` | Teacher* | Punten, historie en optionele peerregels atomair opslaan |
 | POST | `/api/send-reset` | - | Verstuur reset email |
 
 Collections: `awards`, `attendance`, `badge_defs`, `groups`, `meetings`, `peer_awards`, `peer_events`, `semesters`, `students`, `teachers`
@@ -386,6 +390,7 @@ REACT_APP_SUPABASE_ANON_KEY=jouw-anon-key-hier
 ### Stap 3: Database Schema Uitvoeren
 1. Ga naar Supabase Dashboard → SQL Editor
 2. Voer `supabase-schema.sql` uit - dit creëert alle tabellen en seed data
+3. Voer `supabase-score-mutations.sql` uit - dit installeert de atomische score-RPC
 
 ### Stap 4: Storage Bucket Opzetten
 1. Ga naar Supabase Dashboard → Storage

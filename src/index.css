@@ -257,6 +257,16 @@ select:focus {
   td:nth-of-type(1):before {
     content: attr(data-label);
   }
+
+  .score-summary-table td::before {
+    content: attr(data-label);
+  }
+}
+
+.score-change-marker:focus .score-marker-hit-area {
+  fill: rgba(15, 23, 42, 0.08);
+  stroke: #0f172a;
+  stroke-width: 2;
 }
 
 /* Badge sizing */

@@ -1,16 +1,25 @@
 import useSupabaseTable from './useSupabaseTable';
 
-const fromDb = (row) => {
+export const peerEventFromDb = (row) => {
   if (!row) return row;
   const { allow_own_group, allow_other_groups, ...rest } = row;
+  const legacyScope = ['all', 'own_group', 'other_groups'].includes(
+    row.recipientScope
+  )
+    ? row.recipientScope
+    : null;
   return {
     ...rest,
-    allowOwnGroup: allow_own_group ?? row.allowOwnGroup ?? false,
-    allowOtherGroups: allow_other_groups ?? row.allowOtherGroups ?? true,
+    allowOwnGroup: legacyScope
+      ? legacyScope === 'all' || legacyScope === 'own_group'
+      : allow_own_group ?? row.allowOwnGroup ?? false,
+    allowOtherGroups: legacyScope
+      ? legacyScope === 'all' || legacyScope === 'other_groups'
+      : allow_other_groups ?? row.allowOtherGroups ?? true,
   };
 };
 
-const toDb = (row) => {
+export const peerEventToDb = (row) => {
   if (!row) return row;
   return {
     id: row.id,
@@ -26,5 +35,10 @@ const toDb = (row) => {
 };
 
 export default function usePeerEvents(options = {}) {
-  return useSupabaseTable('peer_events', { autoSave: false, fromDb, toDb, ...options });
+  return useSupabaseTable('peer_events', {
+    autoSave: false,
+    fromDb: peerEventFromDb,
+    toDb: peerEventToDb,
+    ...options,
+  });
 }

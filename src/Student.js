@@ -15,7 +15,7 @@ import {
   DEFAULT_STREAK_FREEZES,
 } from './utils';
 import useBadges from './hooks/useBadges';
-import { getImageUrl, uploadImage, supabase, ensureSession } from './supabase';
+import { getImageUrl, uploadImage } from './supabase';
 import useStreaks from './hooks/useStreaks';
 import useMeetings from './hooks/useMeetings';
 import useAttendance from './hooks/useAttendance';
@@ -23,7 +23,15 @@ import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
 import useAnnouncements from './hooks/useAnnouncements';
+import useSemesters from './hooks/useSemesters';
 import useViewRefresh from './hooks/useViewRefresh';
+import applyScoreMutations from './scoreMutations';
+import { belongsToSemester, selectDisplaySemester } from './semesterTimeline';
+import {
+  getWeeklyStreakAwardId,
+  getWeeklyStreakReason,
+  isWeeklyStreakAward,
+} from './streakAward';
 const WEEKLY_STREAK_POINTS = 50;
 const ABSENCE_PREVIEW_LIMIT = 5;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
@@ -79,49 +87,63 @@ export default function Student({
 
   const [
     students,
-    setStudents,
+    ,
     {
-      save: saveStudents,
       loaded: studentsLoaded,
       refetch: refetchStudents,
       patchRow: patchStudent,
       insertRow: insertStudent,
     },
   ] = useStudents();
-  const [groups, , { refetch: refetchGroups, patchRow: patchGroup }] = useGroups({ enabled: dataEnabled });
+  const [groups, , { refetch: refetchGroups }] = useGroups({ enabled: dataEnabled });
   const [
     awards,
-    setAwards,
+    ,
     {
-      save: saveAwards,
       error: awardsError,
+      loaded: awardsLoaded,
       refetch: refetchAwards,
     },
   ] = useAwards({ enabled: dataEnabled });
   const [badgeDefs, , { refetch: refetchBadges }] = useBadges({ enabled: dataEnabled });
-  const [peerAwards, setPeerAwards, { refetch: refetchPeerAwards }] = usePeerAwards({ enabled: dataEnabled });
+  const [peerAwards, , { refetch: refetchPeerAwards }] = usePeerAwards({ enabled: dataEnabled });
   const [peerEvents, , { refetch: refetchPeerEvents }] = usePeerEvents({ enabled: dataEnabled });
   const [appSettings, , { refetch: refetchAppSettings }] = useAppSettings({ enabled: dataEnabled });
   const [announcements] = useAnnouncements({ enabled: dataEnabled });
   const [meetings, , { refetch: refetchMeetings }] = useMeetings({ enabled: dataEnabled });
   const [attendance, setAttendance, { save: saveAttendance, refetch: refetchAttendance }] =
     useAttendance({ enabled: dataEnabled });
+  const [semesters] = useSemesters();
 
   // Refresh data when switching views
   const { refreshOnViewChange } = useViewRefresh();
   const viewRefreshDeps = useRef({});
+  const streakBonusAttemptsRef = useRef(new Set());
+  const streakBonusInFlightRef = useRef(new Set());
+  const [streakReconcileVersion, setStreakReconcileVersion] = useState(0);
 
   const me = students.find((s) => s.id === activeStudentId) || null;
-  const activeSemesterId = null;
+  const activeSemester = useMemo(
+    () => selectDisplaySemester(semesters),
+    [semesters]
+  );
+  const activeSemesterId = activeSemester?.id ?? null;
+  const activeMeetings = useMemo(
+    () =>
+      meetings.filter((meeting) =>
+        belongsToSemester(meeting, activeSemester, meeting?.date)
+      ),
+    [meetings, activeSemester]
+  );
 
   const freezeTotalSetting = Number.isFinite(me?.streakFreezeTotal)
     ? Math.max(Math.floor(me.streakFreezeTotal), 0)
     : DEFAULT_STREAK_FREEZES;
   const myStreaks = useStreaks(
     activeStudentId,
-    activeSemesterId,
+    null,
     freezeTotalSetting,
-    meetings,
+    activeMeetings,
     attendance,
     { refetchMeetings, refetchAttendance }
   );
@@ -139,7 +161,7 @@ export default function Student({
   const absenceEntries = useMemo(() => {
     if (!activeStudentId) return [];
     const attendanceByMeeting = new Map(studentAttendance.map((a) => [a.meeting_id, a]));
-    const scopedMeetings = meetings;
+    const scopedMeetings = activeMeetings;
     const now = new Date();
     return scopedMeetings
       .map((meeting) => {
@@ -156,11 +178,17 @@ export default function Student({
       })
       .filter(Boolean)
       .sort((a, b) => b.date - a.date);
-  }, [activeStudentId, meetings, studentAttendance]);
+  }, [activeStudentId, activeMeetings, studentAttendance]);
 
-  const semesterStudents = useMemo(() => students, [students]);
+  const semesterStudents = useMemo(
+    () => students.filter((student) => belongsToSemester(student, activeSemester)),
+    [students, activeSemester]
+  );
 
-  const semesterGroups = useMemo(() => groups, [groups]);
+  const semesterGroups = useMemo(
+    () => groups.filter((group) => belongsToSemester(group, activeSemester)),
+    [groups, activeSemester]
+  );
 
   const groupById = useMemo(() => {
     const m = new Map();
@@ -186,7 +214,7 @@ export default function Student({
       name,
       email: email || undefined,
       password: hashedPassword,
-      semesterId: null,
+      semesterId: activeSemesterId,
       groupId: null,
       points: 0,
       streakFreezeTotal: DEFAULT_STREAK_FREEZES,
@@ -200,7 +228,7 @@ export default function Student({
       return null;
     }
     return id;
-  }, [insertStudent]);
+  }, [insertStudent, activeSemesterId]);
 
   useEffect(() => {
     if (
@@ -228,32 +256,84 @@ export default function Student({
 
   useEffect(() => {
     if (inPreview || !activeStudentId || !me) return;
+    if (!awardsLoaded || awardsError) return;
     if (!myStreaks.prevWeekComplete || !myStreaks.prevWeekKey) return;
-    if (me.lastWeekRewarded === myStreaks.prevWeekKey) return;
+
+    const weekKey = myStreaks.prevWeekKey;
+    const awardId = getWeeklyStreakAwardId(activeStudentId, weekKey);
+    const reason = getWeeklyStreakReason(weekKey);
+    const hasMarker = me.lastWeekRewarded === weekKey;
+    const awardWithStableId = awards.find((entry) => entry?.id === awardId);
+    const hasStableAward = isWeeklyStreakAward(
+      awardWithStableId,
+      activeStudentId,
+      weekKey
+    );
+    const hasWeeklyAward = awards.some((entry) =>
+      isWeeklyStreakAward(entry, activeStudentId, weekKey)
+    );
+    const hasAtomicStableAward = Boolean(
+      hasStableAward &&
+        awardWithStableId?.mutation_meta &&
+        Object.keys(awardWithStableId.mutation_meta).length > 0
+    );
+
+    if (awardWithStableId && !hasStableAward) {
+      console.warn('[streak bonus] Stable award ID is already in use', awardId);
+      return;
+    }
+    if (hasAtomicStableAward) return;
+    if (hasMarker && hasWeeklyAward) return;
+
+    // A legacy random-ID award without a marker is ambiguous: adding points could
+    // duplicate a previously applied bonus, so leave it for manual reconciliation.
+    if (!hasMarker && hasWeeklyAward && !hasStableAward) {
+      console.warn('[streak bonus] Legacy award exists without a week marker');
+      return;
+    }
+
+    const baseKey = `${activeStudentId}:${weekKey}`;
+    const stateKey = `${baseKey}:${hasStableAward ? 'award' : 'no-award'}:${
+      hasMarker ? 'marker' : 'no-marker'
+    }`;
+    if (
+      streakBonusAttemptsRef.current.has(stateKey) ||
+      streakBonusInFlightRef.current.has(baseKey)
+    ) {
+      return;
+    }
+    streakBonusAttemptsRef.current.add(stateKey);
+    streakBonusInFlightRef.current.add(baseKey);
 
     const award = {
-      id: genId(),
+      id: awardId,
       ts: new Date().toISOString(),
       target: 'student',
       target_id: activeStudentId,
-      semesterId: null,
+      semesterId: activeSemesterId,
       amount: WEEKLY_STREAK_POINTS,
-      reason: `Aanwezigheidsstreak ${myStreaks.prevWeekKey}`,
+      reason,
     };
 
-    setAwards((prev) => [award, ...prev].slice(0, 500));
-
     const persistBonus = async () => {
-      const { error: studentError } = await patchStudent(activeStudentId, (s) => ({
-        points: (Number(s.points) || 0) + WEEKLY_STREAK_POINTS,
-        lastWeekRewarded: myStreaks.prevWeekKey,
-      }));
-      if (studentError) {
-        console.warn('[streak bonus] Failed to save student', studentError);
-      }
-      const { error: awardError } = await saveAwards();
-      if (awardError) {
-        console.warn('[streak bonus] Failed to save award', awardError);
+      try {
+        const { error } = await applyScoreMutations({
+          awards: [
+            {
+              ...award,
+              applyPoints: !hasMarker,
+              repairPointsWhenMarkerMissing: true,
+              lastWeekRewarded: weekKey,
+            },
+          ],
+        });
+        if (error) {
+          console.warn('[streak bonus] Atomic score mutation failed', error);
+        }
+        await Promise.all([refetchStudents(), refetchAwards()]);
+      } finally {
+        streakBonusInFlightRef.current.delete(baseKey);
+        setStreakReconcileVersion((version) => version + 1);
       }
     };
     persistBonus();
@@ -261,11 +341,15 @@ export default function Student({
     activeStudentId,
     inPreview,
     me,
+    awards,
+    awardsLoaded,
+    awardsError,
     myStreaks.prevWeekComplete,
     myStreaks.prevWeekKey,
-    saveAwards,
-    patchStudent,
-    setAwards,
+    refetchStudents,
+    refetchAwards,
+    streakReconcileVersion,
+    activeSemesterId,
   ]);
 
   const toggleStreakFreeze = useCallback(
@@ -571,7 +655,15 @@ export default function Student({
     return new Set(ids);
   }, [peerAwards, activeStudentId]);
 
-  const semesterPeerEvents = useMemo(() => peerEvents, [peerEvents]);
+  const semesterPeerEvents = useMemo(
+    () =>
+      peerEvents.filter((event) => {
+        const eventSemesterId = event?.semesterId ?? event?.semester_id ?? null;
+        if (eventSemesterId == null) return true;
+        return String(me?.semesterId ?? '') === String(eventSemesterId);
+      }),
+    [peerEvents, me?.semesterId]
+  );
 
   const activePeerEvents = useMemo(
     () =>
@@ -599,13 +691,19 @@ export default function Student({
 
   const recipientScope = useMemo(() => {
     if (!selectedPeerEvent) return null;
-    if (selectedPeerEvent.recipientScope) return selectedPeerEvent.recipientScope;
+    if (
+      ['all', 'own_group', 'other_groups'].includes(
+        selectedPeerEvent.recipientScope
+      )
+    ) {
+      return selectedPeerEvent.recipientScope;
+    }
     const allowOwn = selectedPeerEvent.allowOwnGroup ?? false;
     const allowOther = selectedPeerEvent.allowOtherGroups ?? true;
     if (allowOwn && allowOther) return 'all';
     if (allowOwn) return 'own_group';
     if (allowOther) return 'other_groups';
-    return 'other_groups';
+    return null;
   }, [selectedPeerEvent]);
 
   const scopeLabel = useMemo(() => {
@@ -628,9 +726,17 @@ export default function Student({
   const eligibleStudents = useMemo(() => {
     if (!recipientScope) return [];
     const myGroupId = me?.groupId ?? null;
+    const eventSemesterId =
+      selectedPeerEvent?.semesterId ?? selectedPeerEvent?.semester_id ?? null;
     return semesterStudents
       .filter((s) => {
         if (s.id === activeStudentId) return false;
+        if (
+          eventSemesterId != null &&
+          String(s.semesterId ?? '') !== String(eventSemesterId)
+        ) {
+          return false;
+        }
         if (recipientScope === 'all') return true;
         if (!myGroupId) {
           return recipientScope === 'other_groups';
@@ -639,15 +745,44 @@ export default function Student({
         return recipientScope === 'own_group' ? isOwn : !isOwn;
       })
       .sort((a, b) => nameCollator.compare(a.name || '', b.name || ''));
-  }, [semesterStudents, me?.groupId, activeStudentId, recipientScope]);
+  }, [
+    semesterStudents,
+    me?.groupId,
+    activeStudentId,
+    recipientScope,
+    selectedPeerEvent,
+  ]);
 
   const eligibleAwardGroups = useMemo(() => {
     if (recipientScope !== 'other_groups') return [];
     const myGroupId = me?.groupId ?? null;
+    const eventSemesterId =
+      selectedPeerEvent?.semesterId ?? selectedPeerEvent?.semester_id ?? null;
     return semesterGroups
-      .filter((g) => g.id !== myGroupId)
+      .filter((g) => {
+        if (g.id === myGroupId) return false;
+        if (
+          eventSemesterId != null &&
+          String(g.semesterId ?? '') !== String(eventSemesterId)
+        ) {
+          return false;
+        }
+        if (eventSemesterId == null) return true;
+        return semesterStudents
+          .filter((student) => student.groupId === g.id)
+          .every(
+            (student) =>
+              String(student.semesterId ?? '') === String(eventSemesterId)
+          );
+      })
       .sort((a, b) => nameCollator.compare(a.name || '', b.name || ''));
-  }, [semesterGroups, me?.groupId, recipientScope]);
+  }, [
+    semesterGroups,
+    semesterStudents,
+    me?.groupId,
+    recipientScope,
+    selectedPeerEvent,
+  ]);
 
   const groupMemberCounts = useMemo(() => {
     const counts = new Map();
@@ -848,16 +983,6 @@ export default function Student({
       : ' (puntenevent)';
     const peerAwardEntries = [];
     const newAwards = [];
-    const savePeerEntries = async (entries) => {
-      if (!entries.length) return { error: null };
-      await ensureSession();
-      const payload = entries.map(({ event_title, eventTitle, ...row }) => row);
-      return supabase.from('peer_awards').insert(payload);
-    };
-
-    const groupBonus = new Map();
-    const studentBonus = new Map();
-
     if (peerTarget === 'group') {
       allocations.forEach((item) => {
         const reasonSuffix = item.reason ? `: ${item.reason}` : '';
@@ -867,11 +992,10 @@ export default function Student({
           ts,
           target: 'group',
           target_id: item.id,
-          semesterId: null,
+          semesterId: activeSemesterId,
           amount: item.totalAmount,
           reason: awardReason,
         });
-        groupBonus.set(item.id, (groupBonus.get(item.id) || 0) + item.totalAmount);
         const recipients = semesterStudents
           .filter((s) => s.groupId === item.id)
           .map((s) => s.id);
@@ -883,7 +1007,7 @@ export default function Student({
           event_title: selectedPeerEvent.title,
           target: 'group',
           target_id: item.id,
-          semesterId: null,
+          semesterId: activeSemesterId,
           amount: item.amount,
           total_amount: item.totalAmount,
           reason: item.reason || '',
@@ -899,11 +1023,10 @@ export default function Student({
           ts,
           target: 'student',
           target_id: item.id,
-          semesterId: null,
+          semesterId: activeSemesterId,
           amount: item.amount,
           reason: awardReason,
         });
-        studentBonus.set(item.id, (studentBonus.get(item.id) || 0) + item.amount);
         peerAwardEntries.push({
           id: genId(),
           ts,
@@ -912,7 +1035,7 @@ export default function Student({
           event_title: selectedPeerEvent.title,
           target: 'student',
           target_id: item.id,
-          semesterId: null,
+          semesterId: activeSemesterId,
           amount: item.amount,
           total_amount: item.amount,
           reason: item.reason || '',
@@ -921,39 +1044,21 @@ export default function Student({
       });
     }
 
-    setAwards((prev) => [...newAwards, ...prev].slice(0, 500));
-    setPeerAwards((prev) => [...peerAwardEntries, ...prev].slice(0, 1000));
-
-    if (peerTarget === 'group') {
-      for (const [id, bonus] of groupBonus) {
-        const { error } = await patchGroup(id, (g) => ({
-          points: (Number(g.points) || 0) + bonus,
-        }));
-        if (error) {
-          setPeerFeedback('Opslaan punten mislukt.');
-          return;
-        }
-      }
-    } else {
-      for (const [id, bonus] of studentBonus) {
-        const { error } = await patchStudent(id, (s) => ({
-          points: (Number(s.points) || 0) + bonus,
-        }));
-        if (error) {
-          setPeerFeedback('Opslaan punten mislukt.');
-          return;
-        }
-      }
-    }
-    const { error: awardsError } = await saveAwards();
-    if (awardsError) {
-      setPeerFeedback('Opslaan awards mislukt.');
-      return;
-    }
-    const { error: peerError } = await savePeerEntries(peerAwardEntries);
-    if (peerError) {
-      console.warn('[peer awards] Save failed', peerError);
-      setPeerFeedback('Opslaan peer-actie mislukt.');
+    const { error: mutationError } = await applyScoreMutations({
+      awards: newAwards,
+      peerAwards: peerAwardEntries,
+    });
+    await Promise.all([
+      refetchStudents(),
+      refetchGroups(),
+      refetchAwards(),
+      refetchPeerAwards(),
+    ]);
+    if (mutationError) {
+      console.warn('[peer awards] Atomic mutation failed', mutationError);
+      setPeerFeedback(
+        'Opslaan kon niet worden bevestigd. De actuele gegevens zijn opnieuw geladen.'
+      );
       return;
     }
 

@@ -25,7 +25,17 @@ import usePeerAwards from './hooks/usePeerAwards';
 import usePeerEvents from './hooks/usePeerEvents';
 import useAppSettings from './hooks/useAppSettings';
 import useAnnouncements from './hooks/useAnnouncements';
+import useSemesters from './hooks/useSemesters';
 import useViewRefresh from './hooks/useViewRefresh';
+import ScoreTrajectoryChart from './components/ScoreTrajectoryChart';
+import applyScoreMutations from './scoreMutations';
+import {
+  belongsToSemester,
+  getSemesterRange,
+  getSemesterTimeStatus,
+  parseSemesterDate,
+  selectDisplaySemester,
+} from './semesterTimeline';
 
 const BADGE_POINTS = 50;
 const nameCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
@@ -40,7 +50,16 @@ const bingoQuestionKeys = Object.keys(bingoQuestions);
 export default function Admin({ onLogout = () => {}, currentTeacherId = null }) {
   const [students, setStudents, { save: saveStudents, refetch: refetchStudents, patchRow: patchStudent, insertRow: insertStudent, deleteRow: deleteStudent }] = useStudents();
   const [groups, setGroups, { save: saveGroups, refetch: refetchGroups, patchRow: patchGroup, insertRow: insertGroup, deleteRow: deleteGroup }] = useGroups();
-  const [awards, setAwards, { save: saveAwards, refetch: refetchAwards }] = useAwards();
+  const [
+    awards,
+    setAwards,
+    {
+      save: saveAwards,
+      refetch: refetchAwards,
+      loaded: awardsLoaded,
+      error: awardsError,
+    },
+  ] = useAwards();
   const [badgeDefs, setBadgeDefs, { save: saveBadges, dirty: badgesDirty, refetch: refetchBadges }] = useBadges();
   const [teachers, setTeachers, { save: saveTeachers, refetch: refetchTeachers }] = useTeachers();
   const [meetings, setMeetings, { save: saveMeetings, refetch: refetchMeetings }] = useMeetings();
@@ -49,12 +68,31 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const [peerEvents, setPeerEvents, { save: savePeerEvents, dirty: peerEventsDirty, refetch: refetchPeerEvents }] = usePeerEvents();
   const [appSettings, setAppSettings, { save: saveAppSettings, refetch: refetchAppSettings }] = useAppSettings();
   const [announcements, setAnnouncements, { save: saveAnnouncements, dirty: announcementsDirty, refetch: refetchAnnouncements }] = useAnnouncements();
+  const [
+    semesters,
+    setSemesters,
+    {
+      save: saveSemesters,
+      loaded: semestersLoaded,
+      error: semestersError,
+      refetch: refetchSemesters,
+      insertRow: insertSemester,
+      patchRow: patchSemester,
+    },
+  ] = useSemesters({ autoSave: false });
+  const [semesterEditingId, setSemesterEditingId] = useState('');
+  const [semesterName, setSemesterName] = useState('');
+  const [semesterStartDate, setSemesterStartDate] = useState('');
+  const [semesterEndDate, setSemesterEndDate] = useState('');
+  const [semesterMessage, setSemesterMessage] = useState('');
 
   // Refresh data when switching tabs
   const { refreshOnViewChange } = useViewRefresh();
   const tabRefreshDeps = useRef({});
+  const manualAwardRetryRef = useRef(null);
+  const awardSavingRef = useRef(false);
   tabRefreshDeps.current = {
-    'scores': { refetchStudents, refetchGroups },
+    'scores': { refetchStudents, refetchGroups, refetchAwards, refetchSemesters },
     'points': { refetchStudents, refetchGroups },
     'streak-freezes': { refetchStudents },
     'peer-points': { refetchPeerAwards, refetchPeerEvents, refetchStudents, refetchGroups },
@@ -95,7 +133,122 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   }, [selectedMeeting, semesterMeetings]);
 
   const semesterPeerEvents = useMemo(() => peerEvents, [peerEvents]);
+  const activeSemester = useMemo(
+    () => selectDisplaySemester(semesters),
+    [semesters]
+  );
+  const activeSemesterId = activeSemester?.id ?? null;
+  const activeSemesterStatus = useMemo(
+    () => getSemesterTimeStatus(activeSemester),
+    [activeSemester]
+  );
+  const chartStudents = useMemo(
+    () =>
+      semesterStudents.filter((student) =>
+        belongsToSemester(student, activeSemester)
+      ),
+    [semesterStudents, activeSemester]
+  );
+  const chartAwards = useMemo(
+    () =>
+      awards.filter((award) =>
+        belongsToSemester(award, activeSemester, award?.ts)
+      ),
+    [awards, activeSemester]
+  );
   const sortedBadgeDefs = useMemo(() => [...badgeDefs].sort(compareBadgeTitles), [badgeDefs]);
+
+  const selectSemesterForEditing = useCallback(
+    (id) => {
+      setSemesterMessage('');
+      setSemesterEditingId(id);
+      if (id === 'new') {
+        setSemesterName('');
+        setSemesterStartDate('');
+        setSemesterEndDate('');
+        return;
+      }
+      const selected = semesters.find((semester) => String(semester.id) === String(id));
+      setSemesterName(selected?.name || '');
+      setSemesterStartDate(selected?.startDate || selected?.start_date || '');
+      setSemesterEndDate(selected?.endDate || selected?.end_date || '');
+    },
+    [semesters]
+  );
+
+  useEffect(() => {
+    if (!semestersLoaded || semesterEditingId) return;
+    selectSemesterForEditing(activeSemester?.id || 'new');
+  }, [
+    semestersLoaded,
+    semesterEditingId,
+    activeSemester,
+    selectSemesterForEditing,
+  ]);
+
+  const saveSemesterSettings = useCallback(async () => {
+    const name = semesterName.trim();
+    const startTimestamp = parseSemesterDate(semesterStartDate);
+    const endTimestamp = parseSemesterDate(semesterEndDate);
+    if (!name || startTimestamp === null || endTimestamp === null) {
+      setSemesterMessage('Vul een naam, startdatum en einddatum in.');
+      return;
+    }
+    if (endTimestamp < startTimestamp) {
+      setSemesterMessage('De einddatum moet op of na de startdatum liggen.');
+      return;
+    }
+
+    const isNew = semesterEditingId === 'new' || !semesterEditingId;
+    const id = isNew ? genId() : semesterEditingId;
+    const overlappingSemester = semesters.find((semester) => {
+      if (String(semester.id) === String(id)) return false;
+      const range = getSemesterRange(semester);
+      return Boolean(
+        range &&
+          startTimestamp <= range.endTimestamp &&
+          endTimestamp >= range.startTimestamp
+      );
+    });
+    if (overlappingSemester) {
+      setSemesterMessage(
+        `Deze periode overlapt met ${overlappingSemester.name || 'een ander semester'}.`
+      );
+      return;
+    }
+    const payload = {
+      id,
+      name,
+      startDate: semesterStartDate,
+      endDate: semesterEndDate,
+      created_at:
+        semesters.find((semester) => String(semester.id) === String(id))
+          ?.created_at || new Date().toISOString(),
+    };
+    const { error } = isNew
+      ? await insertSemester(payload)
+      : await patchSemester(id, {
+          name,
+          start_date: semesterStartDate,
+          end_date: semesterEndDate,
+        });
+    await refetchSemesters();
+    if (error) {
+      setSemesterMessage(`Opslaan mislukt: ${error.message}`);
+      return;
+    }
+    setSemesterEditingId(id);
+    setSemesterMessage('Semester opgeslagen.');
+  }, [
+    semesterName,
+    semesterStartDate,
+    semesterEndDate,
+    semesterEditingId,
+    semesters,
+    insertSemester,
+    patchSemester,
+    refetchSemesters,
+  ]);
 
   const studentById = useMemo(() => {
     const m = new Map();
@@ -138,7 +291,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       name,
       email: email || undefined,
       password,
-      semesterId: null,
+      semesterId: activeSemesterId,
       groupId: null,
       points: 0,
       streakFreezeTotal: DEFAULT_STREAK_FREEZES,
@@ -147,7 +300,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     });
     if (error) alert('Kon student niet toevoegen: ' + error.message);
     return id;
-  }, [insertStudent]);
+  }, [insertStudent, activeSemesterId]);
 
   const removeStudent = useCallback(async (id) => {
     const { error } = await deleteStudent(id);
@@ -218,10 +371,15 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
   const addGroup = useCallback(async (name) => {
     const id = genId();
-    const { error } = await insertGroup({ id, name, semesterId: null, points: 0 });
+    const { error } = await insertGroup({
+      id,
+      name,
+      semesterId: activeSemesterId,
+      points: 0,
+    });
     if (error) alert('Kon groep niet toevoegen: ' + error.message);
     return id;
-  }, [insertGroup]);
+  }, [insertGroup, activeSemesterId]);
 
   const renameGroup = useCallback(async (id, newName) => {
     if (!newName.trim()) return;
@@ -284,99 +442,126 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const toggleStudentBadge = useCallback(
     async (studentId, badgeId, hasBadge) => {
       if (!studentId || !badgeId) return;
-      let delta = 0;
-      const { error: saveError } = await patchStudent(studentId, (s) => {
-        const current = new Set(s.badges || []);
-        const hadBadge = current.has(badgeId);
-        if (hasBadge && !hadBadge) {
-          current.add(badgeId);
-          delta = BADGE_POINTS;
-          return { badges: Array.from(current), points: (s.points || 0) + BADGE_POINTS };
-        } else if (!hasBadge && hadBadge) {
-          current.delete(badgeId);
-          delta = -BADGE_POINTS;
-          return { badges: Array.from(current), points: (s.points || 0) - BADGE_POINTS };
-        }
-        return null;
+      const badgeAction = hasBadge ? 'grant' : 'revoke';
+      const delta = hasBadge ? BADGE_POINTS : -BADGE_POINTS;
+      const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
+      const { error } = await applyScoreMutations({
+        awards: [
+          {
+            id: genId(),
+            ts: new Date().toISOString(),
+            target: 'student',
+            target_id: studentId,
+            semesterId: activeSemesterId,
+            amount: delta,
+            reason:
+              badgeAction === 'grant'
+                ? `Badge behaald: ${badgeTitle}`
+                : `Badge ingetrokken: ${badgeTitle}`,
+            badgeId,
+            badgeAction,
+          },
+        ],
       });
-      if (saveError) {
-        alert('Kon student data niet opslaan: ' + saveError.message);
-        return;
-      }
-      if (delta !== 0) {
-        const badgeTitle = badgeDefs.find((b) => b.id === badgeId)?.title || badgeId;
-        const award = {
-          id: genId(),
-          ts: new Date().toISOString(),
-          target: 'student',
-          target_id: studentId,
-          semesterId: null,
-          amount: delta,
-          reason: delta > 0 ? `Badge behaald: ${badgeTitle}` : `Badge ingetrokken: ${badgeTitle}`,
-        };
-        setAwards((prev) => [award, ...prev].slice(0, 500));
-        const { error } = await saveAwards();
-        if (error) alert('Kon award niet opslaan: ' + error.message);
+      await Promise.all([refetchStudents(), refetchAwards()]);
+      if (error) {
+        alert(
+          'Opslaan kon niet worden bevestigd; de actuele badge en punten zijn opnieuw geladen: ' +
+            error.message
+        );
       }
     },
-    [patchStudent, setAwards, badgeDefs, saveAwards]
+    [badgeDefs, refetchStudents, refetchAwards, activeSemesterId]
   );
 
-  const awardToStudent = useCallback(async (studentId, amount, reason) => {
-    if (!studentId || !Number.isFinite(amount)) return false;
-    const delta = Number(amount);
-    const { error: saveError } = await patchStudent(studentId, (s) => ({
-      points: (Number(s.points) || 0) + delta,
-    }));
-    if (saveError) {
-      alert('Kon student data niet opslaan: ' + saveError.message);
-      return false;
-    }
-    const award = {
-      id: genId(),
-      ts: new Date().toISOString(),
-      target: 'student',
-      target_id: studentId,
-      semesterId: null,
-      amount,
-      reason,
-    };
-    setAwards((prev) => [award, ...prev].slice(0, 500));
-    const { error } = await saveAwards();
-    if (error) {
-      alert('Kon award niet opslaan: ' + error.message);
-      return false;
-    }
-    return true;
-  }, [patchStudent, setAwards, saveAwards]);
+  const awardToStudents = useCallback(
+    async (studentIds, amount, reason) => {
+      if (!Array.isArray(studentIds) || studentIds.length === 0 || !Number.isInteger(amount)) {
+        return false;
+      }
+      const sortedStudentIds = [...studentIds].sort();
+      const fingerprint = JSON.stringify({
+        target: 'student',
+        targetIds: sortedStudentIds,
+        amount,
+        reason,
+        semesterId: activeSemesterId,
+      });
+      let awardsForRequest =
+        manualAwardRetryRef.current?.fingerprint === fingerprint
+          ? manualAwardRetryRef.current.awards
+          : null;
+      if (!awardsForRequest) {
+        const ts = new Date().toISOString();
+        awardsForRequest = sortedStudentIds.map((studentId) => ({
+          id: genId(),
+          ts,
+          target: 'student',
+          target_id: studentId,
+          semesterId: activeSemesterId,
+          amount,
+          reason,
+        }));
+        manualAwardRetryRef.current = { fingerprint, awards: awardsForRequest };
+      }
+      const { error } = await applyScoreMutations({
+        awards: awardsForRequest,
+      });
+      await Promise.all([refetchStudents(), refetchAwards()]);
+      if (error) {
+        alert(
+          'Opslaan kon niet worden bevestigd; de actuele studentenpunten zijn opnieuw geladen: ' +
+            error.message
+        );
+        return false;
+      }
+      manualAwardRetryRef.current = null;
+      return true;
+    },
+    [refetchStudents, refetchAwards, activeSemesterId]
+  );
 
   const awardToGroup = useCallback(async (groupId, amount, reason) => {
-    if (!groupId || !Number.isFinite(amount)) return false;
-    const delta = Number(amount);
-    const { error: saveError } = await patchGroup(groupId, (g) => ({
-      points: (Number(g.points) || 0) + delta,
-    }));
-    if (saveError) {
-      alert('Kon groepspunten niet opslaan: ' + saveError.message);
-      return false;
-    }
-    const award = {
-      id: genId(),
-      ts: new Date().toISOString(),
+    if (!groupId || !Number.isInteger(amount)) return false;
+    const fingerprint = JSON.stringify({
       target: 'group',
-      target_id: groupId,
-      semesterId: null,
-      amount: delta,
+      targetIds: [groupId],
+      amount,
       reason,
-    };
-    setAwards((prev) => [award, ...prev].slice(0, 500));
-    const { error } = await saveAwards();
+      semesterId: activeSemesterId,
+    });
+    let awardsForRequest =
+      manualAwardRetryRef.current?.fingerprint === fingerprint
+        ? manualAwardRetryRef.current.awards
+        : null;
+    if (!awardsForRequest) {
+      awardsForRequest = [
+        {
+          id: genId(),
+          ts: new Date().toISOString(),
+          target: 'group',
+          target_id: groupId,
+          semesterId: activeSemesterId,
+          amount,
+          reason,
+        },
+      ];
+      manualAwardRetryRef.current = { fingerprint, awards: awardsForRequest };
+    }
+    const { error } = await applyScoreMutations({
+      awards: awardsForRequest,
+    });
+    await Promise.all([refetchGroups(), refetchAwards()]);
     if (error) {
-      alert('Kon award niet opslaan: ' + error.message);
+      alert(
+        'Opslaan kon niet worden bevestigd; de actuele groepspunten zijn opnieuw geladen: ' +
+          error.message
+      );
       return false;
     }
+    manualAwardRetryRef.current = null;
     return true;
-  }, [patchGroup, setAwards, saveAwards]);
+  }, [refetchGroups, refetchAwards, activeSemesterId]);
 
   const addExtraStreakFreezes = useCallback(
     async (studentIds, extra) => {
@@ -440,6 +625,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       active: true,
       allowOwnGroup: flags.allowOwnGroup,
       allowOtherGroups: flags.allowOtherGroups,
+      // Keep events unscoped while legacy students may not have a semesterId yet.
       semesterId: null,
       created_at: new Date().toISOString(),
     };
@@ -631,6 +817,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
   const [awardReason, setAwardReason] = useState('');
   const [extraFreezeAmount, setExtraFreezeAmount] = useState('1');
   const [awardMessage, setAwardMessage] = useState('');
+  const [awardSaving, setAwardSaving] = useState(false);
   const [freezeMessage, setFreezeMessage] = useState('');
 
   const [newBadgeTitle, setNewBadgeTitle] = useState('');
@@ -692,6 +879,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       attendance,
       peerAwards,
       peerEvents,
+      semesters,
       announcements,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -701,7 +889,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     a.download = 'backup.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [students, groups, awards, badgeDefs, teachers, meetings, attendance, peerAwards, peerEvents, announcements]);
+  }, [students, groups, awards, badgeDefs, teachers, meetings, attendance, peerAwards, peerEvents, semesters, announcements]);
 
   const handleRestore = useCallback((file) => {
     if (!file) return;
@@ -765,6 +953,11 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
           const { error } = await savePeerEvents();
           if (error) errors.push('peer events');
         }
+        if (Array.isArray(data.semesters)) {
+          setSemesters(data.semesters);
+          const { error } = await saveSemesters();
+          if (error) errors.push('semesters');
+        }
         if (Array.isArray(data.announcements)) {
           setAnnouncements(data.announcements);
           const { error } = await saveAnnouncements();
@@ -788,6 +981,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     setAttendance,
     setPeerAwards,
     setPeerEvents,
+    setSemesters,
     saveStudents,
     saveGroups,
     saveAwards,
@@ -797,6 +991,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
     saveAttendance,
     savePeerAwards,
     savePeerEvents,
+    saveSemesters,
     setAnnouncements,
     saveAnnouncements,
   ]);
@@ -809,7 +1004,7 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
       time: newMeetingTime,
       type: 'lecture',
       title: newMeetingTitle,
-      semesterId: null,
+      semesterId: activeSemesterId,
       created_by: currentTeacherId || null,
     };
     setMeetings((prev) => [...prev, newMeeting]);
@@ -993,6 +1188,83 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
 
       {page === 'scores' && (
         <>
+        <Card title="Semesterinstellingen" className="mb-4">
+          <p className="text-sm text-neutral-700 mb-3">
+            {activeSemester
+              ? `Tijdlijn: ${activeSemester.name || 'Semester'} · ${
+                  activeSemesterStatus?.label || 'datums ingesteld'
+                }`
+              : 'Stel een semester in om de scoregrafiek over de volledige minorperiode te tonen.'}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <label className="block text-sm font-medium">
+              Semester bewerken
+              <Select
+                value={semesterEditingId || 'new'}
+                onChange={selectSemesterForEditing}
+                disabled={!semestersLoaded}
+                className="mt-1"
+              >
+                <option value="new">Nieuw semester</option>
+                {[...semesters]
+                  .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))
+                  .map((semester) => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.name || 'Semester'}
+                      {semester.startDate ? ` · ${semester.startDate}` : ''}
+                    </option>
+                  ))}
+              </Select>
+            </label>
+            <label className="block text-sm font-medium">
+              Naam
+              <TextInput
+                value={semesterName}
+                onChange={setSemesterName}
+                placeholder="Bijvoorbeeld Voorjaar 2027"
+                className="mt-1"
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Startdatum
+              <TextInput
+                type="date"
+                value={semesterStartDate}
+                onChange={setSemesterStartDate}
+                className="mt-1"
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Einddatum
+              <TextInput
+                type="date"
+                value={semesterEndDate}
+                onChange={setSemesterEndDate}
+                className="mt-1"
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              className="bg-indigo-600 text-white"
+              onClick={saveSemesterSettings}
+              disabled={!semestersLoaded}
+            >
+              Semester opslaan
+            </Button>
+            {(semesterMessage || semestersError) && (
+              <span
+                className={`text-sm ${
+                  semestersError || /mislukt|Vul|moet|overlapt/.test(semesterMessage)
+                    ? 'text-rose-700'
+                    : 'text-emerald-700'
+                }`}
+              >
+                {semesterMessage || `Laden mislukt: ${semestersError.message}`}
+              </span>
+            )}
+          </div>
+        </Card>
         <Card title="Nummer 1 afbeeldingen" className="mb-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1138,6 +1410,13 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
             </table>
           </Card>
         </div>
+        <ScoreTrajectoryChart
+          students={chartStudents}
+          awards={chartAwards}
+          semester={activeSemester}
+          historyLoading={!awardsLoaded}
+          historyError={awardsError}
+        />
         </>
       )}
 
@@ -1648,36 +1927,48 @@ export default function Admin({ onLogout = () => {}, currentTeacherId = null }) 
             </div>
             <Button
               className="bg-indigo-600 text-white md:col-span-5"
-              disabled={awardType === 'student' ? awardStudentIds.length === 0 : !awardGroupId}
+              disabled={
+                awardSaving ||
+                (awardType === 'student' ? awardStudentIds.length === 0 : !awardGroupId)
+              }
               onClick={async () => {
+                if (awardSavingRef.current) return;
                 if (!awardAmount.trim()) {
                   alert('Voer een geldig getal in.');
                   return;
                 }
                 const amountValue = Number(awardAmount);
-                if (!Number.isFinite(amountValue)) {
-                  alert('Voer een geldig getal in.');
+                if (!Number.isInteger(amountValue)) {
+                  alert('Voer een geldig geheel getal in.');
                   return;
                 }
-                const reason = awardReason.trim();
-                let success = false;
-                if (awardType === 'student') {
-                  const results = await Promise.all(
-                    awardStudentIds.map((id) => awardToStudent(id, amountValue, reason))
-                  );
-                  success = results.length > 0 && results.every(Boolean);
-                } else {
-                  success = await awardToGroup(awardGroupId, amountValue, reason);
+                if (amountValue === 0) {
+                  alert('Voer een puntenaantal in dat niet nul is.');
+                  return;
                 }
-                if (success) {
-                  setAwardReason('');
-                  setAwardAmount('5');
-                  setAwardMessage('Succesvol ingevoerd.');
-                  setTimeout(() => setAwardMessage(''), 2000);
+                awardSavingRef.current = true;
+                setAwardSaving(true);
+                try {
+                  const reason = awardReason.trim();
+                  let success = false;
+                  if (awardType === 'student') {
+                    success = await awardToStudents(awardStudentIds, amountValue, reason);
+                  } else {
+                    success = await awardToGroup(awardGroupId, amountValue, reason);
+                  }
+                  if (success) {
+                    setAwardReason('');
+                    setAwardAmount('5');
+                    setAwardMessage('Succesvol ingevoerd.');
+                    setTimeout(() => setAwardMessage(''), 2000);
+                  }
+                } finally {
+                  awardSavingRef.current = false;
+                  setAwardSaving(false);
                 }
               }}
             >
-              Toekennen
+              {awardSaving ? 'Opslaan…' : 'Toekennen'}
             </Button>
             {awardMessage && (
               <div className="md:col-span-5 text-sm text-emerald-600">

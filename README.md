@@ -25,7 +25,7 @@ REACT_APP_API_BASE=/api
 ```
 
 ## Database setup
-Use the SQL in [`supabase-schema.sql`](./supabase-schema.sql) in the Supabase SQL editor to create the required tables and seed badge definitions. The tables store all students, groups, semesters, awards, teachers and badges. Authentication for both students and teachers is performed against these tables.
+Use the SQL in [`supabase-schema.sql`](./supabase-schema.sql) in the Supabase SQL editor to create the required tables and seed badge definitions. Then run [`supabase-score-mutations.sql`](./supabase-score-mutations.sql) to install the atomic points/history RPC. The tables store all students, groups, semesters, awards, teachers and badges. Authentication for both students and teachers is performed against these tables.
 
 The `students` table must include:
 - `bingo` (jsonb)
@@ -34,7 +34,11 @@ The `students` table must include:
 - `showRankPublic` (boolean, default true)
 - `semesterId` (text)
 
-If you already have a Supabase project, run the `ALTER TABLE` lines at the bottom of `supabase-schema.sql` to add these columns.
+For an existing Supabase project, run the complete `supabase-score-mutations.sql` migration before deploying this frontend. It converts `awards.target_id` to `text`, adds mutation bookkeeping and installs `apply_score_mutations`.
+
+In the teacher dashboard under **Scores**, configure the semester name, start date and end date. The student score chart then always spans that complete period, marks today and shows the remaining time. Existing unscoped awards are included by timestamp; newly created students and score awards receive the active semester ID automatically.
+
+The RPC is deliberately `SECURITY INVOKER`: it does not bypass table privileges or RLS. The current custom teacher/student login is not linked to `auth.uid()`, so atomicity is enforced but caller identity is not yet a database authorization boundary.
 
 ## Storage bucket
 Create a public storage bucket named `hon` and upload badge images under an `images/` folder. The client is hard-coded to use this bucket when generating URLs and uploading files.
@@ -83,7 +87,8 @@ REACT_APP_API_BASE=/api
 ### Stap 1: Supabase Database Opzetten
 1. Maak nieuw Supabase project aan
 2. Voer `supabase-schema.sql` uit in SQL Editor
-3. Update `.env` met echte Supabase credentials
+3. Voer `supabase-score-mutations.sql` uit in SQL Editor
+4. Update `.env` met echte Supabase credentials
 
 ### Stap 2: Data Migreren
 ```bash

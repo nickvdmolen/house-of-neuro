@@ -9,9 +9,11 @@ import { Card, Button, TextInput } from './components/ui';
 import usePersistentState from './hooks/usePersistentState';
 import useStudents from './hooks/useStudents';
 import useTeachers from './hooks/useTeachers';
+import useSemesters from './hooks/useSemesters';
 import { nameFromEmail, genId, DEFAULT_STREAK_FREEZES } from './utils';
 import { apiUrl } from './config';
 import { checkPassword, hashPassword, verifyPassword } from './auth';
+import { selectDisplaySemester } from './semesterTimeline';
 
 const previewCollator = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
 
@@ -286,6 +288,11 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPassword2, setSignupPassword2] = useState('');
   const [signupError, setSignupError] = useState('');
+  const [semesters, , { loaded: semestersLoaded }] = useSemesters();
+  const activeSemester = useMemo(
+    () => selectDisplaySemester(semesters),
+    [semesters]
+  );
 
   const SUPER_ADMIN_EMAIL = (process.env.REACT_APP_SUPERADMIN_EMAIL || '').toLowerCase();
   const SUPER_ADMIN_PASSWORD = process.env.REACT_APP_SUPERADMIN_PASSWORD || '';
@@ -301,8 +308,13 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     loginNeedsTeachers || signupNeedsTeachers || loginIsSuperAdmin || Boolean(resetToken);
   const [
     students,
-    setStudents,
-    { save: saveStudents, loaded: studentsLoaded, error: studentsError },
+    ,
+    {
+      loaded: studentsLoaded,
+      error: studentsError,
+      patchRow: patchStudent,
+      insertRow: insertStudent,
+    },
   ] = useStudents({ enabled: studentsEnabled });
   const [
     teachers,
@@ -313,7 +325,9 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     (studentsEnabled && studentsError) || (teachersEnabled && teachersError);
   const isLoading =
     !dataLoadError &&
-    ((studentsEnabled && !studentsLoaded) || (teachersEnabled && !teachersLoaded));
+    ((studentsEnabled && !studentsLoaded) ||
+      (teachersEnabled && !teachersLoaded) ||
+      (signupNeedsStudents && !semestersLoaded));
 
   const sendResetEmail = async (email, token) => {
     const link = `${window.location.origin}/#/reset/${token}`;
@@ -380,12 +394,9 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       if (s) {
         const { ok, needsRehash } = checkPassword(pass, s.password || '');
         if (ok && needsRehash) {
-          setStudents((prev) =>
-            prev.map((st) =>
-              st.id === s.id ? { ...st, password: hashPassword(pass) } : st
-            )
-          );
-          const { error } = await saveStudents();
+          const { error } = await patchStudent(s.id, {
+            password: hashPassword(pass),
+          });
           if (error) {
             console.warn('[login] Failed to upgrade student password hash', error);
           }
@@ -427,6 +438,10 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       return;
     }
     if (norm.endsWith('@student.nhlstenden.com')) {
+      if (!semestersLoaded) {
+        setSignupError('Semestergegevens worden nog geladen. Probeer opnieuw.');
+        return;
+      }
       if (!studentsLoaded) {
         setSignupError('Studenten worden nog geladen. Probeer opnieuw.');
         return;
@@ -438,23 +453,19 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       const id = genId();
       const hash = hashPassword(signupPassword.trim());
       // Bingo initieel leeg - wordt dynamisch gevuld vanuit bingoData.js questionKeys
-      setStudents((prev) => [
-        ...prev,
-        {
-          id,
-          name: nameFromEmail(norm),
-          email: norm,
-          password: hash,
-          semesterId: null,
-          groupId: null,
-          points: 0,
-          streakFreezeTotal: DEFAULT_STREAK_FREEZES,
-          badges: [],
-          showRankPublic: true,
-          bingo: {},
-        },
-      ]);
-      const { error } = await saveStudents();
+      const { error } = await insertStudent({
+        id,
+        name: nameFromEmail(norm),
+        email: norm,
+        password: hash,
+        semesterId: activeSemester?.id ?? null,
+        groupId: null,
+        points: 0,
+        streakFreezeTotal: DEFAULT_STREAK_FREEZES,
+        badges: [],
+        showRankPublic: true,
+        bingo: {},
+      });
       if (error) {
         setSignupError('Account opslaan mislukt.');
         return;
@@ -505,12 +516,7 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
       }
       const token = Math.random().toString(36).slice(2);
       console.debug('[forgotPassword] Generated token for student', { id: s.id, token });
-      setStudents((prev) =>
-        prev.map((st) =>
-          st.id === s.id ? { ...st, resetToken: token } : st
-        )
-      );
-      const { error } = await saveStudents();
+      const { error } = await patchStudent(s.id, { resetToken: token });
       if (error) {
         setLoginError('Opslaan resetlink mislukt.');
         return;
@@ -571,12 +577,10 @@ function Auth({ onStudentLogin, onAdminLogin, resetToken }) {
     if (resetUser.type === 'student') {
       const id = resetUser.id;
       const hash = hashPassword(pass);
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, password: hash, resetToken: undefined } : s
-        )
-      );
-      const { error } = await saveStudents();
+      const { error } = await patchStudent(id, {
+        password: hash,
+        resetToken: null,
+      });
       if (error) {
         console.error('[setNewPassword] Failed to save student password', error);
         return;

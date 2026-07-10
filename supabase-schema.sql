@@ -47,10 +47,17 @@ create table if not exists awards (
   id uuid primary key default gen_random_uuid(),
   ts timestamptz not null default now(),
   target text check (target in ('student','group')),
-  target_id uuid not null,
+  -- Student and group IDs are text, so this polymorphic reference must be text too.
+  target_id text not null,
   "semesterId" text,
   amount integer,
-  reason text
+  reason text,
+  -- RPC bookkeeping. NULL mutation_applied means that a legacy award predates
+  -- the atomic mutation RPC and its application state is not known.
+  mutation_meta jsonb not null default '{}'::jsonb,
+  previous_points integer,
+  resulting_points integer,
+  mutation_applied boolean
 );
 
 create table if not exists badge_defs (
@@ -126,11 +133,19 @@ create table if not exists peer_awards (
 alter table groups add column if not exists "semesterId" text;
 alter table semesters add column if not exists start_date date;
 alter table semesters add column if not exists end_date date;
+alter table awards alter column target_id type text using target_id::text;
 alter table awards add column if not exists "semesterId" text;
+alter table awards add column if not exists mutation_meta jsonb not null default '{}'::jsonb;
+alter table awards add column if not exists previous_points integer;
+alter table awards add column if not exists resulting_points integer;
+alter table awards add column if not exists mutation_applied boolean;
 alter table meetings add column if not exists "semesterId" text;
 alter table peer_events add column if not exists "semesterId" text;
 alter table peer_awards add column if not exists "semesterId" text;
 alter table attendance add column if not exists streak_freeze boolean default false;
+
+create index if not exists awards_target_history_idx
+  on awards (target, target_id, ts, id);
 
 -- Example badge definitions (replace public URL with your project URL)
 insert into badge_defs (id, title, image, requirement) values

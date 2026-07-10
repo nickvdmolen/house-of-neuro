@@ -8,7 +8,14 @@ dotenv.config();
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
-const { readData, writeData, addData } = require('./server/dataStore');
+const {
+  readData,
+  writeData,
+  addData,
+  patchData,
+  deleteData,
+  applyScoreMutations,
+} = require('./server/dataStore');
 
 const app = express();
 
@@ -141,6 +148,21 @@ app.get('/api/:collection', async (req, res) => {
   }
 });
 
+app.post('/api/score-mutations', requireTeacher, async (req, res) => {
+  const { p_awards: awards = [], p_peer_awards: peerAwards = [] } = req.body || {};
+  try {
+    const data = await applyScoreMutations(awards, peerAwards);
+    res.json(data);
+  } catch (err) {
+    const status = Number.isInteger(err?.statusCode) ? err.statusCode : 500;
+    console.error('Failed to apply score mutations', err);
+    res.status(status).json({
+      error: err?.message || 'failed to apply score mutations',
+      code: err?.code || 'score_mutation_failed',
+    });
+  }
+});
+
 app.post('/api/:collection', async (req, res) => {
   const { collection } = req.params;
   if (!COLLECTIONS.includes(collection)) return res.status(404).end();
@@ -156,6 +178,54 @@ app.post('/api/:collection', async (req, res) => {
   } catch (err) {
     console.error('Failed to add data', err);
     res.status(500).json({ error: 'failed to add data' });
+  }
+});
+
+app.patch('/api/:collection', async (req, res) => {
+  const { collection } = req.params;
+  if (!COLLECTIONS.includes(collection)) return res.status(404).end();
+  if (collection !== 'students') {
+    requireTeacher(req, res, () => {});
+    if (res.headersSent) return;
+  }
+  try {
+    const { field, value, updates } = req.body || {};
+    const data = await patchData(collection, field, value, updates);
+    res.json(data);
+  } catch (err) {
+    const status = Number.isInteger(err?.statusCode) ? err.statusCode : 500;
+    console.error('Failed to patch data', err);
+    res.status(status).json({
+      error: err?.message || 'failed to patch data',
+      code: err?.code || 'patch_failed',
+    });
+  }
+});
+
+app.delete('/api/:collection', async (req, res) => {
+  const { collection } = req.params;
+  if (!COLLECTIONS.includes(collection)) return res.status(404).end();
+  if (collection !== 'students') {
+    requireTeacher(req, res, () => {});
+    if (res.headersSent) return;
+  }
+  try {
+    const { field } = req.body || {};
+    const hasValue = Object.prototype.hasOwnProperty.call(req.body || {}, 'value');
+    const values = Array.isArray(req.body?.values)
+      ? req.body.values
+      : hasValue
+      ? [req.body.value]
+      : null;
+    const data = await deleteData(collection, field, values);
+    res.json(data);
+  } catch (err) {
+    const status = Number.isInteger(err?.statusCode) ? err.statusCode : 500;
+    console.error('Failed to delete data', err);
+    res.status(status).json({
+      error: err?.message || 'failed to delete data',
+      code: err?.code || 'delete_failed',
+    });
   }
 });
 

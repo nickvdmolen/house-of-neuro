@@ -27,6 +27,38 @@ if (USE_LOCAL_SERVER) {
   const TEACHER_TOKEN = process.env.REACT_APP_TEACHER_TOKEN || '';
 
   const localSupabase = {
+    rpc: async (functionName, args = {}) => {
+      if (functionName !== 'apply_score_mutations') {
+        return {
+          data: null,
+          error: new Error(`Unsupported local RPC: ${functionName}`),
+        };
+      }
+      try {
+        const res = await fetch(`${API_BASE}/score-mutations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-teacher-token': TEACHER_TOKEN,
+          },
+          body: JSON.stringify({
+            p_awards: args?.p_awards ?? [],
+            p_peer_awards: args?.p_peer_awards ?? [],
+          }),
+        });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          const error = new Error(payload?.error || `HTTP ${res.status}`);
+          error.code = payload?.code;
+          error.status = res.status;
+          return { data: null, error };
+        }
+        return { data: payload, error: null };
+      } catch (err) {
+        console.error('Error calling local RPC', functionName, err);
+        return { data: null, error: err };
+      }
+    },
     from: (table) => ({
       select: async () => {
         try {
@@ -78,20 +110,15 @@ if (USE_LOCAL_SERVER) {
       update: (updates) => ({
         eq: async (field, value) => {
           try {
-            const res = await fetch(`${API_BASE}/${table}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const updated = data.map(r => r[field] === value ? { ...r, ...updates } : r);
-
-            const putRes = await fetch(`${API_BASE}/${table}`, {
-              method: 'PUT',
+            const res = await fetch(`${API_BASE}/${table}`, {
+              method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
                 'x-teacher-token': TEACHER_TOKEN,
               },
-              body: JSON.stringify(updated),
+              body: JSON.stringify({ field, value, updates }),
             });
-            if (!putRes.ok) throw new Error(`HTTP ${putRes.status}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return { data: null, error: null };
           } catch (err) {
             console.error('Error updating', table, err);
@@ -102,20 +129,15 @@ if (USE_LOCAL_SERVER) {
       delete: () => ({
         eq: async (field, value) => {
           try {
-            const res = await fetch(`${API_BASE}/${table}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const filtered = data.filter(r => r[field] !== value);
-
-            const putRes = await fetch(`${API_BASE}/${table}`, {
-              method: 'PUT',
+            const res = await fetch(`${API_BASE}/${table}`, {
+              method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',
                 'x-teacher-token': TEACHER_TOKEN,
               },
-              body: JSON.stringify(filtered),
+              body: JSON.stringify({ field, value }),
             });
-            if (!putRes.ok) throw new Error(`HTTP ${putRes.status}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return { data: null, error: null };
           } catch (err) {
             console.error('Error deleting from', table, err);
@@ -124,21 +146,15 @@ if (USE_LOCAL_SERVER) {
         },
         in: async (field, values) => {
           try {
-            const res = await fetch(`${API_BASE}/${table}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const set = new Set(values);
-            const filtered = data.filter(r => !set.has(r[field]));
-
-            const putRes = await fetch(`${API_BASE}/${table}`, {
-              method: 'PUT',
+            const res = await fetch(`${API_BASE}/${table}`, {
+              method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',
                 'x-teacher-token': TEACHER_TOKEN,
               },
-              body: JSON.stringify(filtered),
+              body: JSON.stringify({ field, values }),
             });
-            if (!putRes.ok) throw new Error(`HTTP ${putRes.status}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return { data: null, error: null };
           } catch (err) {
             console.error('Error deleting from', table, err);

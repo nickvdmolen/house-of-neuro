@@ -1,7 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, ensureSession } from '../supabase';
+import fetchTableRows from './fetchTableRows';
 
 const identity = (row) => row;
+
+const mergeProtectedInsertRows = (fetchedRows, protectedRows) => {
+  const merged = [...fetchedRows];
+  const ids = new Set(merged.map((row) => row?.id).filter(Boolean));
+  protectedRows.forEach((row) => {
+    if (row?.id && ids.has(row.id)) {
+      protectedRows.delete(row);
+      return;
+    }
+    if (row?.id) ids.add(row.id);
+    merged.push(row);
+  });
+  return merged;
+};
 
 export default function useSupabaseTable(
   table,
@@ -11,6 +26,9 @@ export default function useSupabaseTable(
     toDb = identity,
     enabled = true,
     allowDeletes = true,
+    fetchPageSize = null,
+    fetchOrderBy = 'id',
+    preserveLocalRowsOnFetch = false,
   } = {}
 ) {
   const [data, setData] = useState([]);
@@ -23,6 +41,8 @@ export default function useSupabaseTable(
   const fromDbRef = useRef(fromDb);
   const toDbRef = useRef(toDb);
   const enabledRef = useRef(enabled);
+  const fetchRequestIdRef = useRef(0);
+  const protectedInsertRowsRef = useRef(new Set());
 
   fromDbRef.current = fromDb;
   toDbRef.current = toDb;
@@ -33,7 +53,18 @@ export default function useSupabaseTable(
   }, [data]);
 
   useEffect(() => {
+    protectedInsertRowsRef.current.clear();
+  }, [table]);
+
+  useEffect(() => {
+    if (!preserveLocalRowsOnFetch) {
+      protectedInsertRowsRef.current.clear();
+    }
+  }, [preserveLocalRowsOnFetch]);
+
+  useEffect(() => {
     let ignore = false;
+    const requestId = ++fetchRequestIdRef.current;
     if (!enabled) {
       dataRef.current = [];
       setData([]);
@@ -41,6 +72,7 @@ export default function useSupabaseTable(
       setError(null);
       setDirty(false);
       dirtyRef.current = false;
+      protectedInsertRowsRef.current.clear();
       setLoaded(false);
       return () => {
         ignore = true;
@@ -49,15 +81,26 @@ export default function useSupabaseTable(
     async function fetchData() {
       try {
         await ensureSession();
-        const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
-        if (!ignore) {
+        const { data: rows, error: fetchErr } = await fetchTableRows(
+          supabase,
+          table,
+          fetchPageSize,
+          fetchOrderBy
+        );
+        if (!ignore && requestId === fetchRequestIdRef.current) {
           if (fetchErr) {
             console.error('Error fetching', table, fetchErr);
             setError(fetchErr);
           } else {
-            const safeRows = Array.isArray(rows)
-              ? rows.map((row) => fromDbRef.current(row))
+            const fetchedRows = Array.isArray(rows)
+              ? rows.map((row) => fromDbRef.current(row)).filter(Boolean)
               : [];
+            const safeRows = preserveLocalRowsOnFetch
+              ? mergeProtectedInsertRows(
+                  fetchedRows,
+                  protectedInsertRowsRef.current
+                )
+              : fetchedRows;
             dataRef.current = safeRows;
             setData(safeRows);
             prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
@@ -69,7 +112,7 @@ export default function useSupabaseTable(
         }
       } catch (err) {
         console.error('Error loading', table, err);
-        if (!ignore) {
+        if (!ignore && requestId === fetchRequestIdRef.current) {
           setError(err);
           setLoaded(true);
         }
@@ -79,7 +122,13 @@ export default function useSupabaseTable(
     return () => {
       ignore = true;
     };
-  }, [table, enabled]);
+  }, [
+    table,
+    enabled,
+    fetchPageSize,
+    fetchOrderBy,
+    preserveLocalRowsOnFetch,
+  ]);
 
   const update = useCallback((updater) => {
     setDirty(true);
@@ -160,29 +209,55 @@ export default function useSupabaseTable(
     }
   }, [table]);
 
-  const insertRow = useCallback(async (row) => {
-    if (!enabledRef.current || !row) return { error: null };
+  const insertRows = useCallback(async (rows) => {
+    const entries = Array.isArray(rows) ? rows.filter(Boolean) : [];
+    if (!enabledRef.current || entries.length === 0) return { error: null };
 
     // Update local state immediately (without marking dirty)
-    const next = [...dataRef.current, row];
+    if (preserveLocalRowsOnFetch) {
+      entries.forEach((row) => protectedInsertRowsRef.current.add(row));
+    }
+    const insertedIds = new Set(entries.map((row) => row?.id).filter(Boolean));
+    const insertedEntries = new Set(entries);
+    const next = [...dataRef.current, ...entries];
     dataRef.current = next;
-    prevIds.current.add(row.id);
     setData(next);
 
-    // Insert only this row into the database
+    const rollback = () => {
+      entries.forEach((row) => protectedInsertRowsRef.current.delete(row));
+      const rolledBack = dataRef.current.filter((row) => !insertedEntries.has(row));
+      dataRef.current = rolledBack;
+      insertedIds.forEach((id) => {
+        if (!rolledBack.some((row) => row?.id === id)) {
+          prevIds.current.delete(id);
+        }
+      });
+      setData(rolledBack);
+    };
+
+    // Insert only these rows into the database
     try {
       await ensureSession();
-      const { error } = await supabase.from(table).insert(toDbRef.current(row));
+      const payload = entries.map((row) => toDbRef.current(row));
+      const { error } = await supabase.from(table).insert(payload);
       if (error) {
         console.error('Error inserting into', table, error);
+        rollback();
         return { error };
       }
+      insertedIds.forEach((id) => prevIds.current.add(id));
       return { error: null };
     } catch (err) {
       console.error('Error inserting into', table, err);
+      rollback();
       return { error: err };
     }
-  }, [table]);
+  }, [table, preserveLocalRowsOnFetch]);
+
+  const insertRow = useCallback(
+    async (row) => insertRows(row ? [row] : []),
+    [insertRows]
+  );
 
   const deleteRow = useCallback(async (id) => {
     if (!enabledRef.current || !id) return { error: null };
@@ -210,16 +285,31 @@ export default function useSupabaseTable(
 
   const refetch = useCallback(async () => {
     if (!enabledRef.current) return { error: null };
+    const requestId = ++fetchRequestIdRef.current;
     try {
       await ensureSession();
-      const { data: rows, error: fetchErr } = await supabase.from(table).select('*');
+      const { data: rows, error: fetchErr } = await fetchTableRows(
+        supabase,
+        table,
+        fetchPageSize,
+        fetchOrderBy
+      );
+      if (requestId !== fetchRequestIdRef.current) {
+        return { error: null, stale: true };
+      }
       if (fetchErr) {
         console.error('Error refetching', table, fetchErr);
         setError(fetchErr);
       } else {
-        const safeRows = Array.isArray(rows)
-          ? rows.map((row) => fromDbRef.current(row))
+        const fetchedRows = Array.isArray(rows)
+          ? rows.map((row) => fromDbRef.current(row)).filter(Boolean)
           : [];
+        const safeRows = preserveLocalRowsOnFetch
+          ? mergeProtectedInsertRows(
+              fetchedRows,
+              protectedInsertRowsRef.current
+            )
+          : fetchedRows;
         dataRef.current = safeRows;
         setData(safeRows);
         prevIds.current = new Set(safeRows.map((r) => r?.id).filter(Boolean));
@@ -227,16 +317,36 @@ export default function useSupabaseTable(
         setDirty(false);
         dirtyRef.current = false;
       }
+      setLoaded(true);
+      return { error: fetchErr || null };
     } catch (err) {
-      console.error('Error refetching', table, err);
-      setError(err);
+      if (requestId === fetchRequestIdRef.current) {
+        console.error('Error refetching', table, err);
+        setError(err);
+        setLoaded(true);
+      }
+      return { error: err };
     }
-  }, [table]);
+  }, [table, fetchPageSize, fetchOrderBy, preserveLocalRowsOnFetch]);
 
   useEffect(() => {
     if (!enabled || !autoSave || !dirty) return;
     save();
   }, [save, enabled, autoSave, dirty]);
 
-  return [data, update, { save, dirty, error, refetch, loaded, patchRow, insertRow, deleteRow }];
+  return [
+    data,
+    update,
+    {
+      save,
+      dirty,
+      error,
+      refetch,
+      loaded,
+      patchRow,
+      insertRow,
+      insertRows,
+      deleteRow,
+    },
+  ];
 }
