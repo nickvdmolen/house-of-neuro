@@ -12,22 +12,30 @@ root.render(
   </React.StrictMode>
 );
 
-// Only register the service worker in production to avoid dev caching issues.
+// Older versions cached index.html indefinitely. That can leave the HTML
+// pointing at bundles removed by a later deployment and results in a blank
+// page. The application does not require offline support, so remove any old
+// registration and its app-specific caches instead of risking stale releases.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    if (process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker
-        .register('/service-worker.js')
-        .catch((err) =>
-          console.error('Service worker registration failed:', err)
-        );
-    } else {
-      navigator.serviceWorker
-        .getRegistrations()
-        .then((regs) => regs.forEach((reg) => reg.unregister()))
-        .catch((err) =>
-          console.error('Service worker unregister failed:', err)
-        );
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) =>
+        Promise.all(registrations.map((registration) => registration.unregister()))
+      )
+      .catch((err) => console.error('Service worker cleanup failed:', err));
+
+    if ('caches' in window) {
+      caches
+        .keys()
+        .then((cacheNames) =>
+          Promise.all(
+            cacheNames
+              .filter((name) => name.startsWith('house-of-neuro-cache-'))
+              .map((name) => caches.delete(name))
+          )
+        )
+        .catch((err) => console.error('App cache cleanup failed:', err));
     }
   });
 }
